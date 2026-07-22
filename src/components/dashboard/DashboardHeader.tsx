@@ -48,7 +48,7 @@ export function DashboardHeader({ viewport }: DashboardHeaderProps) {
         </div>
         <div className="dashboard-runtime__badge">
           <Gauge size={16} />
-          <span>视觉系统</span>
+          <span>指标卡</span>
         </div>
         <div className="dashboard-runtime__fullscreen" aria-label="全屏模式视觉占位">
           <Maximize2 size={16} />

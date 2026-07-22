@@ -1,12 +1,55 @@
 import { BadgePercent, CircleDollarSign, ReceiptText, TrendingUp } from 'lucide-react'
 import { ModulePlaceholder } from './ModulePlaceholder'
 import { PanelHeader } from './PanelHeader'
+import {
+  SummaryMetricCard,
+  type SummaryMetricCardProps,
+} from './metrics/SummaryMetricCard'
 
-const kpis = [
-  { label: '销售额（元）', icon: CircleDollarSign, accent: '#239dff' },
-  { label: '订单量（笔）', icon: ReceiptText, accent: '#8d68ff' },
-  { label: '客单价（元）', icon: BadgePercent, accent: '#24c98a' },
-  { label: '转化率', icon: TrendingUp, accent: '#f4a928' },
+type SummaryMetric = SummaryMetricCardProps & { id: string }
+
+const summaryMetrics: SummaryMetric[] = [
+  {
+    id: 'sales-amount',
+    label: '销售额（元）',
+    value: 8756.32,
+    fractionDigits: 2,
+    unit: '万',
+    change: '+8.6%',
+    tone: 'positive',
+    icon: CircleDollarSign,
+    accent: '#239dff',
+  },
+  {
+    id: 'order-count',
+    label: '订单量（笔）',
+    value: 23856,
+    change: '+6.3%',
+    tone: 'positive',
+    icon: ReceiptText,
+    accent: '#8d68ff',
+  },
+  {
+    id: 'average-order-value',
+    label: '客单价（元）',
+    value: 98.12,
+    fractionDigits: 2,
+    change: '+6.6%',
+    tone: 'positive',
+    icon: BadgePercent,
+    accent: '#24c98a',
+  },
+  {
+    id: 'conversion-rate',
+    label: '转化率',
+    value: 3.62,
+    fractionDigits: 2,
+    unit: '%',
+    change: '+0.42pt',
+    tone: 'positive',
+    icon: TrendingUp,
+    accent: '#f4a928',
+  },
 ]
 
 export function SalesOverview() {
@@ -16,18 +59,12 @@ export function SalesOverview() {
         id="sales-overview-title"
         index="01"
         title="销售总览"
-        meta="第 4—5 篇逐块实现"
+        meta="核心指标已完成 · 图表第 5 篇"
       />
 
       <div className="kpi-grid">
-        {kpis.map(({ label, icon: Icon, accent }) => (
-          <article className="kpi-card" key={label} style={{ '--accent': accent } as React.CSSProperties}>
-            <span className="kpi-card__icon"><Icon size={24} strokeWidth={1.8} /></span>
-            <div>
-              <div className="kpi-card__label">{label}</div>
-              <div className="kpi-card__line" aria-hidden="true" />
-            </div>
-          </article>
+        {summaryMetrics.map(({ id, ...metric }) => (
+          <SummaryMetricCard key={id} {...metric} />
         ))}
       </div>
 

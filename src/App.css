@@ -286,51 +286,124 @@
   padding: 12px 16px 10px;
 }
 
-.kpi-card,
-.metric-card {
+.summary-metric-card,
+.compact-metric-card {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px dashed var(--border-placeholder);
-  background: var(--color-surface-soft);
-}
-
-.kpi-card {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  align-items: center;
-  gap: 11px;
-  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
   border-radius: var(--radius-card);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 52%),
+    linear-gradient(145deg, rgba(8, 33, 58, 0.82), rgba(4, 20, 38, 0.9));
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--accent) 5%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
-.kpi-card__icon,
-.metric-card__icon {
+.summary-metric-card::after,
+.compact-metric-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  width: 38%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0.7;
+}
+
+.summary-metric-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  padding: 13px 15px;
+}
+
+.summary-metric-card__icon,
+.compact-metric-card__icon {
   display: grid;
   place-items: center;
   border-radius: 50%;
   color: var(--accent, #37aaff);
-  background: color-mix(in srgb, var(--accent, #37aaff) 16%, transparent);
-  box-shadow: inset 0 0 12px color-mix(in srgb, var(--accent, #37aaff) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #37aaff) 46%, transparent);
+  background: color-mix(in srgb, var(--accent, #37aaff) 17%, transparent);
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--accent, #37aaff) 18%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--accent, #37aaff) 15%, transparent);
 }
 
-.kpi-card__icon {
-  width: 46px;
-  height: 46px;
+.summary-metric-card__icon {
+  width: 52px;
+  height: 52px;
 }
 
-.kpi-card__label,
-.metric-card__label {
+.summary-metric-card__content {
+  min-width: 0;
+}
+
+.summary-metric-card__label,
+.compact-metric-card__label {
   color: var(--text-tertiary);
   font-size: 13px;
 }
 
-.kpi-card__line {
-  width: 78%;
-  height: 11px;
-  margin-top: 11px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, rgba(96, 140, 182, 0.38), rgba(96, 140, 182, 0.08));
+.summary-metric-card__number,
+.compact-metric-card__number {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.summary-metric-card__number {
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.summary-metric-card__number strong {
+  overflow: hidden;
+  font-size: 27px;
+  font-weight: 680;
+  letter-spacing: 0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-metric-card__number span,
+.compact-metric-card__number span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.metric-change {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.metric-change__value {
+  font-size: inherit;
+  font-weight: 650;
+}
+
+.metric-change__value--positive {
+  color: var(--color-success);
+}
+
+.metric-change__value--negative {
+  color: var(--color-danger);
+}
+
+.metric-change__value--neutral {
+  color: var(--text-tertiary);
 }
 
 .overview-charts {
@@ -483,46 +556,68 @@
   padding: 0 16px 16px;
 }
 
-.metric-card {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  grid-template-rows: auto 1fr;
-  column-gap: 10px;
-  padding: 14px;
-  border-radius: var(--radius-card);
+.compact-metric-card {
+  padding: 13px 14px;
 }
 
-.metric-card__icon {
-  width: 30px;
-  height: 30px;
-  grid-row: 1 / 3;
-}
-
-.metric-card__body {
+.compact-metric-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
-.metric-card__value {
-  width: 58%;
-  height: 14px;
-  margin-top: 13px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 48%, transparent), transparent);
+.compact-metric-card__icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
 }
 
-.metric-card__sparkline {
+.compact-metric-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-metric-card__number {
+  gap: 3px;
+  margin-top: 11px;
+}
+
+.compact-metric-card__number strong {
+  font-size: 24px;
+  font-weight: 670;
+  letter-spacing: 0.01em;
+}
+
+.compact-metric-card__chart {
   position: absolute;
-  right: 12px;
-  bottom: 14px;
-  width: 72px;
-  height: 28px;
-  opacity: 0.55;
+  right: 10px;
+  bottom: 12px;
+  width: 92px;
+  height: 34px;
+  color: var(--accent);
 }
 
-.metric-card__sparkline svg {
+.sparkline {
   width: 100%;
   height: 100%;
-  color: var(--accent);
+  overflow: visible;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.sparkline polygon {
+  fill: currentColor;
+  opacity: 0.08;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
 }
 
 .carousel-controls {

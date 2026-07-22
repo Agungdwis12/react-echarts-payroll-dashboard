@@ -23,8 +23,8 @@ export function CarouselControls() {
 
       <div className="carousel-next">
         <div>
-          <strong>下一阶段：指标卡组件</strong>
-          <span>第 4 篇 · 从占位框到真实数据卡</span>
+          <strong>下一阶段：图表组件</strong>
+          <span>第 5 篇 · 折线图、环形图与自适应</span>
         </div>
         <span className="carousel-next__marker" />
       </div>

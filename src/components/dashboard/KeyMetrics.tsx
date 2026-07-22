@@ -1,13 +1,79 @@
 import { BadgePercent, CircleDollarSign, Clock3, PackageCheck, RotateCcw, UserPlus } from 'lucide-react'
 import { PanelHeader } from './PanelHeader'
+import {
+  CompactMetricCard,
+  type CompactMetricCardProps,
+} from './metrics/CompactMetricCard'
 
-const metrics = [
-  { label: '新客数（人）', icon: UserPlus, accent: '#269dff' },
-  { label: '复购率', icon: RotateCcw, accent: '#1bc5bd' },
-  { label: '退款金额（元）', icon: CircleDollarSign, accent: '#ff5664' },
-  { label: '毛利率', icon: BadgePercent, accent: '#35c968' },
-  { label: '库存周转率', icon: PackageCheck, accent: '#f0a928' },
-  { label: '平均发货时效（天）', icon: Clock3, accent: '#9c67f5' },
+type CompactMetric = CompactMetricCardProps & { id: string }
+
+const metrics: CompactMetric[] = [
+  {
+    id: 'new-customers',
+    label: '新客数（人）',
+    value: 5678,
+    change: '+9.2%',
+    tone: 'positive',
+    icon: UserPlus,
+    accent: '#269dff',
+    sparkline: [12, 18, 15, 24, 20, 29, 25, 32, 27, 35, 31, 38],
+  },
+  {
+    id: 'repeat-purchase-rate',
+    label: '复购率',
+    value: 27.3,
+    fractionDigits: 1,
+    unit: '%',
+    change: '+1.8pt',
+    tone: 'positive',
+    icon: RotateCcw,
+    accent: '#1bc5bd',
+    sparkline: [22, 25, 21, 29, 26, 31, 27, 34, 30, 36, 33, 40],
+  },
+  {
+    id: 'refund-amount',
+    label: '退款金额（元）',
+    value: 186542,
+    change: '-5.6%',
+    tone: 'negative',
+    icon: CircleDollarSign,
+    accent: '#ff5664',
+    sparkline: [31, 28, 35, 30, 41, 33, 29, 36, 32, 38, 30, 34],
+  },
+  {
+    id: 'gross-margin',
+    label: '毛利率',
+    value: 45.7,
+    fractionDigits: 1,
+    unit: '%',
+    change: '+0.9pt',
+    tone: 'positive',
+    icon: BadgePercent,
+    accent: '#35c968',
+    sparkline: [18, 21, 20, 26, 24, 31, 29, 34, 32, 37, 35, 39],
+  },
+  {
+    id: 'inventory-turnover',
+    label: '库存周转率',
+    value: 8.2,
+    fractionDigits: 1,
+    change: '+0.3',
+    tone: 'positive',
+    icon: PackageCheck,
+    accent: '#f0a928',
+    sparkline: [16, 23, 19, 27, 22, 31, 26, 35, 29, 37, 32, 40],
+  },
+  {
+    id: 'average-shipping-time',
+    label: '平均发货时效（天）',
+    value: 1.3,
+    fractionDigits: 1,
+    change: '-0.1',
+    tone: 'negative',
+    icon: Clock3,
+    accent: '#9c67f5',
+    sparkline: [28, 24, 30, 26, 33, 27, 35, 31, 36, 29, 32, 27],
+  },
 ]
 
 export function KeyMetrics() {
@@ -17,23 +83,12 @@ export function KeyMetrics() {
         id="key-metrics-title"
         index="03"
         title="关键数据"
-        meta="指标卡组件 · 第 4 篇"
+        meta="6 项运营指标已完成"
       />
 
       <div className="metrics-grid">
-        {metrics.map(({ label, icon: Icon, accent }) => (
-          <article className="metric-card" key={label} style={{ '--accent': accent } as React.CSSProperties}>
-            <span className="metric-card__icon"><Icon size={16} strokeWidth={1.8} /></span>
-            <div className="metric-card__body">
-              <div className="metric-card__label">{label}</div>
-              <div className="metric-card__value" aria-hidden="true" />
-            </div>
-            <div className="metric-card__sparkline" aria-hidden="true">
-              <svg viewBox="0 0 72 28" fill="none">
-                <path d="M1 23L10 17L18 20L27 10L36 15L45 6L54 13L63 8L71 11" stroke="currentColor" strokeWidth="2" />
-              </svg>
-            </div>
-          </article>
+        {metrics.map(({ id, ...metric }) => (
+          <CompactMetricCard key={id} {...metric} />
         ))}
       </div>
     </section>
