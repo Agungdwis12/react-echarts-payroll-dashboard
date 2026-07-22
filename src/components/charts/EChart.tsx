@@ -33,7 +33,7 @@ export function EChart({ option, className, ariaLabel }: EChartProps) {
   }, [])
 
   useEffect(() => {
-    chartRef.current?.setOption(option, { notMerge: true })
+    chartRef.current?.setOption(option)
   }, [option])
 
   return (

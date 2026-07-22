@@ -1,4 +1,6 @@
-export type MetricTone = 'positive' | 'negative' | 'neutral'
+import type { MetricTone } from '../../../types/dashboard'
+
+export type { MetricTone } from '../../../types/dashboard'
 
 type MetricChangeProps = {
   value: string

@@ -1,6 +1,7 @@
 import { CalendarDays } from 'lucide-react'
+import type { DateRange } from '../../types/dashboard'
 
-export type DateRange = 'today' | '7-days' | '30-days' | 'custom'
+export type { DateRange } from '../../types/dashboard'
 
 type DateRangeFilterProps = {
   value: DateRange

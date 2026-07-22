@@ -8,6 +8,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { ViewportState } from '../../constants/dashboard'
+import type { DashboardDataStatus } from '../../types/dashboard'
 
 const navigation = [
   { label: '销售', icon: BarChart3, active: true },
@@ -19,9 +20,17 @@ const navigation = [
 
 type DashboardHeaderProps = {
   viewport: ViewportState
+  dataStatus: DashboardDataStatus
 }
 
-export function DashboardHeader({ viewport }: DashboardHeaderProps) {
+const statusLabels: Record<DashboardDataStatus, string> = {
+  loading: '正在加载数据',
+  success: 'Mock 数据已接入',
+  empty: '当前数据为空',
+  error: '数据请求失败',
+}
+
+export function DashboardHeader({ viewport, dataStatus }: DashboardHeaderProps) {
   return (
     <header className="dashboard-header">
       <div className="dashboard-brand">
@@ -46,9 +55,9 @@ export function DashboardHeader({ viewport }: DashboardHeaderProps) {
           <div>{viewport.width} × {viewport.height}</div>
           <div>画布缩放 {Math.round(viewport.scale * 100)}%</div>
         </div>
-        <div className="dashboard-runtime__badge">
+        <div className={`dashboard-runtime__badge dashboard-runtime__badge--${dataStatus}`}>
           <Gauge size={16} />
-          <span>交互完成</span>
+          <span>{statusLabels[dataStatus]}</span>
         </div>
         <div className="dashboard-runtime__fullscreen" aria-label="全屏模式视觉占位">
           <Maximize2 size={16} />
