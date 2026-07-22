@@ -35,6 +35,8 @@ const statusLabels: Record<DashboardDataStatus, string> = {
   error: '数据请求失败',
 }
 
+const showDevelopmentInfo = import.meta.env.DEV
+
 export function DashboardHeader({
   viewport,
   dataStatus,
@@ -64,14 +66,18 @@ export function DashboardHeader({
       </nav>
 
       <div className="dashboard-runtime">
-        <div className="dashboard-runtime__viewport">
-          <div>{viewport.width} × {viewport.height}</div>
-          <div>画布缩放 {Math.round(viewport.scale * 100)}%</div>
-        </div>
-        <div className={`dashboard-runtime__badge dashboard-runtime__badge--${dataStatus}`}>
-          <Gauge size={16} />
-          <span>{statusLabels[dataStatus]}</span>
-        </div>
+        {showDevelopmentInfo && (
+          <>
+            <div className="dashboard-runtime__viewport">
+              <div>{viewport.width} × {viewport.height}</div>
+              <div>画布缩放 {Math.round(viewport.scale * 100)}%</div>
+            </div>
+            <div className={`dashboard-runtime__badge dashboard-runtime__badge--${dataStatus}`}>
+              <Gauge size={16} />
+              <span>{statusLabels[dataStatus]}</span>
+            </div>
+          </>
+        )}
         <button
           className="dashboard-runtime__fullscreen"
           type="button"
