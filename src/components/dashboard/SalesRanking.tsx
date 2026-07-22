@@ -1,15 +1,16 @@
+import { PanelHeader } from './PanelHeader'
+
 const ranks = [82, 68, 57, 48, 39]
 
 export function SalesRanking() {
   return (
     <aside className="panel" aria-labelledby="sales-ranking-title">
-      <div className="panel-heading">
-        <div className="panel-heading__title">
-          <span className="panel-heading__index">02</span>
-          <h2 id="sales-ranking-title">销售额 TOP5 展会</h2>
-        </div>
-        <span className="panel-heading__meta">第 6 篇</span>
-      </div>
+      <PanelHeader
+        id="sales-ranking-title"
+        index="02"
+        title="销售额 TOP5 展会"
+        meta="第 6 篇实现"
+      />
 
       <div className="ranking-list">
         {ranks.map((progress, index) => (

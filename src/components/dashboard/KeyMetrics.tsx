@@ -1,4 +1,5 @@
 import { BadgePercent, CircleDollarSign, Clock3, PackageCheck, RotateCcw, UserPlus } from 'lucide-react'
+import { PanelHeader } from './PanelHeader'
 
 const metrics = [
   { label: '新客数（人）', icon: UserPlus, accent: '#269dff' },
@@ -12,13 +13,12 @@ const metrics = [
 export function KeyMetrics() {
   return (
     <section className="panel key-metrics" aria-labelledby="key-metrics-title">
-      <div className="panel-heading">
-        <div className="panel-heading__title">
-          <span className="panel-heading__index">03</span>
-          <h2 id="key-metrics-title">关键数据</h2>
-        </div>
-        <span className="panel-heading__meta">指标卡组件 · 第 4 篇</span>
-      </div>
+      <PanelHeader
+        id="key-metrics-title"
+        index="03"
+        title="关键数据"
+        meta="指标卡组件 · 第 4 篇"
+      />
 
       <div className="metrics-grid">
         {metrics.map(({ label, icon: Icon, accent }) => (

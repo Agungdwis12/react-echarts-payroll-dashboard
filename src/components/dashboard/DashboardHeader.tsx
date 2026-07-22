@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   FileText,
   Gauge,
+  Maximize2,
   Users,
 } from 'lucide-react'
 import type { ViewportState } from '../../constants/dashboard'
@@ -47,7 +48,10 @@ export function DashboardHeader({ viewport }: DashboardHeaderProps) {
         </div>
         <div className="dashboard-runtime__badge">
           <Gauge size={16} />
-          <span>骨架模式</span>
+          <span>视觉系统</span>
+        </div>
+        <div className="dashboard-runtime__fullscreen" aria-label="全屏模式视觉占位">
+          <Maximize2 size={16} />
         </div>
       </div>
     </header>
