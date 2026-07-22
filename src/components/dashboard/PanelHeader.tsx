@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
+
 type PanelHeaderProps = {
   id: string
   index: string
   title: string
-  meta: string
+  meta: ReactNode
 }
 
 export function PanelHeader({ id, index, title, meta }: PanelHeaderProps) {
@@ -12,7 +14,7 @@ export function PanelHeader({ id, index, title, meta }: PanelHeaderProps) {
         <span className="panel-heading__index" aria-hidden="true">{index}</span>
         <h2 id={id}>{title}</h2>
       </div>
-      <span className="panel-heading__meta">{meta}</span>
+      <div className="panel-heading__meta">{meta}</div>
     </header>
   )
 }

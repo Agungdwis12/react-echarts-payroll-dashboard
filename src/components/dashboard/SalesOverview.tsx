@@ -1,4 +1,6 @@
 import { BadgePercent, CircleDollarSign, ReceiptText, TrendingUp } from 'lucide-react'
+import { useState } from 'react'
+import { DateRangeFilter, type DateRange } from './DateRangeFilter'
 import { PanelHeader } from './PanelHeader'
 import { ChannelDonutChart } from './charts/ChannelDonutChart'
 import { SalesTrendChart } from './charts/SalesTrendChart'
@@ -54,13 +56,19 @@ const summaryMetrics: SummaryMetric[] = [
 ]
 
 export function SalesOverview() {
+  const [dateRange, setDateRange] = useState<DateRange>('today')
+
   return (
-    <section className="panel sales-overview" aria-labelledby="sales-overview-title">
+    <section
+      className="panel sales-overview"
+      aria-labelledby="sales-overview-title"
+      data-date-range={dateRange}
+    >
       <PanelHeader
         id="sales-overview-title"
         index="01"
         title="销售总览"
-        meta="核心指标与图表已完成"
+        meta={<DateRangeFilter value={dateRange} onChange={setDateRange} />}
       />
 
       <div className="kpi-grid">
