@@ -8,6 +8,8 @@ function wait(milliseconds: number) {
 }
 
 export function getMockScenario(): MockScenario {
+  if (!import.meta.env.DEV) return 'success'
+
   const scenario = new URLSearchParams(window.location.search).get('mock')
   return scenario === 'loading' || scenario === 'empty' || scenario === 'error'
     ? scenario

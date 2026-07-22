@@ -218,7 +218,25 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   color: var(--text-secondary);
+  cursor: pointer;
   background: rgba(4, 20, 37, 0.7);
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.dashboard-runtime__fullscreen:hover:not(:disabled) {
+  border-color: var(--border-emphasis);
+  color: var(--color-primary-bright);
+  background: var(--color-primary-soft);
+}
+
+.dashboard-runtime__fullscreen:focus-visible {
+  outline: 2px solid rgba(70, 183, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.dashboard-runtime__fullscreen:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .dashboard-runtime__viewport {

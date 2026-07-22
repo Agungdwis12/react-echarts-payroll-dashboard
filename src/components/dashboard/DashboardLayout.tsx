@@ -11,15 +11,24 @@ import { SalesRanking } from './SalesRanking'
 
 type DashboardLayoutProps = {
   viewport: ViewportState
+  fullscreen: {
+    isFullscreen: boolean
+    isFullscreenSupported: boolean
+    toggleFullscreen: () => Promise<void>
+  }
 }
 
-export function DashboardLayout({ viewport }: DashboardLayoutProps) {
+export function DashboardLayout({ viewport, fullscreen }: DashboardLayoutProps) {
   const [dateRange, setDateRange] = useState<DateRange>('today')
   const { data, status, error, retry } = useDashboardData(dateRange)
 
   return (
     <div className="dashboard-layout">
-      <DashboardHeader viewport={viewport} dataStatus={status} />
+      <DashboardHeader
+        viewport={viewport}
+        dataStatus={status}
+        {...fullscreen}
+      />
 
       <div className={`dashboard-content dashboard-content--${status}`} aria-busy={status === 'loading'}>
         <div className="dashboard-main">

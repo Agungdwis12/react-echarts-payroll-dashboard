@@ -5,8 +5,10 @@ import {
   FileText,
   Gauge,
   Maximize2,
+  Minimize2,
   Users,
 } from 'lucide-react'
+import { dashboardConfig } from '../../config/dashboard'
 import type { ViewportState } from '../../constants/dashboard'
 import type { DashboardDataStatus } from '../../types/dashboard'
 
@@ -21,6 +23,9 @@ const navigation = [
 type DashboardHeaderProps = {
   viewport: ViewportState
   dataStatus: DashboardDataStatus
+  isFullscreen: boolean
+  isFullscreenSupported: boolean
+  toggleFullscreen: () => Promise<void>
 }
 
 const statusLabels: Record<DashboardDataStatus, string> = {
@@ -30,12 +35,20 @@ const statusLabels: Record<DashboardDataStatus, string> = {
   error: '数据请求失败',
 }
 
-export function DashboardHeader({ viewport, dataStatus }: DashboardHeaderProps) {
+export function DashboardHeader({
+  viewport,
+  dataStatus,
+  isFullscreen,
+  isFullscreenSupported,
+  toggleFullscreen,
+}: DashboardHeaderProps) {
+  const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2
+
   return (
     <header className="dashboard-header">
       <div className="dashboard-brand">
-        <strong className="dashboard-brand__title">数据可视化轮播大屏</strong>
-        <span className="dashboard-brand__subtitle">REACT DASHBOARD TEMPLATE</span>
+        <strong className="dashboard-brand__title">{dashboardConfig.title}</strong>
+        <span className="dashboard-brand__subtitle">{dashboardConfig.subtitle}</span>
       </div>
 
       <nav className="dashboard-nav" aria-label="大屏页面导航">
@@ -59,9 +72,16 @@ export function DashboardHeader({ viewport, dataStatus }: DashboardHeaderProps) 
           <Gauge size={16} />
           <span>{statusLabels[dataStatus]}</span>
         </div>
-        <div className="dashboard-runtime__fullscreen" aria-label="全屏模式视觉占位">
-          <Maximize2 size={16} />
-        </div>
+        <button
+          className="dashboard-runtime__fullscreen"
+          type="button"
+          aria-label={isFullscreen ? '退出全屏' : '进入全屏'}
+          title={isFullscreenSupported ? (isFullscreen ? '退出全屏' : '进入全屏') : '当前浏览器不支持全屏'}
+          disabled={!isFullscreenSupported}
+          onClick={() => void toggleFullscreen()}
+        >
+          <FullscreenIcon size={16} />
+        </button>
       </div>
     </header>
   )
