@@ -1,6 +1,7 @@
 import { BadgePercent, CircleDollarSign, ReceiptText, TrendingUp } from 'lucide-react'
-import { ModulePlaceholder } from './ModulePlaceholder'
 import { PanelHeader } from './PanelHeader'
+import { ChannelDonutChart } from './charts/ChannelDonutChart'
+import { SalesTrendChart } from './charts/SalesTrendChart'
 import {
   SummaryMetricCard,
   type SummaryMetricCardProps,
@@ -59,7 +60,7 @@ export function SalesOverview() {
         id="sales-overview-title"
         index="01"
         title="销售总览"
-        meta="核心指标已完成 · 图表第 5 篇"
+        meta="核心指标与图表已完成"
       />
 
       <div className="kpi-grid">
@@ -69,8 +70,8 @@ export function SalesOverview() {
       </div>
 
       <div className="overview-charts">
-        <ModulePlaceholder title="销售额趋势" chapter="折线图将在第 5 篇接入 ECharts" />
-        <ModulePlaceholder title="销售额渠道占比" chapter="环形图将在第 5 篇接入 ECharts" />
+        <SalesTrendChart />
+        <ChannelDonutChart />
       </div>
     </section>
   )
