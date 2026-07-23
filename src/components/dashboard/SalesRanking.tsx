@@ -13,9 +13,8 @@ export function SalesRanking({ ranking }: SalesRankingProps) {
     <aside className="panel sales-ranking" aria-labelledby="sales-ranking-title">
       <PanelHeader
         id="sales-ranking-title"
-        index="02"
         title="销售额 TOP5 展会"
-        meta={ranking ? '随日期范围同步更新' : '正在等待数据'}
+        meta={ranking ? <span className="ranking-more">更多 ›</span> : '正在等待数据'}
       />
 
       <div className="ranking-table">

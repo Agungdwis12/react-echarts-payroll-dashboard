@@ -4,7 +4,7 @@
 
 一套面向 UI 设计师的 React 数据大屏通用模板，也是《UI 设计师的第一套 AI 实现 React 数据大屏》系列教程的配套项目。它是一张可以直接运行、构建和部署的**单页前端模板**，你可以继续让 AI 替换品牌、数据和视觉样式。
 
-![React ECharts 数据大屏最终效果](https://typora-macos.oss-cn-qingdao.aliyuncs.com/28-Chrome%E7%AC%AC%E5%85%AB%E7%AF%87%E6%9C%80%E7%BB%88%E6%A8%A1%E6%9D%BF-1440%E5%AE%BD.jpg)
+![React ECharts 数据大屏最终效果](https://typora-macos.oss-cn-qingdao.aliyuncs.com/05-%E7%AC%AC%E4%B9%9D%E7%AF%87%E6%9C%80%E7%BB%88%E6%95%88%E6%9E%9C-1440x900.png)
 
 ## 模板包含什么
 
@@ -49,13 +49,14 @@ VITE_DASHBOARD_PAGE_TITLE=品牌运营数据大屏
 
 ## 调试数据状态
 
-以下地址只在 `npm run dev` 的开发环境生效，用来检查不同状态下的 UI 是否完整。页头中的视口尺寸、缩放比例和 Mock 状态同样只在开发环境显示，生产页面仅保留全屏按钮：
+以下地址只在 `npm run dev` 的开发环境生效，用来检查不同状态下的 UI 是否完整。为了不干扰像素级视觉验收，视口尺寸、缩放比例和 Mock 状态只有在地址中增加 `debug` 参数时才显示；生产页面不会渲染这些信息：
 
 ```text
 正常数据：http://localhost:5173/
 持续加载：http://localhost:5173/?mock=loading
 空数据：http://localhost:5173/?mock=empty
 请求失败：http://localhost:5173/?mock=error
+显示调试信息：http://localhost:5173/?debug=1
 ```
 
 生产构建会固定使用正常数据，访问线上地址时不能通过查询参数强制显示错误页。
@@ -122,6 +123,7 @@ npm run preview
 | `chapter-06` | 日期筛选、轮播控制和交互细节 |
 | `chapter-07` | 统一 Mock 数据层和四类数据状态 |
 | `chapter-08` | 品牌配置、全屏、生产边界、构建优化和 CI |
+| `chapter-09` | 对照设计稿完成几何、页头、组件、图表和多视口视觉校准 |
 
 例如，下面的命令会临时查看第 4 篇完成时的项目：
 

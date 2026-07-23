@@ -11,12 +11,11 @@ type DateRangeFilterProps = {
 const dateRanges: Array<{
   value: DateRange
   label: string
-  icon?: typeof CalendarDays
 }> = [
   { value: 'today', label: '今日' },
   { value: '7-days', label: '近 7 天' },
   { value: '30-days', label: '近 30 天' },
-  { value: 'custom', label: '自定义', icon: CalendarDays },
+  { value: 'custom', label: '自定义' },
 ]
 
 export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
@@ -25,7 +24,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
   return (
     <fieldset className="date-range-filter">
       <legend className="visually-hidden">选择销售数据日期范围</legend>
-      {dateRanges.map(({ value: rangeValue, label, icon: Icon }) => (
+      {dateRanges.map(({ value: rangeValue, label }) => (
         <label
           className={`date-range-filter__option${value === rangeValue ? ' date-range-filter__option--active' : ''}`}
           key={rangeValue}
@@ -38,10 +37,17 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
             checked={value === rangeValue}
             onChange={() => onChange(rangeValue)}
           />
-          {Icon && <Icon size={14} aria-hidden="true" />}
           <span>{label}</span>
         </label>
       ))}
+      <button
+        className="date-range-filter__calendar"
+        type="button"
+        aria-label="打开自定义日期选择"
+        onClick={() => onChange('custom')}
+      >
+        <CalendarDays size={18} strokeWidth={1.7} aria-hidden="true" />
+      </button>
       <span className="visually-hidden" aria-live="polite">
         当前日期范围：{activeLabel}
       </span>

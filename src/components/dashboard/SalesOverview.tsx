@@ -26,8 +26,8 @@ export function SalesOverview({
     >
       <PanelHeader
         id="sales-overview-title"
-        index="01"
         title="销售总览"
+        showInfo
         meta={<DateRangeFilter value={dateRange} onChange={onDateRangeChange} />}
       />
 

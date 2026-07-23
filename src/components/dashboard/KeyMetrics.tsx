@@ -12,9 +12,8 @@ export function KeyMetrics({ metrics }: KeyMetricsProps) {
     <section className="panel key-metrics" aria-labelledby="key-metrics-title">
       <PanelHeader
         id="key-metrics-title"
-        index="03"
         title="关键数据"
-        meta={metrics ? `${metrics.length} 项指标来自 Mock 数据` : '正在等待数据'}
+        meta={metrics ? undefined : '正在等待数据'}
       />
 
       <div className="metrics-grid">

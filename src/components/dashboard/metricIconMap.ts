@@ -1,21 +1,23 @@
 import {
   BadgePercent,
   CircleDollarSign,
+  ChartNoAxesCombined,
   Clock3,
+  JapaneseYen,
   PackageCheck,
-  ReceiptText,
   RotateCcw,
-  TrendingUp,
+  UserRound,
   UserPlus,
+  WalletCards,
   type LucideIcon,
 } from 'lucide-react'
 import type { MetricIconKey } from '../../types/dashboard'
 
 export const metricIconMap: Record<MetricIconKey, LucideIcon> = {
-  sales: CircleDollarSign,
-  orders: ReceiptText,
-  'average-order': BadgePercent,
-  conversion: TrendingUp,
+  sales: JapaneseYen,
+  orders: WalletCards,
+  'average-order': UserRound,
+  conversion: ChartNoAxesCombined,
   customers: UserPlus,
   'repeat-purchase': RotateCcw,
   refund: CircleDollarSign,

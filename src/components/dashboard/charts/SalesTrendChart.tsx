@@ -23,7 +23,7 @@ function createSalesTrendOption(data: SalesTrendData): EChartsOption {
       itemGap: 20,
       textStyle: {
         color: '#9fb6cf',
-        fontSize: 11,
+        fontSize: 12,
       },
     },
     tooltip: {
@@ -64,7 +64,7 @@ function createSalesTrendOption(data: SalesTrendData): EChartsOption {
       axisTick: { show: false },
       axisLabel: {
         color: '#7890a9',
-        fontSize: 11,
+        fontSize: 12,
         margin: 10,
       },
     },
@@ -77,7 +77,7 @@ function createSalesTrendOption(data: SalesTrendData): EChartsOption {
       axisTick: { show: false },
       axisLabel: {
         color: '#7890a9',
-        fontSize: 11,
+        fontSize: 12,
         formatter: (value: number) => value === 0 ? '0' : `${value.toLocaleString('zh-CN')}万`,
       },
       splitLine: {

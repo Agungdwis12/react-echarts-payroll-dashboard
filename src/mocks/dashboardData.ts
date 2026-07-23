@@ -10,11 +10,11 @@ const todayData: DashboardData = {
     { id: 'conversion-rate', label: '转化率', value: 3.62, fractionDigits: 2, unit: '%', change: '+0.42pt', tone: 'positive', accent: '#f4a928', icon: 'conversion' },
   ],
   salesTrend: {
-    categories: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+    categories: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '24:00'],
     currentLabel: '今日销售额',
     previousLabel: '昨日销售额',
-    current: [120, 250, 470, 680, 820, 910, 1000],
-    previous: [90, 180, 300, 450, 560, 730, 800],
+    current: [132, 238, 405, 548, 686, 772, 823, 921, 908, 946, 982, 944, 1008],
+    previous: [86, 152, 246, 354, 372, 488, 556, 548, 724, 761, 774, 758, 812],
   },
   channels: [
     { name: '展会现场', value: 3248.99, color: '#168dff' },

@@ -24,7 +24,7 @@ function createChannelDonutOption(channels: ChannelData[]): EChartsOption {
       {
         name: '销售额渠道占比',
         type: 'pie',
-        radius: ['61%', '79%'],
+        radius: ['62%', '86%'],
         center: ['50%', '50%'],
         minAngle: 4,
         avoidLabelOverlap: true,

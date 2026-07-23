@@ -1,20 +1,26 @@
+import { Info } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 type PanelHeaderProps = {
   id: string
-  index: string
   title: string
-  meta: ReactNode
+  meta?: ReactNode
+  showInfo?: boolean
 }
 
-export function PanelHeader({ id, index, title, meta }: PanelHeaderProps) {
+export function PanelHeader({
+  id,
+  title,
+  meta,
+  showInfo = false,
+}: PanelHeaderProps) {
   return (
     <header className="panel-heading">
       <div className="panel-heading__title">
-        <span className="panel-heading__index" aria-hidden="true">{index}</span>
         <h2 id={id}>{title}</h2>
+        {showInfo && <Info size={17} strokeWidth={1.8} aria-hidden="true" />}
       </div>
-      <div className="panel-heading__meta">{meta}</div>
+      {meta && <div className="panel-heading__meta">{meta}</div>}
     </header>
   )
 }

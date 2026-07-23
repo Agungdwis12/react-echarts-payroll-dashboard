@@ -2,10 +2,10 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CirclePlay,
   CircleStop,
   Pause,
   Play,
-  RotateCcw,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -69,12 +69,9 @@ export function CarouselControls() {
       }}
     >
       <div className="carousel-state">
-        <div>
-          <strong>轮播控制</strong>
-          <span>第 {currentPage} 页 · {intervalSeconds} 秒切换</span>
-        </div>
+        <strong>轮播控制</strong>
         <div className={`carousel-state__status${isRotating ? ' carousel-state__status--playing' : ''}`}>
-          {isRotating ? <RotateCcw size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}
+          {isRotating ? <CirclePlay size={18} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}
           <span>{statusLabel}</span>
         </div>
       </div>
