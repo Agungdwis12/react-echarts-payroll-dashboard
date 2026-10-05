@@ -9,6 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ======================================================
+// DATABASE CONNECTION
+// ======================================================
+
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
@@ -21,15 +25,26 @@ const pool = new Pool({
   },
 });
 
-// =========================
-// TEST DATABASE
-// =========================
+// ======================================================
+// TEST API
+// ======================================================
 
-app.get("/api/test-db", async (req, res) => {
+app.get("/test", async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "Vercel API is working",
+  });
+});
+
+// ======================================================
+// TEST DATABASE
+// ======================================================
+
+app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
 
-    res.json({
+    return res.status(200).json({
       success: true,
       message: "Connected to Aiven PostgreSQL",
       time: result.rows[0].now,
@@ -37,7 +52,7 @@ app.get("/api/test-db", async (req, res) => {
   } catch (error) {
     console.error("Database connection error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to connect to database",
       error: error.message,
@@ -46,11 +61,11 @@ app.get("/api/test-db", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // MASTER DETAIL DIVISI
-// =========================
+// ======================================================
 
-app.get("/api/master-detail-divisi", async (req, res) => {
+app.get("/master-detail-divisi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -69,14 +84,14 @@ app.get("/api/master-detail-divisi", async (req, res) => {
       ORDER BY periode_bulan DESC, id DESC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("Payroll API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch payroll data",
       error: error.message,
@@ -85,11 +100,11 @@ app.get("/api/master-detail-divisi", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // MASTER BAPP BULANAN
-// =========================
+// ======================================================
 
-app.get("/api/master-bapp-bulanan", async (req, res) => {
+app.get("/master-bapp-bulanan", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -104,14 +119,14 @@ app.get("/api/master-bapp-bulanan", async (req, res) => {
       ORDER BY periode_bulan DESC, id DESC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("Master BAPP Bulanan API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch master BAPP bulanan data",
       error: error.message,
@@ -120,11 +135,11 @@ app.get("/api/master-bapp-bulanan", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // MASTER DETAIL BAPP
-// =========================
+// ======================================================
 
-app.get("/api/master-detail-bapp", async (req, res) => {
+app.get("/master-detail-bapp", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -143,14 +158,14 @@ app.get("/api/master-detail-bapp", async (req, res) => {
       ORDER BY periode_bulan DESC, id DESC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("Master Detail BAPP API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch master detail BAPP data",
       error: error.message,
@@ -159,11 +174,11 @@ app.get("/api/master-detail-bapp", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // GPM
-// =========================
+// ======================================================
 
-app.get("/api/gpm", async (req, res) => {
+app.get("/gpm", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -175,14 +190,14 @@ app.get("/api/gpm", async (req, res) => {
       ORDER BY periode_bulan ASC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("GPM API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch GPM data",
       error: error.message,
@@ -191,11 +206,11 @@ app.get("/api/gpm", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // TARGET
-// =========================
+// ======================================================
 
-app.get("/api/target", async (req, res) => {
+app.get("/target", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -209,14 +224,14 @@ app.get("/api/target", async (req, res) => {
       ORDER BY periode_bulan ASC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("Target API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch target data",
       error: error.message,
@@ -225,11 +240,11 @@ app.get("/api/target", async (req, res) => {
   }
 });
 
-// =========================
+// ======================================================
 // DETAIL COST
-// =========================
+// ======================================================
 
-app.get("/api/detail-cost", async (req, res) => {
+app.get("/detail-cost", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -245,14 +260,14 @@ app.get("/api/detail-cost", async (req, res) => {
       ORDER BY periode_bulan ASC
     `);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result.rows,
     });
   } catch (error) {
     console.error("Detail Cost API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch detail cost data",
       error: error.message,
@@ -260,5 +275,21 @@ app.get("/api/detail-cost", async (req, res) => {
     });
   }
 });
+
+// ======================================================
+// 404 API ROUTE
+// ======================================================
+
+app.use((req, res) => {
+  return res.status(404).json({
+    success: false,
+    message: "API endpoint not found",
+    path: req.path,
+  });
+});
+
+// ======================================================
+// VERCEL
+// ======================================================
 
 export default app;
