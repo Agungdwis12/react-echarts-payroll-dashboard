@@ -1,52 +1,19 @@
-import { useState } from 'react'
-import type { ViewportState } from '../../constants/dashboard'
-import { useDashboardData } from '../../hooks/useDashboardData'
-import type { DateRange } from '../../types/dashboard'
-import { CarouselControls } from './CarouselControls'
-import { DashboardDataState } from './DashboardDataState'
-import { DashboardHeader } from './DashboardHeader'
-import { KeyMetrics } from './KeyMetrics'
-import { SalesOverview } from './SalesOverview'
-import { SalesRanking } from './SalesRanking'
+import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "../sidebar/Sidebar";
 
-type DashboardLayoutProps = {
-  viewport: ViewportState
-  fullscreen: {
-    isFullscreen: boolean
-    isFullscreenSupported: boolean
-    toggleFullscreen: () => Promise<void>
-  }
-}
-
-export function DashboardLayout({ viewport, fullscreen }: DashboardLayoutProps) {
-  const [dateRange, setDateRange] = useState<DateRange>('today')
-  const { data, status, error, retry } = useDashboardData(dateRange)
+const DashboardLayout: React.FC = () => {
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="dashboard-layout">
-      <DashboardHeader
-        viewport={viewport}
-        dataStatus={status}
-        {...fullscreen}
-      />
+    <div className={`app-layout ${collapsed ? "sidebar-collapsed" : ""}`}>
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
 
-      <div className={`dashboard-content dashboard-content--${status}`} aria-busy={status === 'loading'}>
-        <div className="dashboard-main">
-          <SalesOverview
-            data={data}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
-          <SalesRanking ranking={data?.ranking ?? null} />
-        </div>
-
-        <KeyMetrics metrics={data?.keyMetrics ?? null} />
-
-        {status !== 'success' && (
-          <DashboardDataState status={status} error={error} onRetry={retry} />
-        )}
-      </div>
-      <CarouselControls />
+      <main className="main-content">
+        <Outlet />
+      </main>
     </div>
-  )
-}
+  );
+};
+
+export default DashboardLayout;

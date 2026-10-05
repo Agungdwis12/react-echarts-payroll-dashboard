@@ -1,0 +1,1004 @@
+/* =========================================================
+   PAYROLL DASHBOARD
+   Soft Dark BI Theme
+   Compatible with PayrollDashboard.tsx
+   ========================================================= */
+
+.payroll-page {
+  width: 100%;
+  min-height: 100%;
+  color: #eef3f8;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  box-sizing: border-box;
+}
+
+.payroll-page *,
+.payroll-page *::before,
+.payroll-page *::after {
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.payroll-header {
+  width: 100%;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.payroll-header-left {
+  min-width: 0;
+}
+
+.payroll-header-eyebrow {
+  margin: 0 0 5px;
+  color: #a9b6c7;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.payroll-header h1 {
+  margin: 0;
+  color: #f4f7fb;
+  font-size: 25px;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.payroll-header p {
+  margin: 6px 0 0;
+  color: #a0adbd;
+  font-size: 11px;
+}
+
+.header-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(85, 185, 133, 0.30);
+  border-radius: 18px;
+  background: rgba(85, 185, 133, 0.10);
+  color: #7bd09f;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #55b985;
+  box-shadow:
+    0 0 0 4px rgba(85, 185, 133, 0.10),
+    0 0 10px rgba(85, 185, 133, 0.30);
+}
+
+/* =========================================================
+   FILTER CARD
+   ========================================================= */
+
+.payroll-filter-card {
+  position: relative;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1px solid rgba(194, 210, 228, 0.13);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      #1d2a3b 0%,
+      #1b2839 55%,
+      #192638 100%
+    );
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.filter-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+
+.filter-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.filter-heading-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(91, 141, 239, 0.24);
+  border-radius: 10px;
+  background: rgba(91, 141, 239, 0.12);
+  color: #78a2f1;
+  font-size: 15px;
+}
+
+.section-label {
+  margin: 0;
+  color: #edf2f7;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.filter-description {
+  margin: 3px 0 0;
+  color: #a0adbd;
+  font-size: 10px;
+}
+/* =========================================================
+   FILTER GRID
+   ========================================================= */
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 13px;
+  width: 100%;
+}
+
+.filter-field {
+  position: relative;
+  min-width: 0;
+}
+
+.filter-field > label {
+  display: block;
+  margin: 0 0 6px;
+  color: #aeb9c8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* =========================================================
+   SEARCHABLE SELECT
+   Matches SearchableSelect.tsx
+   ========================================================= */
+
+.searchable-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.searchable-select-trigger {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 35px 0 12px;
+  border: 1px solid rgba(194, 210, 228, 0.16);
+  border-radius: 9px;
+  background: #202e40;
+  color: #e6edf5;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 550;
+  outline: none;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.searchable-select-trigger:hover {
+  border-color: rgba(194, 210, 228, 0.27);
+  background: #263548;
+}
+
+.searchable-select.is-open .searchable-select-trigger {
+  border-color: rgba(91, 141, 239, 0.70);
+  background: #26364b;
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.10);
+}
+
+.searchable-select.is-disabled .searchable-select-trigger {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.searchable-select-value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #e6edf5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.searchable-arrow {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid #a2afbf;
+  border-bottom: 1.5px solid #a2afbf;
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform 0.18s ease;
+}
+
+.searchable-select.is-open .searchable-arrow {
+  transform: translateY(-25%) rotate(225deg);
+}
+
+/* Dropdown */
+
+.searchable-dropdown {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  width: 100%;
+  min-width: 205px;
+  border: 1px solid rgba(194, 210, 228, 0.15);
+  border-radius: 10px;
+  background: #1a2738;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.34),
+    0 5px 15px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  z-index: 99999;
+  animation: dropdown-in 0.13s ease-out;
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.searchable-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 37px;
+  margin: 6px;
+  border: 1px solid rgba(194, 210, 228, 0.13);
+  border-radius: 7px;
+  background: #202e40;
+}
+
+.search-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  color: #8998aa;
+}
+
+.searchable-search input {
+  width: 100%;
+  height: 100%;
+  padding: 0 30px 0 7px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e5ebf3;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.searchable-search input::placeholder {
+  color: #8391a3;
+}
+
+.clear-search {
+  position: absolute;
+  right: 7px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #93a1b2;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.clear-search:hover {
+  background: #2b3a4e;
+  color: #e8eef5;
+}
+
+.searchable-options {
+  max-height: 235px;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.searchable-options::-webkit-scrollbar {
+  width: 5px;
+}
+
+.searchable-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.searchable-options::-webkit-scrollbar-thumb {
+  background: #3a4a5f;
+  border-radius: 10px;
+}
+
+.searchable-option {
+  width: 100%;
+  min-height: 33px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #bdc8d5;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.searchable-option:hover {
+  background: #26374b;
+  color: #f0f4f8;
+}
+
+.searchable-option.active {
+  background: rgba(91, 141, 239, 0.13);
+  color: #8db1f5;
+  font-weight: 650;
+}
+
+.option-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.option-check {
+  flex: 0 0 auto;
+  color: #79a2ef;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.no-result {
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+  color: #8291a3;
+  font-size: 10px;
+}
+
+.no-result strong {
+  color: #b8c4d2;
+  font-weight: 650;
+}
+
+/* =========================================================
+   KPI
+   ========================================================= */
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.kpi-card {
+  position: relative;
+  min-width: 0;
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid rgba(194, 210, 228, 0.13);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #1d2a3b 0%, #1a2738 100%);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(194, 210, 228, 0.22);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  right: -35px;
+  top: -42px;
+  width: 105px;
+  height: 105px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.kpi-icon {
+  width: 45px;
+  height: 45px;
+  flex: 0 0 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.kpi-content {
+  position: relative;
+  min-width: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.kpi-content span {
+  color: #a5b1c0;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+}
+
+.kpi-content strong {
+  display: block;
+  min-width: 0;
+  color: #f3f6fa;
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-blue {
+  border-color: rgba(91, 141, 239, 0.28);
+  background: linear-gradient(135deg, #1d2c42, #1b293b);
+}
+
+.kpi-blue .kpi-icon {
+  background: rgba(91, 141, 239, 0.15);
+  color: #83a9f3;
+}
+
+.kpi-blue::after {
+  background: rgba(91, 141, 239, 0.06);
+}
+
+.kpi-cyan {
+  border-color: rgba(85, 184, 196, 0.26);
+  background: linear-gradient(135deg, #1d2e3b, #1b2a38);
+}
+
+.kpi-cyan .kpi-icon {
+  background: rgba(85, 184, 196, 0.14);
+  color: #78c6cf;
+}
+
+.kpi-cyan::after {
+  background: rgba(85, 184, 196, 0.06);
+}
+
+.kpi-green {
+  border-color: rgba(85, 185, 133, 0.25);
+  background: linear-gradient(135deg, #1e302d, #1b2b2b);
+}
+
+.kpi-green .kpi-icon {
+  background: rgba(85, 185, 133, 0.14);
+  color: #7acb9e;
+}
+
+.kpi-green::after {
+  background: rgba(85, 185, 133, 0.055);
+}
+
+.kpi-orange {
+  border-color: rgba(217, 164, 65, 0.25);
+  background: linear-gradient(135deg, #302b22, #29271f);
+}
+
+.kpi-orange .kpi-icon {
+  background: rgba(217, 164, 65, 0.14);
+  color: #e4bd6e;
+}
+
+.kpi-orange::after {
+  background: rgba(217, 164, 65, 0.055);
+}
+
+/* =========================================================
+   CHARTS
+   ========================================================= */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 18px;
+}
+
+.chart-card {
+  position: relative;
+  min-width: 0;
+  height: 315px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(194, 210, 228, 0.13);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #1c293a 0%, #192637 100%);
+  box-shadow:
+    0 9px 25px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+}
+
+.chart-header {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(194, 210, 228, 0.08);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.chart-header h3 {
+  margin: 0;
+  color: #edf2f7;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.chart-body {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 7px 10px 5px;
+}
+
+.empty-chart {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8493a5;
+  font-size: 10px;
+}
+
+.chart-blue {
+  border-top: 2px solid #5b8def;
+}
+
+.chart-cyan {
+  border-top: 2px solid #55b8c4;
+}
+
+.chart-green {
+  border-top: 2px solid #55b985;
+}
+
+.chart-orange {
+  border-top: 2px solid #d9a441;
+}
+
+/* =========================================================
+   TABLE
+   Matches the table JSX in PayrollDashboard.tsx
+   ========================================================= */
+
+.table-card {
+  width: 100%;
+  border: 1px solid rgba(194, 210, 228, 0.13);
+  border-radius: 14px;
+  background: #1a2738;
+  box-shadow: 0 9px 25px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+
+.table-header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(194, 210, 228, 0.08);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.table-header > div:first-child {
+  min-width: 0;
+}
+
+.table-header h3 {
+  margin: 0;
+  color: #edf2f7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-header > div:first-child > span {
+  display: block;
+  margin-top: 3px;
+  color: #98a6b7;
+  font-size: 9px;
+}
+
+.table-total {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #98a6b7;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.table-total strong {
+  color: #d2dae4;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: #172334;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #3a4a5f;
+  border-radius: 10px;
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+.table-wrapper th,
+.table-wrapper td {
+  padding: 10px 11px;
+  border-right: 1px solid rgba(194, 210, 228, 0.055);
+  border-bottom: 1px solid rgba(194, 210, 228, 0.07);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.table-wrapper th:last-child,
+.table-wrapper td:last-child {
+  border-right: 0;
+}
+
+.table-wrapper thead th {
+  background: #233247;
+  color: #c0cad6;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.table-wrapper tbody td {
+  background: #1a2738;
+  color: #c0cad6;
+}
+
+.table-wrapper tbody tr:nth-child(even) td {
+  background: #1d2b3d;
+}
+
+.table-wrapper tbody tr:hover td {
+  background: #26364a;
+}
+
+.number-cell {
+  color: #aebaca;
+  font-variant-numeric: tabular-nums;
+}
+
+.numeric-cell {
+  color: #c8d1dc;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nominal {
+  color: #72c99a !important;
+  font-weight: 650;
+}
+
+.service-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  max-width: 180px;
+  padding: 0 8px;
+  border: 1px solid rgba(91, 141, 239, 0.18);
+  border-radius: 5px;
+  background: rgba(91, 141, 239, 0.09);
+  color: #a6bee7;
+  font-size: 9px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sla-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 45px;
+  min-height: 21px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sla-good {
+  background: rgba(85, 185, 133, 0.11);
+  color: #7bcf9f;
+}
+
+.sla-warning {
+  background: rgba(217, 164, 65, 0.11);
+  color: #dfbb70;
+}
+
+.sla-danger {
+  background: rgba(216, 121, 121, 0.11);
+  color: #e18d8d;
+}
+
+.empty-table {
+  padding: 28px 15px !important;
+  text-align: center;
+  color: #8493a5 !important;
+}
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.payroll-loading {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa8b8;
+  font-size: 11px;
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+  border: 2px solid #34455a;
+  border-top-color: #6b95e8;
+  border-radius: 50%;
+  animation: payroll-spin 0.8s linear infinite;
+}
+
+@keyframes payroll-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.payroll-error {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  border: 1px solid rgba(216, 121, 121, 0.30);
+  border-radius: 12px;
+  background: #2a242b;
+  text-align: center;
+}
+
+.payroll-error h3 {
+  margin: 0 0 7px;
+  color: #e49393;
+  font-size: 14px;
+}
+
+.payroll-error p {
+  max-width: 500px;
+  margin: 0 0 15px;
+  color: #bd9ba1;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.payroll-error button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(216, 121, 121, 0.30);
+  border-radius: 7px;
+  background: rgba(216, 121, 121, 0.08);
+  color: #e49a9a;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1280px) {
+  .filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .payroll-header h1 {
+    font-size: 21px;
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .payroll-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header-status {
+    align-self: flex-start;
+  }
+
+  .filter-top {
+    align-items: flex-start;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-card {
+    height: 300px;
+  }
+}
+
+@media (max-width: 560px) {
+  .payroll-header h1 {
+    font-size: 19px;
+  }
+
+  .payroll-filter-card {
+    padding: 14px;
+  }
+
+  .filter-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card {
+    height: 285px;
+  }
+
+  .table-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 11px 13px;
+  }
+
+  .table-total {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 380px) {
+  .kpi-content strong {
+    font-size: 17px;
+  }
+
+  .kpi-icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+}

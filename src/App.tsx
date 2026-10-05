@@ -1,33 +1,36 @@
-import './App.css'
-import { DashboardLayout } from './components/dashboard/DashboardLayout'
-import { DESIGN_HEIGHT, DESIGN_WIDTH } from './constants/dashboard'
-import { useFullscreen } from './hooks/useFullscreen'
-import { useDashboardScale } from './hooks/useDashboardScale'
+import "./App.css";
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+
+import PayrollDashboard from "./pages/PayrollDashboard";
+import BappDashboard from "./pages/BappDashboard";
+import CostDashboard from "./pages/CostDashboard";
+import ExecutiveBusinessDashboard from "./pages/ExecutiveBusinessDashboard";
 
 function App() {
-  const viewport = useDashboardScale()
-  const fullscreen = useFullscreen()
-  const scaledWidth = DESIGN_WIDTH * viewport.scale
-  const scaledHeight = DESIGN_HEIGHT * viewport.scale
-
   return (
-    <main className="screen-stage">
-      <div
-        className="canvas-frame"
-        data-testid="canvas-frame"
-        style={{ width: scaledWidth, height: scaledHeight }}
-      >
-        <section
-          className="dashboard-canvas"
-          data-testid="dashboard-canvas"
-          style={{ transform: `scale(${viewport.scale})` }}
-          aria-label="1600 乘 1000 数据大屏画布"
-        >
-          <DashboardLayout viewport={viewport} fullscreen={fullscreen} />
-        </section>
-      </div>
-    </main>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard/payroll" element={<PayrollDashboard />} />
+
+          <Route path="/dashboard/bapp" element={<BappDashboard />} />
+
+          <Route path="/dashboard/cost" element={<CostDashboard />} />
+
+          <Route path="/dashboard/executive" element={<ExecutiveBusinessDashboard />} />
+        </Route>
+
+        <Route path="/" element={<Navigate to="/dashboard/payroll" replace />} />
+
+        <Route path="*" element={<Navigate to="/dashboard/payroll" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+
+
+export default App;

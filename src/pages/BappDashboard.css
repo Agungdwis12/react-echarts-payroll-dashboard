@@ -1,0 +1,561 @@
+/* =========================================================
+   BAPP DASHBOARD
+========================================================= */
+
+.bapp-page {
+  min-height: 100%;
+  color: #e9f0f7;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(53, 102, 173, 0.11), transparent 28%),
+    radial-gradient(circle at 90% 8%, rgba(48, 190, 132, 0.06), transparent 24%),
+    #0f1928;
+  border-radius: 18px;
+  padding: 4px 0 32px;
+}
+
+
+/* =========================================================
+   FILTER
+========================================================= */
+
+.bapp-filter-card {
+  margin-bottom: 16px;
+  padding: 17px 18px 18px;
+  border: 1px solid rgba(111, 139, 171, 0.18);
+  border-radius: 15px;
+  background: linear-gradient(145deg, #1b2b40, #172538);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.bapp-filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.bapp-section-kicker,
+.bapp-chart-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #71869e;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 1.1px;
+}
+
+.bapp-filter-heading h2 {
+  margin: 0;
+  color: #eaf0f6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+
+.bapp-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bapp-filter-item {
+  min-width: 0;
+}
+
+.bapp-filter-item > label {
+  display: block;
+  margin-bottom: 6px;
+  color: #91a4b9;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+/* =========================================================
+   SEARCHABLE SELECT OVERRIDE FOR BAPP
+========================================================= */
+
+.bapp-filter-item .searchable-select {
+  width: 100%;
+}
+
+.bapp-filter-item .searchable-select-trigger {
+  width: 100%;
+  height: 38px;
+  border: 1px solid rgba(126, 151, 179, 0.22);
+  border-radius: 9px;
+  background: rgba(12, 23, 37, 0.5);
+  color: #dce6f0;
+}
+
+.bapp-filter-item .searchable-select-trigger:hover,
+.bapp-filter-item .searchable-select.is-open .searchable-select-trigger {
+  border-color: rgba(91, 150, 225, 0.55);
+  background: rgba(18, 34, 54, 0.78);
+}
+
+.bapp-filter-item .searchable-select-value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.bapp-filter-item .searchable-dropdown {
+  z-index: 2000;
+}
+
+/* =========================================================
+   KPI
+========================================================= */
+
+.bapp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.bapp-kpi-card {
+  position: relative;
+  min-width: 0;
+  min-height: 118px;
+  overflow: hidden;
+  padding: 17px 18px 16px;
+  border: 1px solid rgba(126, 151, 179, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #21334a, #18283b);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.bapp-kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kpi-accent);
+  box-shadow: 0 0 16px var(--kpi-glow);
+}
+
+.bapp-kpi-card::after {
+  content: "";
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  right: -55px;
+  bottom: -70px;
+  border-radius: 50%;
+  background: var(--kpi-glow);
+  filter: blur(25px);
+  opacity: 0.25;
+}
+
+.kpi-blue {
+  --kpi-accent: #5b9df5;
+  --kpi-glow: rgba(91, 157, 245, 0.55);
+}
+
+.kpi-green {
+  --kpi-accent: #4fd391;
+  --kpi-glow: rgba(79, 211, 145, 0.55);
+}
+
+.kpi-amber {
+  --kpi-accent: #f3b94f;
+  --kpi-glow: rgba(243, 185, 79, 0.5);
+}
+
+.kpi-red {
+  --kpi-accent: #ef6c78;
+  --kpi-glow: rgba(239, 108, 120, 0.5);
+}
+
+.bapp-kpi-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bapp-kpi-label {
+  color: #9fb0c3;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.bapp-kpi-icon {
+  display: inline-flex;
+  width: 25px;
+  height: 25px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--kpi-accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bapp-kpi-card > strong {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 10px;
+  color: #f2f6fb;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.bapp-kpi-card > strong small {
+  color: var(--kpi-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.bapp-kpi-sub {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 9px;
+  color: #9eb1c5;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   CHART CARDS
+========================================================= */
+
+.bapp-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bapp-chart-card,
+.bapp-table-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(111, 139, 171, 0.18);
+  border-radius: 15px;
+  background: linear-gradient(145deg, #1c2d42, #172638);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.bapp-chart-header,
+.bapp-table-header {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px 12px;
+  border-bottom: 1px solid rgba(126, 151, 179, 0.12);
+}
+
+.bapp-chart-header h3,
+.bapp-table-header h3 {
+  margin: 0;
+  color: #edf3f8;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 720;
+}
+
+.bapp-chart-body {
+  height: 330px;
+  padding: 7px 10px 8px;
+}
+
+.bapp-chart-large {
+  height: 340px;
+}
+
+.bapp-revenue-card {
+  margin-bottom: 16px;
+}
+
+.bapp-revenue-chart {
+  height: 365px;
+  padding: 10px 14px 12px;
+}
+
+.bapp-chart-total {
+  color: #8196ad;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.bapp-chart-total strong {
+  color: #a9d0ff;
+  font-size: 11px;
+}
+
+.bapp-empty-chart {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #72869c;
+  font-size: 11px;
+}
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.bapp-table-card {
+  margin-bottom: 16px;
+}
+
+.bapp-table-count {
+  color: #7f94aa;
+  font-size: 9px;
+}
+
+.bapp-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.bapp-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #d9e3ed;
+  font-size: 10px;
+}
+
+.bapp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 11px;
+  border-right: 1px solid rgba(126, 151, 179, 0.11);
+  border-bottom: 1px solid rgba(126, 151, 179, 0.2);
+  background: linear-gradient(180deg, #273c58, #22344d);
+  color: #c7d5e3;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bapp-table thead th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.bapp-table thead th:last-child {
+  border-right: 0;
+  border-top-right-radius: 8px;
+}
+
+.bapp-table tbody td {
+  padding: 9px 11px;
+  border-right: 1px solid rgba(126, 151, 179, 0.09);
+  border-bottom: 1px solid rgba(126, 151, 179, 0.1);
+  color: #aebdcb;
+  white-space: nowrap;
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bapp-table tbody td:last-child {
+  border-right: 0;
+}
+
+.bapp-table tbody tr {
+  background: rgba(18, 31, 47, 0.4);
+  transition: background 0.18s ease;
+}
+
+.bapp-table tbody tr:nth-child(even) {
+  background: rgba(30, 48, 69, 0.42);
+}
+
+.bapp-table tbody tr:hover {
+  background: rgba(67, 107, 151, 0.16);
+}
+
+.bapp-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.bapp-table tbody td:first-child {
+  color: #71869e;
+  text-align: center;
+}
+
+.bapp-money-cell {
+  color: #c6ddf5 !important;
+  font-weight: 650;
+  text-align: right;
+}
+
+.bapp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-width: 62px;
+  justify-content: center;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.bapp-status-pill.done {
+  border-color: rgba(79, 211, 145, 0.2);
+  background: rgba(79, 211, 145, 0.1);
+  color: #83ddb0;
+}
+
+.bapp-status-pill.process {
+  border-color: rgba(243, 185, 79, 0.22);
+  background: rgba(243, 185, 79, 0.1);
+  color: #f4c86e;
+}
+
+.bapp-status-pill.no-process {
+  border-color: rgba(239, 108, 120, 0.22);
+  background: rgba(239, 108, 120, 0.1);
+  color: #f18a94;
+}
+
+.bapp-table-empty {
+  padding: 35px !important;
+  color: #71869e !important;
+  text-align: center !important;
+}
+
+/* =========================================================
+   LOADING / ERROR
+========================================================= */
+
+.bapp-state {
+  min-height: 65vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  color: #aebed0;
+  font-size: 12px;
+}
+
+.bapp-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(126, 151, 179, 0.2);
+  border-top-color: #5b9df5;
+  border-radius: 50%;
+  animation: bapp-spin 0.8s linear infinite;
+}
+
+.bapp-state-error {
+  text-align: center;
+}
+
+.bapp-state-error h3 {
+  margin: 0 0 7px;
+  color: #f0f4f8;
+  font-size: 15px;
+}
+
+.bapp-state-error p {
+  margin: 0 0 15px;
+  color: #8ea1b7;
+  font-size: 11px;
+}
+
+.bapp-state-error button {
+  border: 1px solid rgba(91, 157, 245, 0.35);
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: rgba(91, 157, 245, 0.1);
+  color: #b7d3f5;
+  cursor: pointer;
+}
+
+@keyframes bapp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .bapp-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bapp-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .bapp-page {
+    border-radius: 0;
+    padding-top: 0;
+  }
+
+
+  .bapp-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bapp-live-badge {
+    align-self: flex-start;
+  }
+
+  .bapp-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bapp-filter-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+
+  .bapp-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bapp-chart-body,
+  .bapp-chart-large {
+    height: 310px;
+  }
+
+  .bapp-revenue-chart {
+    height: 340px;
+  }
+
+  .bapp-chart-header,
+  .bapp-table-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bapp-chart-total {
+    white-space: normal;
+  }
+}

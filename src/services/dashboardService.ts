@@ -1,39 +1,88 @@
-import { dashboardDataByRange } from '../mocks/dashboardData'
-import type { DashboardData, DateRange, MockScenario } from '../types/dashboard'
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+/* =====================================================
+   DASHBOARD PAYROLL
+===================================================== */
 
-const REQUEST_DELAY = 700
+export const getMasterDetailDivisi = async () => {
+  const response = await fetch(`${API_URL}/master-detail-divisi`);
 
-function wait(milliseconds: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
-}
-
-export function getMockScenario(): MockScenario {
-  if (!import.meta.env.DEV) return 'success'
-
-  const scenario = new URLSearchParams(window.location.search).get('mock')
-  return scenario === 'loading' || scenario === 'empty' || scenario === 'error'
-    ? scenario
-    : 'success'
-}
-
-export async function fetchDashboardData(
-  dateRange: DateRange,
-): Promise<DashboardData | null> {
-  const scenario = getMockScenario()
-
-  if (scenario === 'loading') {
-    return new Promise(() => undefined)
+  if (!response.ok) {
+    throw new Error("Failed to fetch payroll data");
   }
 
-  await wait(REQUEST_DELAY)
+  const result = await response.json();
 
-  if (scenario === 'error') {
-    throw new Error('Mock 接口暂时不可用，请稍后重试')
+  return result.data;
+};
+
+/* =====================================================
+   DASHBOARD BAPP - MASTER BULANAN
+===================================================== */
+
+export const getMasterBappBulanan = async () => {
+  const response = await fetch(`${API_URL}/master-bapp-bulanan`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch master BAPP bulanan data");
   }
 
-  if (scenario === 'empty') {
-    return null
+  const result = await response.json();
+
+  return result.data;
+};
+
+/* =====================================================
+   DASHBOARD BAPP - DETAIL
+===================================================== */
+
+export const getMasterDetailBapp = async () => {
+  const response = await fetch(`${API_URL}/master-detail-bapp`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch master detail BAPP data");
   }
 
-  return dashboardDataByRange[dateRange]
-}
+  const result = await response.json();
+
+  return result.data;
+};
+
+// =====================================================
+// DASHBOARD TARGET & COST
+// =====================================================
+
+export const getGpm = async () => {
+  const response = await fetch(`${API_URL}/gpm`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch GPM data");
+  }
+
+  const result = await response.json();
+
+  return result.data;
+};
+
+export const getTarget = async () => {
+  const response = await fetch(`${API_URL}/target`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch target data");
+  }
+
+  const result = await response.json();
+
+  return result.data;
+};
+
+export const getDetailCost = async () => {
+  const response = await fetch(`${API_URL}/detail-cost`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch detail cost data");
+  }
+
+  const result = await response.json();
+
+  return result.data;
+};
