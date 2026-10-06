@@ -10,16 +10,19 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    
       {/* =========================
-          HEADER
+                HEADER
       ========================= */}
 
       <div className="sidebar-logo">
-        <div className="logo-icon">P</div>
+        <div className="logo-icon">
+          <img src="/logo.svg" alt="Infomedia Logo" />
+        </div>
 
         <div className="logo-text">
-          <span>Payroll</span>
-          <strong>Dashboard</strong>
+          <span>INFOMEDIA</span>
+          <strong>NUSANTARA</strong>
         </div>
 
         <button type="button" className="sidebar-toggle" onClick={onToggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
