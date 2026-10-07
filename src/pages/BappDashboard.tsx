@@ -6,7 +6,6 @@ import { getMasterBappBulanan, getMasterDetailBapp } from "../services/dashboard
 import "./BappDashboard.css";
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 
-
 /* =========================================================
    TYPES
 ========================================================= */
@@ -735,85 +734,45 @@ const BappDashboard: React.FC = () => {
         left: 50,
         right: 25,
         top: 18,
-        bottom: 65,
+        bottom: 80,
         containLabel: true,
       },
       xAxis: {
         type: "category",
         boundaryGap: true,
-
-        data: nominalStatusByMonth.map((item) => item.label),
-
+        data: revenueByLayanan.map((item) => item.name),
         axisLine: {
           lineStyle: {
             color: "rgba(148, 163, 184, 0.18)",
             width: 1,
           },
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           interval: 0,
-          rotate: 0,
+          rotate: 45,
           fontSize: 9,
           color: "#9eafc2",
-          margin: 14,
-          lineHeight: 14,
-
-          formatter: (value: string) => {
-            // Contoh:
-            // "Agu 2025"
-            // menjadi:
-            // "Agu"
-            // "2025"
-
-            const parts = value.split(" ");
-
-            if (parts.length >= 2) {
-              return `{month|${parts[0]}}\n{year|${parts[1]}}`;
-            }
-
-            return value;
-          },
-
-          rich: {
-            month: {
-              color: "#aebed0",
-              fontSize: 9,
-              fontWeight: 600,
-              lineHeight: 13,
-            },
-
-            year: {
-              color: "#667b92",
-              fontSize: 8,
-              fontWeight: 500,
-              lineHeight: 12,
-            },
-          },
+          margin: 12,
+          align: "right",
+          width: 80,
+          overflow: "truncate",
+          hideOverlap: true,
+          formatter: (value: string) => value,
         },
       },
       yAxis: {
         type: "value",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
+        axisLine: { show: false },
+        axisTick: { show: false },
         axisLabel: {
           fontSize: 9,
           color: "#9aacc0",
           formatter: (value: number) => {
-            if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(0)} M`;
-            }
-            if (value >= 1_000_000) {
-              return `${(value / 1_000_000).toFixed(0)} jt`;
-            }
+            if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(0)} M`;
+            if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)} jt`;
             return formatNumber(value);
           },
         },
@@ -872,7 +831,7 @@ const BappDashboard: React.FC = () => {
     }),
     [revenueByLayanan],
   );
-
+  
   /* =========================================================
      TABLE
   ========================================================= */
@@ -1144,6 +1103,6 @@ const BappDashboard: React.FC = () => {
       </section>
     </div>
   );
-};
+};;
 
 export default BappDashboard;

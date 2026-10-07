@@ -17,6 +17,10 @@ const ca = fs.readFileSync("./server/ca.pem", "utf8");
 
 console.log("CA loaded:", ca.length, "characters");
 
+// =========================================================
+// DATABASE POOL
+// =========================================================
+
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
@@ -28,7 +32,25 @@ const pool = new Pool({
     ca: ca,
     rejectUnauthorized: true,
   },
+
+  // Batasi jumlah koneksi aktif
+  max: 3,
+
+  // Tutup koneksi yang idle selama 30 detik
+  idleTimeoutMillis: 30000,
+
+  // Timeout saat menunggu koneksi
+  connectionTimeoutMillis: 10000,
 });
+
+// Handle error dari koneksi idle
+pool.on("error", (error) => {
+  console.error("Unexpected PostgreSQL pool error:", error);
+});
+
+// =========================================================
+// TEST DATABASE
+// =========================================================
 
 app.get("/api/test-db", async (req, res) => {
   try {
@@ -51,9 +73,9 @@ app.get("/api/test-db", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Backend running on http://localhost:3000");
-});
+// =========================================================
+// MASTER DETAIL DIVISI / PAYROLL
+// =========================================================
 
 app.get("/api/master-detail-divisi", async (req, res) => {
   try {
@@ -90,6 +112,10 @@ app.get("/api/master-detail-divisi", async (req, res) => {
   }
 });
 
+// =========================================================
+// MASTER BAPP BULANAN
+// =========================================================
+
 app.get("/api/master-bapp-bulanan", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -120,6 +146,10 @@ app.get("/api/master-bapp-bulanan", async (req, res) => {
     });
   }
 });
+
+// =========================================================
+// MASTER DETAIL BAPP
+// =========================================================
 
 app.get("/api/master-detail-bapp", async (req, res) => {
   try {
@@ -156,6 +186,10 @@ app.get("/api/master-detail-bapp", async (req, res) => {
   }
 });
 
+// =========================================================
+// GPM
+// =========================================================
+
 app.get("/api/gpm", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -179,9 +213,14 @@ app.get("/api/gpm", async (req, res) => {
       success: false,
       message: "Failed to fetch GPM data",
       error: error.message,
+      code: error.code,
     });
   }
 });
+
+// =========================================================
+// TARGET
+// =========================================================
 
 app.get("/api/target", async (req, res) => {
   try {
@@ -208,9 +247,14 @@ app.get("/api/target", async (req, res) => {
       success: false,
       message: "Failed to fetch target data",
       error: error.message,
+      code: error.code,
     });
   }
 });
+
+// =========================================================
+// DETAIL COST
+// =========================================================
 
 app.get("/api/detail-cost", async (req, res) => {
   try {
@@ -239,6 +283,38 @@ app.get("/api/detail-cost", async (req, res) => {
       success: false,
       message: "Failed to fetch detail cost data",
       error: error.message,
+      code: error.code,
     });
   }
 });
+
+// =========================================================
+// START SERVER
+// =========================================================
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Backend running on http://localhost:${PORT}`);
+});
+
+// =========================================================
+// GRACEFUL SHUTDOWN
+// =========================================================
+
+const shutdown = async (signal) => {
+  console.log(`${signal} received. Closing server...`);
+
+  try {
+    await pool.end();
+
+    console.log("PostgreSQL pool closed.");
+    process.exit(0);
+  } catch (error) {
+    console.error("Error while closing PostgreSQL pool:", error);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
