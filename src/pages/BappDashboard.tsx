@@ -428,7 +428,7 @@ const BappDashboard: React.FC = () => {
         left: 52,
         right: 18,
         top: 42,
-        bottom: 48,
+        bottom: 65,
         containLabel: true,
       },
       xAxis: {
@@ -444,10 +444,11 @@ const BappDashboard: React.FC = () => {
         },
         axisLabel: {
           interval: 0,
-          rotate: 0,
-          fontSize: 9,
+          rotate: 30,
+          fontSize: 8,
           color: "#aebed0",
-          margin: 10,
+          margin: 14,
+          align: "right",
         },
       },
       yAxis: {
@@ -734,7 +735,7 @@ const BappDashboard: React.FC = () => {
         left: 50,
         right: 25,
         top: 18,
-        bottom: 62,
+        bottom: 65,
         containLabel: true,
       },
       xAxis: {
