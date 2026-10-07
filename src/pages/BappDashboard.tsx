@@ -514,14 +514,17 @@ const BappDashboard: React.FC = () => {
           barMaxWidth: 32,
           data: nominalStatusByMonth.map((item) => item.onProcess),
           itemStyle: {
+            borderRadius: [7, 7, 0, 0],
+
             color: {
               type: "linear",
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
+
               colorStops: [
-                { offset: 0, color: "#ffd477" },
+                { offset: 0, color: "#ffd978" },
                 { offset: 0.5, color: "#efa938" },
                 { offset: 1, color: "#b86e16" },
               ],
@@ -736,22 +739,60 @@ const BappDashboard: React.FC = () => {
       },
       xAxis: {
         type: "category",
-        data: revenueByLayanan.map((item) => item.name),
+        boundaryGap: true,
+
+        data: nominalStatusByMonth.map((item) => item.label),
+
         axisLine: {
           lineStyle: {
-            color: "rgba(148, 163, 184, .25)",
+            color: "rgba(148, 163, 184, 0.18)",
+            width: 1,
           },
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           interval: 0,
-          rotate: 28,
-          fontSize: 8,
-          color: "#aebed0",
-          margin: 10,
-          formatter: (value: string) => (value.length > 14 ? `${value.substring(0, 14)}...` : value),
+          rotate: 0,
+          fontSize: 9,
+          color: "#9eafc2",
+          margin: 14,
+          lineHeight: 14,
+
+          formatter: (value: string) => {
+            // Contoh:
+            // "Agu 2025"
+            // menjadi:
+            // "Agu"
+            // "2025"
+
+            const parts = value.split(" ");
+
+            if (parts.length >= 2) {
+              return `{month|${parts[0]}}\n{year|${parts[1]}}`;
+            }
+
+            return value;
+          },
+
+          rich: {
+            month: {
+              color: "#aebed0",
+              fontSize: 9,
+              fontWeight: 600,
+              lineHeight: 13,
+            },
+
+            year: {
+              color: "#667b92",
+              fontSize: 8,
+              fontWeight: 500,
+              lineHeight: 12,
+            },
+          },
         },
       },
       yAxis: {
