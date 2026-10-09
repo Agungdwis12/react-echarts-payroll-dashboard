@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
-import SearchableSelect from "../components/dashboard/SearchableSelect";
-
 import "./ExecutiveBusinessDashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
+
 /* =========================================================
    TYPES
 ========================================================= */
 
 interface DetailDivisiRow {
-  id: number;
+  id?: number;
   periode_bulan: string;
   divisi: string;
   departemen: string;
@@ -24,7 +23,7 @@ interface DetailDivisiRow {
 }
 
 interface BappBulananRow {
-  id: number;
+  id?: number;
   periode_bulan: string;
   status_bapp: string;
   jumlah_bapp: number | string;
@@ -33,37 +32,26 @@ interface BappBulananRow {
   created_at?: string;
 }
 
-interface DetailBappRow {
-  id: number;
-  periode_bulan: string;
-  divisi: string;
-  departemen: string;
-  layanan: string;
-  status: string;
-  revenue: number | string;
-  unit: string;
-  keterangan?: string;
-  text?: string;
-  created_at?: string;
-}
-
 interface GpmRow {
-  id: number;
+  id?: number;
   periode_bulan: string;
   revenue_payroll_bapp: number | string;
   cost_payroll: number | string;
+  created_at?: string;
 }
 
 interface TargetRow {
-  id: number;
+  id?: number;
   periode_bulan: string;
   nominal_target_sustain: number | string;
   nominal_target_scaling: number | string;
   realisasi_sustain: number | string;
   realisasi_scaling: number | string;
+  created_at?: string;
 }
 
 interface DetailCostRow {
+  id?: number;
   periode_bulan: string;
   beban_jarkom: number | string;
   beban_jasnaker: number | string;
@@ -72,6 +60,7 @@ interface DetailCostRow {
   beban_mandatory_gedung: number | string;
   depresiasi: number | string;
   total: number | string;
+  created_at?: string;
 }
 
 /* =========================================================
@@ -133,84 +122,59 @@ function formatNumber(value: number): string {
   }).format(value);
 }
 
-/* =========================================================
-   KPI CURRENCY FORMAT
-========================================================= */
-
-function getRupiahKPI(value: number) {
-  const number = Number(value) || 0;
-  const absolute = Math.abs(number);
-
-  if (absolute >= 1_000_000_000_000) {
-    return {
-      value: (number / 1_000_000_000_000).toFixed(2).replace(".", ","),
-      unit: "Triliun",
-    };
-  }
-
-  if (absolute >= 1_000_000_000) {
-    return {
-      value: (number / 1_000_000_000).toFixed(2).replace(".", ","),
-      unit: "Miliar",
-    };
-  }
-
-  if (absolute >= 1_000_000) {
-    return {
-      value: (number / 1_000_000).toFixed(2).replace(".", ","),
-      unit: "Juta",
-    };
-  }
-
-  if (absolute >= 1_000) {
-    return {
-      value: (number / 1_000).toFixed(2).replace(".", ","),
-      unit: "Ribu",
-    };
-  }
-
-  return {
-    value: number.toLocaleString("id-ID"),
-    unit: "",
-  };
+function formatDecimal(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
 }
 
 function formatRupiah(value: number): string {
-  const result = getRupiahKPI(value);
-
-  if (!result.unit) {
-    return `Rp ${result.value}`;
-  }
-
-  return `Rp ${result.value} ${result.unit}`;
-}
-
-
-function formatAxisRupiah(value: number): string {
-  const number = Number(value) || 0;
-  const absolute = Math.abs(number);
+  const absolute = Math.abs(value);
 
   if (absolute >= 1_000_000_000_000) {
-    return `Rp ${(number / 1_000_000_000_000).toFixed(1).replace(".", ",")} T`;
+    return `Rp ${(value / 1_000_000_000_000).toFixed(2).replace(".", ",")} T`;
   }
 
   if (absolute >= 1_000_000_000) {
-    return `Rp ${(number / 1_000_000_000).toFixed(1).replace(".", ",")} M`;
+    return `Rp ${(value / 1_000_000_000).toFixed(2).replace(".", ",")} M`;
   }
 
   if (absolute >= 1_000_000) {
-    return `Rp ${(number / 1_000_000).toFixed(1).replace(".", ",")} Jt`;
+    return `Rp ${(value / 1_000_000).toFixed(2).replace(".", ",")} jt`;
   }
 
   if (absolute >= 1_000) {
-    return `Rp ${(number / 1_000).toFixed(1).replace(".", ",")} Rb`;
+    return `Rp ${(value / 1_000).toFixed(2).replace(".", ",")} rb`;
   }
 
-  return formatNumber(number);
+  return `Rp ${formatNumber(value)}`;
+}
+
+function formatAxisRupiah(value: number): string {
+  const absolute = Math.abs(value);
+
+  if (absolute >= 1_000_000_000_000) {
+    return `Rp ${(value / 1_000_000_000_000).toFixed(1).replace(".", ",")} T`;
+  }
+
+  if (absolute >= 1_000_000_000) {
+    return `Rp ${(value / 1_000_000_000).toFixed(1).replace(".", ",")} M`;
+  }
+
+  if (absolute >= 1_000_000) {
+    return `Rp ${(value / 1_000_000).toFixed(1).replace(".", ",")} jt`;
+  }
+
+  if (absolute >= 1_000) {
+    return `Rp ${(value / 1_000).toFixed(1).replace(".", ",")} rb`;
+  }
+
+  return formatNumber(value);
 }
 
 /* =========================================================
-   DATE HELPERS
+   DATE
 ========================================================= */
 
 function parsePeriod(value: string): Date | null {
@@ -218,23 +182,21 @@ function parsePeriod(value: string): Date | null {
     return null;
   }
 
-  const match = value.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);
+  const normalized = String(value).trim();
+
+  const match = normalized.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);
 
   if (match) {
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3] || 1);
-
-    return new Date(year, month - 1, day);
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3] || 1));
   }
 
-  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const slashMatch = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
   if (slashMatch) {
     return new Date(Number(slashMatch[3]), Number(slashMatch[2]) - 1, Number(slashMatch[1]));
   }
 
-  const date = new Date(value);
+  const date = new Date(normalized);
 
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -247,6 +209,16 @@ function getMonthKey(value: string): string {
   }
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthNumber(value: string): string {
+  const date = parsePeriod(value);
+
+  if (!date) {
+    return "";
+  }
+
+  return String(date.getMonth() + 1).padStart(2, "0");
 }
 
 function getYear(value: string): string {
@@ -275,66 +247,45 @@ function monthSortValue(value: string): number {
 }
 
 /* =========================================================
-   TEXT HELPERS
+   SLA
 ========================================================= */
-
-function normalizeText(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "id-ID"));
-}
 
 function normalizeSla(value: unknown): number {
   const number = toNumber(value);
 
-  if (number > 1) {
-    return number;
-  }
-
-  return number * 100;
+  return number <= 1 ? number * 100 : number;
 }
 
 /* =========================================================
-   STATUS
+   API RESPONSE
 ========================================================= */
 
-function getStatusCategory(value: unknown): string {
-  const status = normalizeText(value);
-
-  /*
-    IMPORTANT:
-    Not Process harus dicek sebelum On Process.
-  */
-
-  if (
-    status === "not process" ||
-    status === "not processed" ||
-    status === "no process" ||
-    status === "no processed" ||
-    status === "not proses" ||
-    status === "no proses" ||
-    status.includes("not process") ||
-    status.includes("no process") ||
-    status.includes("belum proses") ||
-    status.includes("belum")
-  ) {
-    return "Not Process";
+function extractRows<T>(response: unknown): T[] {
+  if (Array.isArray(response)) {
+    return response as T[];
   }
 
-  if (status === "on process" || status === "on processing" || status === "on proses" || status === "processing" || status === "process" || status === "proses" || status.includes("on process")) {
-    return "On Process";
+  if (response && typeof response === "object") {
+    const data = response as {
+      data?: unknown;
+      rows?: unknown;
+      result?: unknown;
+    };
+
+    if (Array.isArray(data.data)) {
+      return data.data as T[];
+    }
+
+    if (Array.isArray(data.rows)) {
+      return data.rows as T[];
+    }
+
+    if (Array.isArray(data.result)) {
+      return data.result as T[];
+    }
   }
 
-  if (status === "done" || status === "completed" || status === "complete" || status === "selesai" || status.includes("done") || status.includes("completed") || status.includes("selesai")) {
-    return "Done";
-  }
-
-  return value ? String(value) : "Unknown";
+  return [];
 }
 
 /* =========================================================
@@ -346,8 +297,6 @@ export default function ExecutiveBusinessDashboard() {
 
   const [bappBulanan, setBappBulanan] = useState<BappBulananRow[]>([]);
 
-  const [detailBapp, setDetailBapp] = useState<DetailBappRow[]>([]);
-
   const [gpmData, setGpmData] = useState<GpmRow[]>([]);
 
   const [targetData, setTargetData] = useState<TargetRow[]>([]);
@@ -355,21 +304,28 @@ export default function ExecutiveBusinessDashboard() {
   const [detailCost, setDetailCost] = useState<DetailCostRow[]>([]);
 
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
 
-  /* =========================================================
+  /* =======================================================
      FILTER
-  ========================================================= */
+  ======================================================= */
 
-  const [unit, setUnit] = useState("");
-  const [departemen, setDepartemen] = useState("");
-  const [layanan, setLayanan] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+
   const [selectedYear, setSelectedYear] = useState("");
 
-  /* =========================================================
+  /* =======================================================
+     CHART REFS
+  ======================================================= */
+
+  const trendChartRef = useRef<HTMLDivElement | null>(null);
+
+  const trendChartInstance = useRef<echarts.ECharts | null>(null);
+
+  /* =======================================================
      FETCH
-  ========================================================= */
+  ======================================================= */
 
   useEffect(() => {
     let mounted = true;
@@ -379,48 +335,38 @@ export default function ExecutiveBusinessDashboard() {
         setLoading(true);
         setError("");
 
-        const [detailDivisiResponse, bappBulananResponse, detailBappResponse, gpmResponse, targetResponse, detailCostResponse] = await Promise.all([
+        const [detailDivisiResponse, bappResponse, gpmResponse, targetResponse, costResponse] = await Promise.all([
           fetch(`${API_BASE}/master-detail-divisi`),
           fetch(`${API_BASE}/master-bapp-bulanan`),
-          fetch(`${API_BASE}/master-detail-bapp`),
           fetch(`${API_BASE}/gpm`),
           fetch(`${API_BASE}/target`),
           fetch(`${API_BASE}/detail-cost`),
         ]);
 
-        if (!detailDivisiResponse.ok || !bappBulananResponse.ok || !detailBappResponse.ok || !gpmResponse.ok || !targetResponse.ok || !detailCostResponse.ok) {
-          throw new Error("Gagal mengambil salah satu sumber data dashboard.");
+        if (!detailDivisiResponse.ok || !bappResponse.ok || !gpmResponse.ok || !targetResponse.ok || !costResponse.ok) {
+          throw new Error("Gagal mengambil data dashboard.");
         }
 
-        const [detailDivisiJson, bappBulananJson, detailBappJson, gpmJson, targetJson, detailCostJson] = await Promise.all([
-          detailDivisiResponse.json(),
-          bappBulananResponse.json(),
-          detailBappResponse.json(),
-          gpmResponse.json(),
-          targetResponse.json(),
-          detailCostResponse.json(),
-        ]);
+        const [detailDivisiJson, bappJson, gpmJson, targetJson, costJson] = await Promise.all([detailDivisiResponse.json(), bappResponse.json(), gpmResponse.json(), targetResponse.json(), costResponse.json()]);
 
         if (!mounted) {
           return;
         }
 
-        setDetailDivisi(Array.isArray(detailDivisiJson?.data) ? detailDivisiJson.data : []);
+        setDetailDivisi(extractRows<DetailDivisiRow>(detailDivisiJson));
 
-        setBappBulanan(Array.isArray(bappBulananJson?.data) ? bappBulananJson.data : []);
+        setBappBulanan(extractRows<BappBulananRow>(bappJson));
 
-        setDetailBapp(Array.isArray(detailBappJson?.data) ? detailBappJson.data : []);
+        setGpmData(extractRows<GpmRow>(gpmJson));
 
-        setGpmData(Array.isArray(gpmJson?.data) ? gpmJson.data : []);
+        setTargetData(extractRows<TargetRow>(targetJson));
 
-        setTargetData(Array.isArray(targetJson?.data) ? targetJson.data : []);
-
-        setDetailCost(Array.isArray(detailCostJson?.data) ? detailCostJson.data : []);
+        setDetailCost(extractRows<DetailCostRow>(costJson));
       } catch (err) {
-        console.error("Executive dashboard error:", err);
+        console.error("Operational dashboard error:", err);
 
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Gagal memuat Executive Dashboard.");
+          setError(err instanceof Error ? err.message : "Gagal memuat dashboard.");
         }
       } finally {
         if (mounted) {
@@ -436,420 +382,446 @@ export default function ExecutiveBusinessDashboard() {
     };
   }, []);
 
-  /* =========================================================
-     FILTER OPTIONS
-  ========================================================= */
-
-  const unitOptions = useMemo(() => {
-    return uniqueSorted([...detailDivisi.map((row) => row.unit), ...bappBulanan.map((row) => row.unit), ...detailBapp.map((row) => row.unit)]);
-  }, [detailDivisi, bappBulanan, detailBapp]);
-
-  const departemenOptions = useMemo(() => {
-    return uniqueSorted(detailDivisi.filter((row) => !unit || row.unit === unit).map((row) => row.departemen));
-  }, [detailDivisi, unit]);
-
-  const layananOptions = useMemo(() => {
-    return uniqueSorted(detailDivisi.filter((row) => (!unit || row.unit === unit) && (!departemen || row.departemen === departemen)).map((row) => row.layanan));
-  }, [detailDivisi, unit, departemen]);
+  /* =======================================================
+     MONTH OPTIONS
+     
+     PENTING:
+     Dropdown bulan hanya berdasarkan bulan.
+     Tidak ada tahun.
+     
+     Contoh:
+     Januari
+     Februari
+     Maret
+     ...
+     
+     Walaupun database punya:
+     2025-08
+     2026-08
+     
+     dropdown hanya punya:
+     Agustus
+  ======================================================= */
 
   const monthOptions = useMemo(() => {
-    const months = Array.from(new Set([...detailDivisi, ...bappBulanan, ...detailBapp, ...gpmData, ...targetData, ...detailCost].map((row) => getMonthKey(row.periode_bulan)).filter(Boolean))).sort();
+    const months = new Set<string>();
 
-    return months.map((key) => {
-      const [year, month] = key.split("-").map(Number);
+    [...detailDivisi, ...bappBulanan, ...gpmData, ...targetData, ...detailCost].forEach((row) => {
+      const month = getMonthNumber(row.periode_bulan);
 
-      return new Date(year, month - 1, 1).toLocaleDateString("id-ID", {
-        month: "long",
-      });
+      if (month) {
+        months.add(month);
+      }
     });
-  }, [detailDivisi, bappBulanan, detailBapp, gpmData, targetData, detailCost]);
+
+    return Array.from(months).sort((a, b) => Number(a) - Number(b));
+  }, [detailDivisi, bappBulanan, gpmData, targetData, detailCost]);
+
+  /* =======================================================
+     YEAR OPTIONS
+     
+     Tahun tetap unik.
+  ======================================================= */
 
   const yearOptions = useMemo(() => {
-    return uniqueSorted([
-      ...detailDivisi.map((row) => getYear(row.periode_bulan)),
-      ...bappBulanan.map((row) => getYear(row.periode_bulan)),
-      ...detailBapp.map((row) => getYear(row.periode_bulan)),
-      ...gpmData.map((row) => getYear(row.periode_bulan)),
-      ...targetData.map((row) => getYear(row.periode_bulan)),
-      ...detailCost.map((row) => getYear(row.periode_bulan)),
-    ]);
-  }, [detailDivisi, bappBulanan, detailBapp, gpmData, targetData, detailCost]);
+    const years = new Set<string>();
 
-  const monthNumber = useMemo(() => {
-    const result: Record<string, number> = {};
+    [...detailDivisi, ...bappBulanan, ...gpmData, ...targetData, ...detailCost].forEach((row) => {
+      const year = getYear(row.periode_bulan);
 
-    [...detailDivisi, ...bappBulanan, ...detailBapp, ...gpmData, ...targetData, ...detailCost].forEach((row) => {
-      const date = parsePeriod(row.periode_bulan);
-
-      if (!date) {
-        return;
+      if (year) {
+        years.add(year);
       }
-
-      const monthName = date
-        .toLocaleDateString("id-ID", {
-          month: "long",
-        })
-        .toLowerCase();
-
-      result[monthName] = date.getMonth();
     });
 
-    return result;
-  }, [detailDivisi, bappBulanan, detailBapp, gpmData, targetData, detailCost]);
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [detailDivisi, bappBulanan, gpmData, targetData, detailCost]);
 
-  const selectedMonthNumber = selectedMonth ? monthNumber[selectedMonth.toLowerCase()] : undefined;
+  /* =======================================================
+     FILTER FUNCTION
+     
+     selectedMonth = "08"
+     selectedYear  = "2025"
+     
+     Jika hanya bulan:
+     semua Agustus dari seluruh tahun.
+     
+     Jika hanya tahun:
+     semua bulan tahun tersebut.
+     
+     Jika keduanya:
+     Agustus 2025.
+  ======================================================= */
 
   function matchesPeriod(periode: string): boolean {
-    const date = parsePeriod(periode);
+    const month = getMonthNumber(periode);
 
-    if (!date) {
+    const year = getYear(periode);
+
+    if (!month || !year) {
       return false;
     }
 
-    if (selectedYear && String(date.getFullYear()) !== selectedYear) {
+    if (selectedMonth && month !== selectedMonth) {
       return false;
     }
 
-    if (selectedMonthNumber !== undefined && date.getMonth() !== selectedMonthNumber) {
+    if (selectedYear && year !== selectedYear) {
       return false;
     }
 
     return true;
   }
 
-  /* =========================================================
+  /* =======================================================
      FILTERED DATA
-  ========================================================= */
+  ======================================================= */
 
-  const filteredDetailDivisi = useMemo(() => {
-    return detailDivisi.filter((row) => {
-      if (!matchesPeriod(row.periode_bulan)) {
-        return false;
-      }
+  const filteredDetailDivisi = useMemo(() => detailDivisi.filter((row) => matchesPeriod(row.periode_bulan)), [detailDivisi, selectedMonth, selectedYear]);
 
-      if (unit && row.unit !== unit) {
-        return false;
-      }
+  const filteredBapp = useMemo(() => bappBulanan.filter((row) => matchesPeriod(row.periode_bulan)), [bappBulanan, selectedMonth, selectedYear]);
 
-      if (departemen && row.departemen !== departemen) {
-        return false;
-      }
+  const filteredGpm = useMemo(() => gpmData.filter((row) => matchesPeriod(row.periode_bulan)), [gpmData, selectedMonth, selectedYear]);
 
-      if (layanan && row.layanan !== layanan) {
-        return false;
-      }
+  const filteredTarget = useMemo(() => targetData.filter((row) => matchesPeriod(row.periode_bulan)), [targetData, selectedMonth, selectedYear]);
 
-      return true;
-    });
-  }, [detailDivisi, unit, departemen, layanan, selectedMonth, selectedYear, selectedMonthNumber]);
+  const filteredCost = useMemo(() => detailCost.filter((row) => matchesPeriod(row.periode_bulan)), [detailCost, selectedMonth, selectedYear]);
 
-  const filteredBappBulanan = useMemo(() => {
-    return bappBulanan.filter((row) => {
-      if (!matchesPeriod(row.periode_bulan)) {
-        return false;
-      }
-
-      if (unit && row.unit !== unit) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [bappBulanan, unit, selectedMonth, selectedYear, selectedMonthNumber]);
-
-  const filteredGpm = useMemo(() => {
-    return gpmData.filter((row) => matchesPeriod(row.periode_bulan));
-  }, [gpmData, selectedMonth, selectedYear, selectedMonthNumber]);
-
-  const filteredTarget = useMemo(() => {
-    return targetData.filter((row) => matchesPeriod(row.periode_bulan));
-  }, [targetData, selectedMonth, selectedYear, selectedMonthNumber]);
-
-  const filteredCost = useMemo(() => {
-    return detailCost.filter((row) => matchesPeriod(row.periode_bulan));
-  }, [detailCost, selectedMonth, selectedYear, selectedMonthNumber]);
-
-  /* =========================================================
+  /* =======================================================
      KPI
-  ========================================================= */
+  ======================================================= */
 
-  const { totalRevenue, totalCost, totalGpm, gpmPercentage } = useMemo(() => {
+  const kpi = useMemo(() => {
+    const hasGpmData = filteredGpm.length > 0;
+
+    const hasCostData = filteredCost.length > 0;
+
+    const hasTargetData = filteredTarget.length > 0;
+
+    const hasBappData = filteredBapp.length > 0;
+
     const revenue = filteredGpm.reduce((sum, row) => sum + toNumber(row.revenue_payroll_bapp), 0);
 
-    const cost = filteredGpm.reduce((sum, row) => sum + toNumber(row.cost_payroll), 0);
+    const costPayroll = filteredGpm.reduce((sum, row) => sum + toNumber(row.cost_payroll), 0);
 
-    const gpm = revenue - cost;
+    const gpm = revenue - costPayroll;
 
-    const percentage = revenue !== 0 ? (gpm / revenue) * 100 : 0;
+    const gpmPercentage = revenue !== 0 ? (gpm / revenue) * 100 : 0;
+
+    const operationalCost = filteredCost.reduce((sum, row) => sum + toNumber(row.total), 0);
+
+    const targetSustain = filteredTarget.reduce((sum, row) => sum + toNumber(row.nominal_target_sustain), 0);
+
+    const targetScaling = filteredTarget.reduce((sum, row) => sum + toNumber(row.nominal_target_scaling), 0);
+
+    const realisasiSustain = filteredTarget.reduce((sum, row) => sum + toNumber(row.realisasi_sustain), 0);
+
+    const realisasiScaling = filteredTarget.reduce((sum, row) => sum + toNumber(row.realisasi_scaling), 0);
+
+    const totalTarget = targetSustain + targetScaling;
+
+    const totalRealisasi = realisasiSustain + realisasiScaling;
+
+    const targetAchievement = totalTarget !== 0 ? (totalRealisasi / totalTarget) * 100 : 0;
+
+    const nominalBapp = filteredBapp.reduce((sum, row) => sum + toNumber(row.nominal), 0);
+
+    const jumlahBapp = filteredBapp.reduce((sum, row) => sum + toNumber(row.jumlah_bapp), 0);
 
     return {
-      totalRevenue: revenue,
-      totalCost: cost,
-      totalGpm: gpm,
-      gpmPercentage: percentage,
+      revenue,
+      costPayroll,
+      gpmPercentage,
+      operationalCost,
+      targetAchievement,
+      nominalBapp,
+      jumlahBapp,
+
+      targetSustain,
+      targetScaling,
+      realisasiSustain,
+      realisasiScaling,
+
+      hasGpmData,
+      hasCostData,
+      hasTargetData,
+      hasBappData,
     };
-  }, [filteredGpm]);
+  }, [filteredGpm, filteredCost, filteredTarget, filteredBapp]);
 
-  /* =========================================================
-     CHART 1
-     TARGET VS REALISASI REVENUE
-  ========================================================= */
+  /* =======================================================
+     TREND
+  ======================================================= */
 
-  const targetRevenueData = useMemo(() => {
+  const trendData = useMemo(() => {
     const map = new Map<
       string,
       {
         label: string;
         sort: number;
-        target: number;
-        realisasi: number;
+        revenue: number;
+        cost: number;
+        gpmPercentage: number;
       }
     >();
 
-    filteredTarget.forEach((row) => {
+    filteredGpm.forEach((row) => {
       const key = getMonthKey(row.periode_bulan);
 
       if (!key) {
         return;
       }
 
-      const date = parsePeriod(row.periode_bulan);
+      const revenue = toNumber(row.revenue_payroll_bapp);
 
-      if (!date) {
-        return;
-      }
+      const cost = toNumber(row.cost_payroll);
 
       const existing = map.get(key) ?? {
         label: formatMonth(row.periode_bulan),
         sort: monthSortValue(row.periode_bulan),
-        target: 0,
-        realisasi: 0,
+        revenue: 0,
+        cost: 0,
+        gpmPercentage: 0,
       };
 
-      existing.target += toNumber(row.nominal_target_sustain) + toNumber(row.nominal_target_scaling);
+      existing.revenue += revenue;
 
-      existing.realisasi += toNumber(row.realisasi_sustain) + toNumber(row.realisasi_scaling);
+      existing.cost += cost;
+
+      existing.gpmPercentage = existing.revenue !== 0 ? ((existing.revenue - existing.cost) / existing.revenue) * 100 : 0;
 
       map.set(key, existing);
     });
 
     return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
-  }, [filteredTarget]);
-
-  /* =========================================================
-     CHART 2
-     GPM TREND
-  ========================================================= */
-
-  const gpmTrendData = useMemo(() => {
-    return [...filteredGpm]
-      .sort((a, b) => monthSortValue(a.periode_bulan) - monthSortValue(b.periode_bulan))
-      .map((row) => {
-        const revenue = toNumber(row.revenue_payroll_bapp);
-
-        const cost = toNumber(row.cost_payroll);
-
-        return {
-          label: formatMonth(row.periode_bulan),
-          revenue,
-          cost,
-          gpm: revenue - cost,
-        };
-      });
   }, [filteredGpm]);
 
-  /* =========================================================
-     CHART 3
-     BAPP PERFORMANCE
-  ========================================================= */
+  /* =======================================================
+     TARGET
+  ======================================================= */
 
-  const bappPerformanceData = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        label: string;
-        sort: number;
-        done: number;
-        onProcess: number;
-        notProcess: number;
-      }
-    >();
+  const targetProgress = useMemo(() => {
+    if (filteredTarget.length === 0) {
+      return null;
+    }
 
-    filteredBappBulanan.forEach((row) => {
-      const key = getMonthKey(row.periode_bulan);
+    const sustainTarget = kpi.targetSustain;
 
-      if (!key) {
-        return;
-      }
+    const sustainRealization = kpi.realisasiSustain;
 
-      const existing = map.get(key) ?? {
-        label: formatMonth(row.periode_bulan),
-        sort: monthSortValue(row.periode_bulan),
-        done: 0,
-        onProcess: 0,
-        notProcess: 0,
-      };
+    const scalingTarget = kpi.targetScaling;
 
-      const value = toNumber(row.jumlah_bapp);
+    const scalingRealization = kpi.realisasiScaling;
 
-      const status = getStatusCategory(row.status_bapp);
+    return {
+      sustain: {
+        target: sustainTarget,
+        realisasi: sustainRealization,
+        percentage: sustainTarget !== 0 ? (sustainRealization / sustainTarget) * 100 : 0,
+      },
 
-      if (status === "Done") {
-        existing.done += value;
-      } else if (status === "On Process") {
-        existing.onProcess += value;
-      } else if (status === "Not Process") {
-        existing.notProcess += value;
-      }
+      scaling: {
+        target: scalingTarget,
+        realisasi: scalingRealization,
+        percentage: scalingTarget !== 0 ? (scalingRealization / scalingTarget) * 100 : 0,
+      },
+    };
+  }, [filteredTarget, kpi]);
 
-      map.set(key, existing);
-    });
-
-    return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
-  }, [filteredBappBulanan]);
-
-  /* =========================================================
-     CHART 4
+  /* =======================================================
      COST COMPOSITION
-  ========================================================= */
+     
+     Jika filteredCost kosong:
+     return []
+     
+     sehingga chart tidak menampilkan data
+     dari periode lain.
+  ======================================================= */
 
-  const costCompositionData = useMemo(() => {
-    const summary = {
-      jarkom: 0,
-      jasnaker: 0,
-      pihakKetiga: 0,
-      lainLain: 0,
-      mandatory: 0,
-      depresiasi: 0,
-    };
+  const costComposition = useMemo(() => {
+    if (filteredCost.length === 0) {
+      return [];
+    }
 
-    filteredCost.forEach((row) => {
-      summary.jarkom += toNumber(row.beban_jarkom);
-
-      summary.jasnaker += toNumber(row.beban_jasnaker);
-
-      summary.pihakKetiga += toNumber(row.beban_kerjasama_pihak_ketiga);
-
-      summary.lainLain += toNumber(row.beban_lain_lain);
-
-      summary.mandatory += toNumber(row.beban_mandatory_gedung);
-
-      summary.depresiasi += toNumber(row.depresiasi);
-    });
-
-    return [
+    const result = [
       {
-        name: "Beban Jarkom",
-        value: summary.jarkom,
+        name: "Jarkom",
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.beban_jarkom), 0),
       },
+
       {
-        name: "Beban Jasnaker",
-        value: summary.jasnaker,
+        name: "Jasnaker",
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.beban_jasnaker), 0),
       },
+
       {
         name: "Kerjasama Pihak Ketiga",
-        value: summary.pihakKetiga,
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.beban_kerjasama_pihak_ketiga), 0),
       },
+
       {
-        name: "Beban Lain-lain",
-        value: summary.lainLain,
+        name: "Lain-lain",
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.beban_lain_lain), 0),
       },
+
       {
         name: "Mandatory Gedung",
-        value: summary.mandatory,
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.beban_mandatory_gedung), 0),
       },
+
       {
         name: "Depresiasi",
-        value: summary.depresiasi,
+        value: filteredCost.reduce((sum, row) => sum + toNumber(row.depresiasi), 0),
       },
-    ]
-      .filter((item) => item.value !== 0)
-      .sort((a, b) => b.value - a.value);
+    ].filter((item) => item.value !== 0);
+
+    const total = result.reduce((sum, item) => sum + item.value, 0);
+
+    return result
+      .sort((a, b) => b.value - a.value)
+      .map((item) => ({
+        ...item,
+        percentage: total !== 0 ? (item.value / total) * 100 : 0,
+      }));
   }, [filteredCost]);
 
-  /* =========================================================
-     CHART 5
-     PAYROLL OPERATIONAL
-  ========================================================= */
+  /* =======================================================
+     BAPP STATUS
+  ======================================================= */
 
-  const payrollTrendData = useMemo(() => {
+  const bappStatus = useMemo(() => {
     const map = new Map<
       string,
       {
-        label: string;
-        sort: number;
+        status: string;
+        jumlah: number;
+        nominal: number;
+      }
+    >();
+
+    filteredBapp.forEach((row) => {
+      const status = String(row.status_bapp || "Unknown").trim();
+
+      const key = status.toLowerCase();
+
+      const existing = map.get(key) ?? {
+        status,
+        jumlah: 0,
+        nominal: 0,
+      };
+
+      existing.jumlah += toNumber(row.jumlah_bapp);
+
+      existing.nominal += toNumber(row.nominal);
+
+      map.set(key, existing);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.jumlah - a.jumlah);
+  }, [filteredBapp]);
+
+  const maxBappJumlah = useMemo(() => Math.max(...bappStatus.map((item) => item.jumlah), 1), [bappStatus]);
+
+  /* =======================================================
+     OPERATIONAL TABLE
+  ======================================================= */
+
+  const operationalRows = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        divisi: string;
+        departemen: string;
+        layanan: string;
         transaksi: number;
+        sdm: number;
         slaTotal: number;
         slaCount: number;
+        thp: number;
       }
     >();
 
     filteredDetailDivisi.forEach((row) => {
-      const key = getMonthKey(row.periode_bulan);
-
-      if (!key) {
-        return;
-      }
+      const key = [row.divisi, row.departemen, row.layanan].join("|");
 
       const existing = map.get(key) ?? {
-        label: formatMonth(row.periode_bulan),
-        sort: monthSortValue(row.periode_bulan),
+        divisi: row.divisi || "-",
+        departemen: row.departemen || "-",
+        layanan: row.layanan || "-",
         transaksi: 0,
+        sdm: 0,
         slaTotal: 0,
         slaCount: 0,
+        thp: 0,
       };
 
       existing.transaksi += toNumber(row.jumlah_transaksi);
 
-      const sla = normalizeSla(row.sla_tercapai);
+      existing.sdm += toNumber(row.sdm_diproses);
 
-      existing.slaTotal += sla;
+      existing.slaTotal += normalizeSla(row.sla_tercapai);
+
       existing.slaCount += 1;
+
+      existing.thp += toNumber(row.total_thp);
 
       map.set(key, existing);
     });
 
     return Array.from(map.values())
-      .sort((a, b) => a.sort - b.sort)
       .map((item) => ({
-        label: item.label,
-        transaksi: item.transaksi,
-        sla: item.slaCount > 0 ? item.slaTotal / item.slaCount : 0,
-      }));
+        ...item,
+        sla: item.slaCount !== 0 ? item.slaTotal / item.slaCount : 0,
+      }))
+      .sort((a, b) => b.transaksi - a.transaksi);
   }, [filteredDetailDivisi]);
 
-  /* =========================================================
-     CHART REFS
-  ========================================================= */
+  /* =======================================================
+     TREND CHART
+  ======================================================= */
 
-  const targetChartRef = useRef<echarts.EChartsType | null>(null);
+  useEffect(() => {
+    const element = trendChartRef.current;
 
-  const gpmChartRef = useRef<echarts.EChartsType | null>(null);
+    if (!element) {
+      return;
+    }
 
-  const bappChartRef = useRef<echarts.EChartsType | null>(null);
+    if (trendData.length === 0) {
+      if (trendChartInstance.current) {
+        trendChartInstance.current.dispose();
+        trendChartInstance.current = null;
+      }
 
-  const costChartRef = useRef<echarts.EChartsType | null>(null);
+      element.innerHTML = "";
 
-  const payrollChartRef = useRef<echarts.EChartsType | null>(null);
+      return;
+    }
 
-  /* =========================================================
-     CHART 1 OPTION
-  ========================================================= */
+    if (trendChartInstance.current) {
+      trendChartInstance.current.dispose();
+      trendChartInstance.current = null;
+    }
 
-  const targetChartOption = useMemo(
-    () => ({
+    const chart = echarts.init(element);
+
+    trendChartInstance.current = chart;
+
+    chart.setOption({
       animation: true,
-      animationDuration: 800,
+      animationDuration: 700,
 
       tooltip: {
         trigger: "axis",
 
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
+        backgroundColor: "#122331",
+
+        borderColor: "#284858",
+
         borderWidth: 1,
 
         textStyle: {
-          color: "#e8eef6",
+          color: "#e8f1f5",
           fontSize: 11,
         },
 
@@ -858,70 +830,100 @@ export default function ExecutiveBusinessDashboard() {
             return "";
           }
 
-          let html = `
-              <div
-                style="
-                  font-weight:700;
-                  color:#f8fafc;
-                  margin-bottom:7px;
-                "
-              >
-                ${params[0].axisValue}
-              </div>
-            `;
+          const index = params[0].dataIndex;
 
-          params.forEach((item) => {
-            html += `
-                <div
-                  style="
-                    display:flex;
-                    justify-content:space-between;
-                    gap:22px;
-                    margin:5px 0;
-                  "
-                >
-                  <span style="color:#9fb0c3;">
-                    ${item.marker}
-                    ${item.seriesName}
-                  </span>
+          const item = trendData[index];
 
-                  <strong style="color:#f8fafc;">
-                    ${formatRupiah(Number(item.value) || 0)}
-                  </strong>
-                </div>
-              `;
-          });
+          if (!item) {
+            return "";
+          }
 
-          return html;
+          return `
+            <div style="
+              font-weight:700;
+              margin-bottom:8px;
+              color:#f5fafc;
+            ">
+              ${item.label}
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:24px;
+              margin:5px 0;
+            ">
+              <span style="color:#8fa9b6">
+                ● Revenue Payroll BAPP
+              </span>
+
+              <strong style="color:#f5fafc">
+                ${formatRupiah(item.revenue)}
+              </strong>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:24px;
+              margin:5px 0;
+            ">
+              <span style="color:#8fa9b6">
+                ● Cost Payroll
+              </span>
+
+              <strong style="color:#f5fafc">
+                ${formatRupiah(item.cost)}
+              </strong>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:24px;
+              margin:5px 0;
+            ">
+              <span style="color:#8fa9b6">
+                ● GPM
+              </span>
+
+              <strong style="color:#f5fafc">
+                ${formatDecimal(item.gpmPercentage)}%
+              </strong>
+            </div>
+          `;
         },
       },
 
       legend: {
-        top: 0,
-        left: 0,
+        bottom: 0,
+        left: "center",
+        itemWidth: 10,
+        itemHeight: 6,
 
         textStyle: {
-          color: "#aebed0",
+          color: "#8ea8b5",
           fontSize: 10,
         },
       },
 
       grid: {
-        left: 58,
-        right: 24,
-        top: 42,
-        bottom: 45,
+        left: 54,
+        right: 48,
+        top: 28,
+        bottom: 48,
         containLabel: true,
       },
 
       xAxis: {
         type: "category",
+        boundaryGap: true,
 
-        data: targetRevenueData.map((item) => item.label),
+        data: trendData.map((item) => item.label),
 
         axisLine: {
           lineStyle: {
-            color: "rgba(148,163,184,.22)",
+            color: "rgba(126,165,179,.18)",
           },
         },
 
@@ -930,817 +932,10 @@ export default function ExecutiveBusinessDashboard() {
         },
 
         axisLabel: {
-          color: "#9aacc0",
+          color: "#7893a1",
           fontSize: 9,
-        },
-      },
-
-      yAxis: {
-        type: "value",
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-
-          formatter: (value: number) => formatAxisRupiah(value),
-        },
-
-        splitLine: {
-          lineStyle: {
-            color: "rgba(126,150,178,.12)",
-            type: "dashed",
-          },
-        },
-      },
-
-      series: [
-        {
-          name: "Target Revenue",
-          type: "bar",
-
-          barMaxWidth: 28,
-
-          data: targetRevenueData.map((item) => item.target),
-
-          itemStyle: {
-            borderRadius: [7, 7, 2, 2],
-
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "#93c5fd",
-              },
-              {
-                offset: 0.5,
-                color: "#3b82f6",
-              },
-              {
-                offset: 1,
-                color: "#1d4ed8",
-              },
-            ]),
-
-            shadowBlur: 8,
-            shadowColor: "rgba(59,130,246,.22)",
-            shadowOffsetY: 3,
-          },
-        },
-
-        {
-          name: "Realisasi Revenue",
-          type: "line",
-
-          smooth: true,
-
-          data: targetRevenueData.map((item) => item.realisasi),
-
-          symbol: "circle",
-          symbolSize: 7,
-
-          lineStyle: {
-            width: 3,
-
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              {
-                offset: 0,
-                color: "#16a34a",
-              },
-              {
-                offset: 0.5,
-                color: "#22c55e",
-              },
-              {
-                offset: 1,
-                color: "#86efac",
-              },
-            ]),
-          },
-
-          itemStyle: {
-            color: "#22c55e",
-            borderColor: "#ecfdf5",
-            borderWidth: 2,
-          },
-
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "rgba(34,197,94,.20)",
-              },
-              {
-                offset: 1,
-                color: "rgba(34,197,94,.01)",
-              },
-            ]),
-          },
-        },
-      ],
-    }),
-    [targetRevenueData],
-  );
-
-  /* =========================================================
-     CHART 2 OPTION
-  ========================================================= */
-
-  const gpmChartOption = useMemo(
-    () => ({
-      animation: true,
-      animationDuration: 800,
-
-      tooltip: {
-        trigger: "axis",
-
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 11,
-        },
-
-        formatter: (params: any[]) => {
-          if (!params?.length) {
-            return "";
-          }
-
-          let html = `
-            <div
-              style="
-                font-weight:700;
-                color:#f8fafc;
-                margin-bottom:7px;
-              "
-            >
-              ${params[0].axisValue}
-            </div>
-          `;
-
-          params.forEach((item) => {
-            html += `
-              <div
-                style="
-                  display:flex;
-                  justify-content:space-between;
-                  gap:22px;
-                  margin:5px 0;
-                "
-              >
-                <span style="color:#9fb0c3;">
-                  ${item.marker}
-                  ${item.seriesName}
-                </span>
-
-                <strong style="color:#f8fafc;">
-                  ${formatRupiah(Number(item.value) || 0)}
-                </strong>
-              </div>
-            `;
-          });
-
-          return html;
-        },
-      },
-
-      legend: {
-        top: 0,
-        left: 0,
-
-        textStyle: {
-          color: "#aebed0",
-          fontSize: 10,
-        },
-      },
-
-      grid: {
-        left: 58,
-        right: 24,
-        top: 42,
-        bottom: 45,
-        containLabel: true,
-      },
-
-      xAxis: {
-        type: "category",
-
-        data: gpmTrendData.map((item) => item.label),
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-        },
-
-        axisLine: {
-          lineStyle: {
-            color: "rgba(148,163,184,.22)",
-          },
-        },
-      },
-
-      yAxis: {
-        type: "value",
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-
-          formatter: (value: number) => formatAxisRupiah(value),
-        },
-
-        splitLine: {
-          lineStyle: {
-            color: "rgba(126,150,178,.12)",
-            type: "dashed",
-          },
-        },
-      },
-
-      series: [
-        {
-          name: "Revenue",
-          type: "line",
-          smooth: true,
-
-          data: gpmTrendData.map((item) => item.revenue),
-
-          symbol: "circle",
-          symbolSize: 6,
-
-          lineStyle: {
-            width: 3,
-
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              {
-                offset: 0,
-                color: "#60a5fa",
-              },
-              {
-                offset: 0.5,
-                color: "#3b82f6",
-              },
-              {
-                offset: 1,
-                color: "#93c5fd",
-              },
-            ]),
-          },
-
-          itemStyle: {
-            color: "#3b82f6",
-            borderColor: "#eff6ff",
-            borderWidth: 2,
-          },
-        },
-
-        {
-          name: "Cost",
-          type: "line",
-          smooth: true,
-
-          data: gpmTrendData.map((item) => item.cost),
-
-          symbol: "circle",
-          symbolSize: 6,
-
-          lineStyle: {
-            width: 3,
-
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              {
-                offset: 0,
-                color: "#f87171",
-              },
-              {
-                offset: 0.5,
-                color: "#ef4444",
-              },
-              {
-                offset: 1,
-                color: "#fca5a5",
-              },
-            ]),
-          },
-
-          itemStyle: {
-            color: "#ef4444",
-            borderColor: "#fff1f2",
-            borderWidth: 2,
-          },
-        },
-
-        {
-          name: "GPM",
-          type: "line",
-          smooth: true,
-
-          data: gpmTrendData.map((item) => item.gpm),
-
-          symbol: "circle",
-          symbolSize: 7,
-
-          lineStyle: {
-            width: 3,
-
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              {
-                offset: 0,
-                color: "#a78bfa",
-              },
-              {
-                offset: 0.5,
-                color: "#8b5cf6",
-              },
-              {
-                offset: 1,
-                color: "#c4b5fd",
-              },
-            ]),
-          },
-
-          itemStyle: {
-            color: "#8b5cf6",
-            borderColor: "#f5f3ff",
-            borderWidth: 2,
-          },
-
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "rgba(139,92,246,.16)",
-              },
-              {
-                offset: 1,
-                color: "rgba(139,92,246,.01)",
-              },
-            ]),
-          },
-        },
-      ],
-    }),
-    [gpmTrendData],
-  );
-
-  /* =========================================================
-     CHART 3 OPTION
-  ========================================================= */
-
-  const bappChartOption = useMemo(
-    () => ({
-      animation: true,
-      animationDuration: 800,
-
-      tooltip: {
-        trigger: "axis",
-
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 11,
-        },
-
-        formatter: (params: any[]) => {
-          if (!params?.length) {
-            return "";
-          }
-
-          let html = `
-            <div
-              style="
-                font-weight:700;
-                color:#f8fafc;
-                margin-bottom:7px;
-              "
-            >
-              ${params[0].axisValue}
-            </div>
-          `;
-
-          params.forEach((item) => {
-            html += `
-              <div
-                style="
-                  display:flex;
-                  justify-content:space-between;
-                  gap:20px;
-                  margin:5px 0;
-                "
-              >
-                <span style="color:#9fb0c3;">
-                  ${item.marker}
-                  ${item.seriesName}
-                </span>
-
-                <strong style="color:#f8fafc;">
-                  ${formatNumber(Number(item.value) || 0)}
-                </strong>
-              </div>
-            `;
-          });
-
-          return html;
-        },
-      },
-
-      legend: {
-        top: 0,
-        left: 0,
-
-        textStyle: {
-          color: "#aebed0",
-          fontSize: 10,
-        },
-      },
-
-      grid: {
-        left: 45,
-        right: 20,
-        top: 42,
-        bottom: 45,
-        containLabel: true,
-      },
-
-      xAxis: {
-        type: "category",
-
-        data: bappPerformanceData.map((item) => item.label),
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-        },
-
-        axisLine: {
-          lineStyle: {
-            color: "rgba(148,163,184,.22)",
-          },
-        },
-      },
-
-      yAxis: {
-        type: "value",
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-
-          formatter: (value: number) => formatNumber(value),
-        },
-
-        splitLine: {
-          lineStyle: {
-            color: "rgba(126,150,178,.12)",
-            type: "dashed",
-          },
-        },
-      },
-
-      series: [
-        {
-          name: "Done",
-          type: "bar",
-          stack: "bapp",
-
-          barMaxWidth: 30,
-
-          data: bappPerformanceData.map((item) => item.done),
-
-          itemStyle: {
-            borderRadius: [6, 6, 0, 0],
-
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "#86efac",
-              },
-              {
-                offset: 0.5,
-                color: "#22c55e",
-              },
-              {
-                offset: 1,
-                color: "#15803d",
-              },
-            ]),
-
-            shadowBlur: 8,
-            shadowColor: "rgba(34,197,94,.18)",
-            shadowOffsetY: 3,
-          },
-        },
-
-        {
-          name: "On Process",
-          type: "bar",
-          stack: "bapp",
-
-          barMaxWidth: 30,
-
-          data: bappPerformanceData.map((item) => item.onProcess),
-
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "#f3fba2",
-              },
-              {
-                offset: 0.5,
-                color: "#fff643",
-              },
-              {
-                offset: 1,
-                color: "#fbff00",
-              },
-            ]),
-          },
-        },
-
-        {
-          name: "Not Process",
-          type: "bar",
-          stack: "bapp",
-
-          barMaxWidth: 30,
-
-          data: bappPerformanceData.map((item) => item.notProcess),
-
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              {
-                offset: 0,
-                color: "#fca5a5",
-              },
-              {
-                offset: 0.5,
-                color: "#ef4444",
-              },
-              {
-                offset: 1,
-                color: "#b91c1c",
-              },
-            ]),
-          },
-        },
-      ],
-    }),
-    [bappPerformanceData],
-  );
-
-  /* =========================================================
-     CHART 4 OPTION
-  ========================================================= */
-
- const costChartOption = useMemo(
-   () => ({
-     animation: true,
-     animationDuration: 800,
-
-     tooltip: {
-       trigger: "item",
-
-       backgroundColor: "#172436",
-       borderColor: "#344a63",
-
-       textStyle: {
-         color: "#e8eef6",
-         fontSize: 11,
-       },
-
-       formatter: (params: any) => {
-         return `
-          <div
-            style="
-              font-weight:700;
-              color:#f8fafc;
-              margin-bottom:6px;
-            "
-          >
-            ${params.name}
-          </div>
-
-          <div style="color:#f8fafc;">
-            ${formatRupiah(Number(params.value) || 0)}
-          </div>
-
-          <div
-            style="
-              color:#9fb0c3;
-              margin-top:3px;
-            "
-          >
-            ${Number(params.percent).toFixed(1)}%
-          </div>
-        `;
-       },
-     },
-
-     legend: {
-       bottom: 2,
-       left: "center",
-
-       width: "90%",
-
-       itemWidth: 16,
-       itemHeight: 9,
-
-       itemGap: 6,
-
-       textStyle: {
-         color: "#9aacc0",
-         fontSize: 8,
-       },
-     },
-
-     series: [
-       {
-         name: "Cost Composition",
-         type: "pie",
-
-         radius: ["42%", "68%"],
-
-         center: ["50%", "43%"],
-
-         avoidLabelOverlap: true,
-
-         itemStyle: {
-           borderColor: "#14263a",
-           borderWidth: 3,
-           borderRadius: 5,
-         },
-
-         /*
-          * Hide labels outside the donut.
-          * Detail is shown through tooltip.
-          */
-         label: {
-           show: false,
-         },
-
-         labelLine: {
-           show: false,
-         },
-
-         emphasis: {
-           scale: true,
-           scaleSize: 5,
-
-           label: {
-             show: false,
-           },
-
-           itemStyle: {
-             shadowBlur: 12,
-             shadowOffsetX: 0,
-             shadowColor: "rgba(0, 0, 0, 0.25)",
-           },
-         },
-
-         data: costCompositionData.map((item, index) => {
-           const gradients = [
-             ["#fca5a5", "#ef4444", "#b91c1c"],
-             ["#fdba74", "#f97316", "#c2410c"],
-             ["#fde68a", "#eab308", "#a16207"],
-             ["#c4b5fd", "#8b5cf6", "#6d28d9"],
-             ["#93c5fd", "#3b82f6", "#1d4ed8"],
-             ["#86efac", "#22c55e", "#15803d"],
-           ];
-
-           const colors = gradients[index % gradients.length];
-
-           return {
-             ...item,
-
-             itemStyle: {
-               borderColor: "#14263a",
-               borderWidth: 3,
-               borderRadius: 5,
-
-               color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
-                 {
-                   offset: 0,
-                   color: colors[0],
-                 },
-                 {
-                   offset: 0.5,
-                   color: colors[1],
-                 },
-                 {
-                   offset: 1,
-                   color: colors[2],
-                 },
-               ]),
-             },
-           };
-         }),
-       },
-     ],
-   }),
-   [costCompositionData],
- );
-
-  /* =========================================================
-     CHART 5 OPTION
-  ========================================================= */
-
-  const payrollChartOption = useMemo(
-    () => ({
-      animation: true,
-      animationDuration: 800,
-
-      tooltip: {
-        trigger: "axis",
-
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 11,
-        },
-
-        formatter: (params: any[]) => {
-          if (!params?.length) {
-            return "";
-          }
-
-          const month = params[0].axisValue;
-
-          let html = `
-              <div
-                style="
-                  font-weight:700;
-                  color:#f8fafc;
-                  margin-bottom:7px;
-                "
-              >
-                ${month}
-              </div>
-            `;
-
-          params.forEach((item) => {
-            const value = item.seriesName === "SLA Tercapai" ? `${Number(item.value).toFixed(1)}%` : formatNumber(Number(item.value) || 0);
-
-            html += `
-                <div
-                  style="
-                    display:flex;
-                    justify-content:space-between;
-                    gap:20px;
-                    margin:5px 0;
-                  "
-                >
-                  <span style="color:#9fb0c3;">
-                    ${item.marker}
-                    ${item.seriesName}
-                  </span>
-
-                  <strong style="color:#f8fafc;">
-                    ${value}
-                  </strong>
-                </div>
-              `;
-          });
-
-          return html;
-        },
-      },
-
-      legend: {
-        top: 0,
-        left: 0,
-
-        textStyle: {
-          color: "#aebed0",
-          fontSize: 10,
-        },
-      },
-
-      grid: {
-        left: 45,
-        right: 55,
-        top: 42,
-        bottom: 45,
-        containLabel: true,
-      },
-
-      xAxis: {
-        type: "category",
-
-        data: payrollTrendData.map((item) => item.label),
-
-        axisLabel: {
-          color: "#9aacc0",
-          fontSize: 9,
-        },
-
-        axisLine: {
-          lineStyle: {
-            color: "rgba(148,163,184,.22)",
-          },
+          margin: 12,
+          hideOverlap: true,
         },
       },
 
@@ -1748,23 +943,16 @@ export default function ExecutiveBusinessDashboard() {
         {
           type: "value",
 
-          name: "Transaksi",
-
-          nameTextStyle: {
-            color: "#71869d",
-            fontSize: 9,
-          },
-
           axisLabel: {
-            color: "#9aacc0",
+            color: "#7893a1",
             fontSize: 9,
 
-            formatter: (value: number) => formatNumber(value),
+            formatter: (value: number) => formatAxisRupiah(value),
           },
 
           splitLine: {
             lineStyle: {
-              color: "rgba(126,150,178,.12)",
+              color: "rgba(126,165,179,.10)",
               type: "dashed",
             },
           },
@@ -1772,22 +960,13 @@ export default function ExecutiveBusinessDashboard() {
 
         {
           type: "value",
-
           min: 0,
-          max: 100,
-
-          name: "SLA",
-
-          nameTextStyle: {
-            color: "#71869d",
-            fontSize: 9,
-          },
 
           axisLabel: {
-            color: "#9aacc0",
+            color: "#7893a1",
             fontSize: 9,
 
-            formatter: "{value}%",
+            formatter: (value: number) => `${value}%`,
           },
 
           splitLine: {
@@ -1798,142 +977,141 @@ export default function ExecutiveBusinessDashboard() {
 
       series: [
         {
-          name: "Jumlah Transaksi",
+          name: "Revenue Payroll BAPP",
           type: "bar",
+          yAxisIndex: 0,
+          barMaxWidth: 26,
 
-          data: payrollTrendData.map((item) => item.transaksi),
-
-          barMaxWidth: 30,
+          data: trendData.map((item) => item.revenue),
 
           itemStyle: {
-            borderRadius: [7, 7, 2, 2],
+            borderRadius: [5, 5, 0, 0],
 
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               {
                 offset: 0,
-                color: "#93c5fd",
-              },
-              {
-                offset: 0.5,
-                color: "#3b82f6",
+                color: "#56b8c7",
               },
               {
                 offset: 1,
-                color: "#1d4ed8",
+                color: "#2d7f8c",
               },
             ]),
-
-            shadowBlur: 8,
-            shadowColor: "rgba(59,130,246,.18)",
-            shadowOffsetY: 3,
           },
         },
 
         {
-          name: "SLA Tercapai",
-          type: "line",
+          name: "Cost Payroll",
+          type: "bar",
+          yAxisIndex: 0,
+          barMaxWidth: 26,
 
-          yAxisIndex: 1,
+          data: trendData.map((item) => item.cost),
 
-          smooth: true,
+          itemStyle: {
+            borderRadius: [5, 5, 0, 0],
 
-          data: payrollTrendData.map((item) => item.sla),
-
-          symbol: "circle",
-          symbolSize: 7,
-
-          lineStyle: {
-            width: 3,
-
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               {
                 offset: 0,
-                color: "#86efac",
-              },
-              {
-                offset: 0.5,
-                color: "#22c55e",
+                color: "#e9b84d",
               },
               {
                 offset: 1,
-                color: "#16a34a",
+                color: "#b98226",
               },
             ]),
           },
+        },
+
+        {
+          name: "GPM %",
+          type: "line",
+          yAxisIndex: 1,
+          smooth: true,
+          symbol: "circle",
+          symbolSize: 7,
+
+          data: trendData.map((item) => item.gpmPercentage),
+
+          lineStyle: {
+            width: 3,
+            color: "#f27d91",
+
+            shadowBlur: 8,
+            shadowColor: "rgba(242,125,145,.20)",
+          },
 
           itemStyle: {
-            color: "#22c55e",
-            borderColor: "#f0fdf4",
+            color: "#f27d91",
+            borderColor: "#fff4f6",
             borderWidth: 2,
           },
         },
       ],
-    }),
-    [payrollTrendData],
-  );
-
-  /* =========================================================
-     RESIZE
-  ========================================================= */
-
-  useEffect(() => {
-    const charts = [targetChartRef.current, gpmChartRef.current, bappChartRef.current, costChartRef.current, payrollChartRef.current].filter(Boolean);
+    });
 
     const resize = () => {
-      charts.forEach((chart) => {
-        chart?.resize();
-      });
+      chart.resize();
     };
 
     window.addEventListener("resize", resize);
 
     return () => {
       window.removeEventListener("resize", resize);
+
+      chart.dispose();
+
+      if (trendChartInstance.current === chart) {
+        trendChartInstance.current = null;
+      }
     };
-  });
+  }, [trendData]);
 
-  /* =========================================================
+  /* =======================================================
      RESET
-  ========================================================= */
+  ======================================================= */
 
-  const resetFilters = () => {
-    setUnit("");
-    setDepartemen("");
-    setLayanan("");
+  const hasFilter = Boolean(selectedMonth) || Boolean(selectedYear);
+
+  function resetFilters() {
     setSelectedMonth("");
     setSelectedYear("");
-  };
+  }
 
-  const hasFilter = Boolean(unit || departemen || layanan || selectedMonth || selectedYear);
-
-  /* =========================================================
+  /* =======================================================
      LOADING
-  ========================================================= */
+  ======================================================= */
 
-if (loading) {
-  return (
-    <div className="bapp-state">
-      <div className="bapp-spinner" />
-      <span>Mengambil data dari database...</span>
-    </div>
-  );
-}
+  if (loading) {
+    return (
+      <div className="app-state app-state-loading">
+        <div className="app-spinner-wrapper">
+          <div className="app-spinner" />
+        </div>
 
+        <div className="app-state-loading-title">Memuat Operational Performance</div>
 
+        <div className="app-state-loading-description">Sedang mengambil data dari database...</div>
+      </div>
+    );
+  }
 
-  /* =========================================================
+  /* =======================================================
      ERROR
-  ========================================================= */
+  ======================================================= */
 
   if (error) {
     return (
-      <div className="executive-dashboard-error">
-        <div className="executive-error-card">
-          <strong>Gagal Memuat Dashboard</strong>
+      <div className="app-state app-state-error">
+        <div className="app-state-content">
+          <div className="app-error-icon">!</div>
 
-          <span>{error}</span>
+          <h2>Gagal Memuat Dashboard</h2>
 
-          <button type="button" onClick={() => window.location.reload()}>
+          <p>{error}</p>
+
+          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
             Coba Lagi
           </button>
         </div>
@@ -1941,373 +1119,405 @@ if (loading) {
     );
   }
 
-  /* =========================================================
+  /* =======================================================
      RENDER
-  ========================================================= */
+  ======================================================= */
 
   return (
-    <div className="executive-page">
-      {/* =====================================================
+    <div className="operational-page">
+      {/* ===================================================
           HEADER
-      ===================================================== */}
+      =================================================== */}
 
-      <header className="executive-header">
-        <div className="executive-header-copy">
-          <div className="executive-title-row">
-            <h1>Executive Business Dashboard</h1>
+      <header className="operational-header">
+        <div>
+          <div className="operational-title-row">
+            <h1>Operational Performance</h1>
 
-            <span className="executive-live-badge">
-              <span className="executive-live-dot" />
+            <span className="operational-live">
+              <span />
               Data Terhubung
             </span>
           </div>
 
-          <p>Executive monitoring untuk revenue, cost, GPM, BAPP, dan payroll operational performance</p>
-
-          <span className="executive-source">
-            Sumber data:
-            <strong>master_detail_divisi</strong>,<strong>master_bapp_bulanan</strong>,<strong>master_detail_bapp</strong>,<strong>gpm</strong>,<strong>target</strong>,<strong>detail_cost</strong>
-          </span>
+          <p>Monitoring operational performance, payroll, BAPP, cost, dan target</p>
         </div>
       </header>
 
-      {/* =====================================================
+      {/* ===================================================
           FILTER
-      ===================================================== */}
+      =================================================== */}
 
-      <section className="executive-filter-card">
-        <div className="executive-filter-heading">
+      <section className="operational-filter-card">
+        <div className="operational-filter-title">
           <div>
-            <span className="executive-section-kicker">FILTER DATA</span>
+            <span>FILTER DATA</span>
 
             <h2>Parameter Dashboard</h2>
           </div>
 
-          <button type="button" className={`executive-reset-filter ${hasFilter ? "is-active" : ""}`} onClick={resetFilters}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
-
-            <span>Reset Filter</span>
+          <button type="button" className={hasFilter ? "operational-reset active" : "operational-reset"} onClick={resetFilters}>
+            ↻ Reset Filter
           </button>
         </div>
 
-        <div className="executive-filter-grid">
-          <div className="executive-filter-item">
-            <label>Unit</label>
+        <div className="operational-filter-grid">
+          {/* BULAN */}
 
-            <SearchableSelect
-              value={unit}
-              options={unitOptions}
-              placeholder="Semua Unit"
-              searchPlaceholder="Cari unit..."
-              onChange={(value) => {
-                setUnit(value);
-                setDepartemen("");
-                setLayanan("");
-              }}
-            />
-          </div>
-
-          <div className="executive-filter-item">
-            <label>Departemen</label>
-
-            <SearchableSelect
-              value={departemen}
-              options={departemenOptions}
-              placeholder="Semua Departemen"
-              searchPlaceholder="Cari departemen..."
-              onChange={(value) => {
-                setDepartemen(value);
-                setLayanan("");
-              }}
-            />
-          </div>
-
-          <div className="executive-filter-item">
-            <label>Layanan</label>
-
-            <SearchableSelect value={layanan} options={layananOptions} placeholder="Semua Layanan" searchPlaceholder="Cari layanan..." onChange={setLayanan} />
-          </div>
-
-          <div className="executive-filter-item">
+          <div className="operational-filter">
             <label>Bulan</label>
 
-            <SearchableSelect value={selectedMonth} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonth} />
+            <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+              <option value="">Semua Bulan</option>
+
+              {monthOptions.map((month) => {
+                const date = new Date(2000, Number(month) - 1, 1);
+
+                const monthName = date.toLocaleDateString("id-ID", {
+                  month: "long",
+                });
+
+                return (
+                  <option key={month} value={month}>
+                    {monthName}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          <div className="executive-filter-item">
+          {/* TAHUN */}
+
+          <div className="operational-filter">
             <label>Tahun</label>
 
-            <SearchableSelect value={selectedYear} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setSelectedYear} />
+            <select value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)}>
+              <option value="">Semua Tahun</option>
+
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </section>
 
-      {/* =====================================================
+      {/* ===================================================
           KPI
-      ===================================================== */}
+      =================================================== */}
 
-      <section className="executive-kpi-grid">
-        {/* REVENUE */}
+      <section className="operational-kpi-grid">
+        {kpi.hasGpmData && (
+          <>
+            <article className="operational-kpi-card revenue">
+              <span className="kpi-label">Revenue Payroll BAPP</span>
 
-        <article className="executive-kpi-card">
-          <span className="executive-kpi-label">Total Revenue</span>
+              <strong>{formatRupiah(kpi.revenue)}</strong>
 
-          <strong className="executive-kpi-value">
-            <span>Rp {getRupiahKPI(totalRevenue).value}</span>
+              <small>Revenue Payroll (BAPP)</small>
+            </article>
 
-            {getRupiahKPI(totalRevenue).unit && <small>{getRupiahKPI(totalRevenue).unit}</small>}
-          </strong>
+            <article className="operational-kpi-card gpm">
+              <span className="kpi-label">GPM</span>
 
-          <span className="executive-kpi-subtitle">Revenue Payroll &amp; BAPP</span>
+              <strong>{formatDecimal(kpi.gpmPercentage)}%</strong>
+
+              <small>Gross Profit Margin</small>
+            </article>
+
+            <article className="operational-kpi-card cost">
+              <span className="kpi-label">Cost Payroll</span>
+
+              <strong>{formatRupiah(kpi.costPayroll)}</strong>
+
+              <small>Cost Payroll</small>
+            </article>
+          </>
+        )}
+
+        {kpi.hasCostData && (
+          <article className="operational-kpi-card expense">
+            <span className="kpi-label">Total Beban Operasional</span>
+
+            <strong>{formatRupiah(kpi.operationalCost)}</strong>
+
+            <small>Detail Cost</small>
+          </article>
+        )}
+
+        {kpi.hasTargetData && (
+          <article className="operational-kpi-card target">
+            <span className="kpi-label">Pencapaian Target</span>
+
+            <strong>{formatDecimal(kpi.targetAchievement)}%</strong>
+
+            <small>Sustain + Scaling</small>
+          </article>
+        )}
+
+        {kpi.hasBappData && (
+          <article className="operational-kpi-card bapp">
+            <span className="kpi-label">Nominal BAPP</span>
+
+            <strong>{formatRupiah(kpi.nominalBapp)}</strong>
+
+            <small>{formatNumber(kpi.jumlahBapp)} dokumen</small>
+          </article>
+        )}
+      </section>
+
+      {/* ===================================================
+          ROW 1
+      =================================================== */}
+
+      <section className="operational-main-grid">
+        {/* TREND */}
+
+        <article className="operational-card trend-card">
+          <div className="card-header">
+            <div>
+              <span>FINANCIAL PERFORMANCE</span>
+
+              <h3>Trend Revenue vs Cost Payroll dan GPM</h3>
+            </div>
+          </div>
+
+          <div className="trend-chart-wrapper">{trendData.length > 0 ? <div ref={trendChartRef} className="trend-chart" /> : <div className="operational-empty">Tidak ada data untuk filter yang dipilih.</div>}</div>
         </article>
 
+        {/* TARGET */}
+
+        <article className="operational-card target-card">
+          <div className="card-header">
+            <div>
+              <span>TARGET PERFORMANCE</span>
+
+              <h3>Target vs Realisasi</h3>
+            </div>
+          </div>
+
+          {targetProgress ? (
+            <div className="target-content">
+              {/* SUSTAIN */}
+
+              <div className="target-item">
+                <div className="target-row">
+                  <strong>Sustain</strong>
+
+                  <span>
+                    {formatRupiah(targetProgress.sustain.realisasi)} dari {formatRupiah(targetProgress.sustain.target)}
+                  </span>
+                </div>
+
+                <div className="target-track">
+                  <div
+                    className="target-fill sustain"
+                    style={{
+                      width: `${Math.min(targetProgress.sustain.percentage, 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <small>{formatDecimal(targetProgress.sustain.percentage)}% tercapai</small>
+              </div>
+
+              {/* SCALING */}
+
+              <div className="target-item">
+                <div className="target-row">
+                  <strong>Scaling</strong>
+
+                  <span>
+                    {formatRupiah(targetProgress.scaling.realisasi)} dari {formatRupiah(targetProgress.scaling.target)}
+                  </span>
+                </div>
+
+                <div className="target-track">
+                  <div
+                    className="target-fill scaling"
+                    style={{
+                      width: `${Math.min(targetProgress.scaling.percentage, 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <small>{formatDecimal(targetProgress.scaling.percentage)}% tercapai</small>
+              </div>
+            </div>
+          ) : (
+            <div className="operational-empty">Tidak ada data target untuk filter yang dipilih.</div>
+          )}
+        </article>
+      </section>
+
+      {/* ===================================================
+          ROW 2
+      =================================================== */}
+
+      <section className="operational-main-grid">
         {/* COST */}
 
-        <article className="executive-kpi-card">
-          <span className="executive-kpi-label">Total Cost</span>
-
-          <strong className="executive-kpi-value">
-            <span>Rp {getRupiahKPI(totalCost).value}</span>
-
-            {getRupiahKPI(totalCost).unit && <small>{getRupiahKPI(totalCost).unit}</small>}
-          </strong>
-
-          <span className="executive-kpi-subtitle">Cost Payroll</span>
-        </article>
-
-        {/* GPM */}
-
-        <article className="executive-kpi-card">
-          <span className="executive-kpi-label">GPM</span>
-
-          <strong className="executive-kpi-value">
-            <span>Rp {getRupiahKPI(totalGpm).value}</span>
-
-            {getRupiahKPI(totalGpm).unit && <small>{getRupiahKPI(totalGpm).unit}</small>}
-          </strong>
-
-          <span className="executive-kpi-subtitle">Revenue - Cost</span>
-        </article>
-
-        {/* GPM % */}
-
-        <article className="executive-kpi-card">
-          <span className="executive-kpi-label">GPM %</span>
-
-          <strong className="executive-kpi-value executive-kpi-percent">{gpmPercentage.toFixed(1).replace(".", ",")}%</strong>
-
-          <span className="executive-kpi-subtitle">Gross Profit Margin</span>
-        </article>
-      </section>
-
-      {/* =====================================================
-          CHART 1
-      ===================================================== */}
-
-      <section className="executive-chart-grid">
-        <article className="executive-chart-card">
-          <div className="executive-chart-header">
+        <article className="operational-card">
+          <div className="card-header">
             <div>
-              <span className="executive-chart-kicker">REVENUE PERFORMANCE</span>
+              <span>COST ANALYSIS</span>
 
-              <h3>Target vs Realisasi Revenue</h3>
+              <h3>Komposisi Beban</h3>
             </div>
           </div>
 
-          <div className="executive-chart-body executive-chart-large">
-            {targetRevenueData.length > 0 ? (
-              <div
-                ref={(element) => {
-                  if (!element) {
-                    return;
-                  }
+          {costComposition.length > 0 ? (
+            <div className="cost-content">
+              <div className="cost-stacked-bar">
+                {costComposition.map((item, index) => (
+                  <div
+                    key={item.name}
+                    className={`cost-segment cost-${index}`}
+                    style={{
+                      width: `${item.percentage}%`,
+                    }}
+                    title={`${item.name}: ${formatRupiah(item.value)}`}
+                  />
+                ))}
+              </div>
 
-                  const chart = echarts.init(element);
+              <div className="cost-list">
+                {costComposition.map((item, index) => (
+                  <div className="cost-list-item" key={item.name}>
+                    <div className="cost-name">
+                      <span className={`cost-dot cost-dot-${index}`} />
 
-                  targetChartRef.current = chart;
+                      <span>{item.name}</span>
+                    </div>
 
-                  chart.setOption(targetChartOption, true);
-                }}
-                className="executive-echart"
-              />
-            ) : (
-              <div className="executive-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
-            )}
-          </div>
-        </article>
-
-        {/* =====================================================
-            CHART 2
-        ===================================================== */}
-
-        <article className="executive-chart-card">
-          <div className="executive-chart-header">
-            <div>
-              <span className="executive-chart-kicker">PROFITABILITY</span>
-
-              <h3>Revenue, Cost &amp; GPM Trend</h3>
+                    <strong>
+                      {formatRupiah(item.value)}
+                      {" · "}
+                      {formatDecimal(item.percentage)}%
+                    </strong>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-
-          <div className="executive-chart-body executive-chart-large">
-            {gpmTrendData.length > 0 ? (
-              <div
-                ref={(element) => {
-                  if (!element) {
-                    return;
-                  }
-
-                  const chart = echarts.init(element);
-
-                  gpmChartRef.current = chart;
-
-                  chart.setOption(gpmChartOption, true);
-                }}
-                className="executive-echart"
-              />
-            ) : (
-              <div className="executive-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
-            )}
-          </div>
-        </article>
-      </section>
-
-      {/* =====================================================
-          CHART 3 + CHART 4
-      ===================================================== */}
-
-      <section className="executive-chart-grid">
-        <article className="executive-chart-card">
-          <div className="executive-chart-header">
-            <div>
-              <span className="executive-chart-kicker">BAPP PERFORMANCE</span>
-
-              <h3>BAPP Performance</h3>
-            </div>
-          </div>
-
-          <div className="executive-chart-body">
-            {bappPerformanceData.length > 0 ? (
-              <div
-                ref={(element) => {
-                  if (!element) {
-                    return;
-                  }
-
-                  const chart = echarts.init(element);
-
-                  bappChartRef.current = chart;
-
-                  chart.setOption(bappChartOption, true);
-                }}
-                className="executive-echart"
-              />
-            ) : (
-              <div className="executive-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
-            )}
-          </div>
-        </article>
-
-        <article className="executive-chart-card">
-          <div className="executive-chart-header">
-            <div>
-              <span className="executive-chart-kicker">COST ANALYSIS</span>
-
-              <h3>Cost Composition</h3>
-            </div>
-          </div>
-
-          <div className="executive-chart-body">
-            {costCompositionData.length > 0 ? (
-              <div
-                ref={(element) => {
-                  if (!element) {
-                    return;
-                  }
-
-                  const chart = echarts.init(element);
-
-                  costChartRef.current = chart;
-
-                  chart.setOption(costChartOption, true);
-                }}
-                className="executive-echart"
-              />
-            ) : (
-              <div className="executive-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
-            )}
-          </div>
-        </article>
-      </section>
-
-      {/* =====================================================
-          CHART 5
-      ===================================================== */}
-
-      <article className="executive-chart-card executive-payroll-card">
-        <div className="executive-chart-header">
-          <div>
-            <span className="executive-chart-kicker">PAYROLL OPERATIONAL</span>
-
-            <h3>Payroll Operational Trend</h3>
-          </div>
-        </div>
-
-        <div className="executive-chart-body executive-payroll-chart">
-          {payrollTrendData.length > 0 ? (
-            <div
-              ref={(element) => {
-                if (!element) {
-                  return;
-                }
-
-                const chart = echarts.init(element);
-
-                payrollChartRef.current = chart;
-
-                chart.setOption(payrollChartOption, true);
-              }}
-              className="executive-echart"
-            />
           ) : (
-            <div className="executive-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
+            <div className="operational-empty">Tidak ada data cost untuk filter yang dipilih.</div>
           )}
+        </article>
+
+        {/* BAPP */}
+
+        <article className="operational-card">
+          <div className="card-header">
+            <div>
+              <span>BAPP PERFORMANCE</span>
+
+              <h3>Status BAPP</h3>
+            </div>
+          </div>
+
+          {bappStatus.length > 0 ? (
+            <div className="bapp-status-list">
+              {bappStatus.map((item, index) => {
+                const percentage = (item.jumlah / maxBappJumlah) * 100;
+
+                return (
+                  <div className="bapp-status-item" key={item.status}>
+                    <div className="bapp-status-top">
+                      <span>{item.status}</span>
+
+                      <strong>
+                        {formatNumber(item.jumlah)} dokumen · {formatRupiah(item.nominal)}
+                      </strong>
+                    </div>
+
+                    <div className="bapp-track">
+                      <div
+                        className={`bapp-fill bapp-color-${index}`}
+                        style={{
+                          width: `${percentage}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="operational-empty">Tidak ada data BAPP untuk filter yang dipilih.</div>
+          )}
+        </article>
+      </section>
+
+      {/* ===================================================
+          OPERATIONAL TABLE
+      =================================================== */}
+
+      <section className="operational-card operational-table-card">
+        <div className="card-header">
+          <div>
+            <span>OPERATIONAL PERFORMANCE</span>
+
+            <h3>Kinerja Operasional</h3>
+          </div>
+
+          <div className="table-count">
+            {formatNumber(Math.min(operationalRows.length, 8))} dari {formatNumber(operationalRows.length)} kombinasi
+          </div>
         </div>
-      </article>
 
-      {/* =====================================================
-          INFO
-      ===================================================== */}
+        {operationalRows.length > 0 ? (
+          <div className="operational-table-wrapper">
+            <table className="operational-table">
+              <thead>
+                <tr>
+                  <th>Divisi</th>
 
-      <section className="executive-info-card">
-        <div>
-          <span className="executive-info-label">DATA COVERAGE</span>
+                  <th>Departemen / Layanan</th>
 
-          <strong>{formatNumber(filteredDetailDivisi.length)} Payroll Records</strong>
-        </div>
+                  <th>Transaksi</th>
 
-        <div>
-          <span className="executive-info-label">BAPP</span>
+                  <th>SDM Diproses</th>
 
-          <strong>{formatNumber(filteredBappBulanan.length)} Records</strong>
-        </div>
+                  <th>SLA Tercapai</th>
 
-        <div>
-          <span className="executive-info-label">REVENUE</span>
+                  <th>Total THP</th>
+                </tr>
+              </thead>
 
-          <strong>{formatRupiah(totalRevenue)}</strong>
-        </div>
+              <tbody>
+                {operationalRows.slice(0, 8).map((row, index) => (
+                  <tr key={`${row.divisi}-${row.departemen}-${row.layanan}-${index}`}>
+                    <td>
+                      <span className="division-name">{row.divisi}</span>
+                    </td>
 
-        <div>
-          <span className="executive-info-label">GPM</span>
+                    <td>
+                      <div className="service-name">
+                        <strong>{row.departemen}</strong>
 
-          <strong>{gpmPercentage.toFixed(1).replace(".", ",")}%</strong>
-        </div>
+                        <span>{row.layanan}</span>
+                      </div>
+                    </td>
+
+                    <td className="number-cell">{formatNumber(row.transaksi)}</td>
+
+                    <td className="number-cell">{formatNumber(row.sdm)}</td>
+
+                    <td>
+                      <span className={`sla-value ${row.sla >= 95 ? "sla-good" : row.sla >= 90 ? "sla-warning" : "sla-danger"}`}>{formatDecimal(row.sla)}%</span>
+                    </td>
+
+                    <td className="number-cell thp-cell">{formatRupiah(row.thp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="operational-empty table-empty">Tidak ada data operational untuk filter yang dipilih.</div>
+        )}
       </section>
     </div>
   );

@@ -825,14 +825,29 @@ const CostDashboard: React.FC = () => {
     setSelectedYear("all");
   };
 
-   if (loading) {
-     return (
-       <div className="bapp-state">
-         <div className="bapp-spinner" />
-         <span>Memuat data Dashboard Target &amp; Cost...</span>
-       </div>
-     );
-   }
+if (loading) {
+  return (
+    <div className="app-state app-state-loading">
+      <div className="app-spinner" />
+      <span>Memuat data Cost Payroll...</span>
+    </div>
+  );
+}
+
+if (error) {
+  return (
+    <div className="app-state app-state-error">
+      <div className="app-state-content">
+        <h2>Gagal Memuat Dashboard Cost Payroll</h2>
+        <p>{error}</p>
+
+        <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
+          Coba Lagi
+        </button>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="cost-page">

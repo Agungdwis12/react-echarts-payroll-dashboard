@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 
-import PayrollDashboard from "./pages/PayrollDashboard";
+import PayrollDashboard from "./pages/KinerjaLayananDivisi";
 import BappDashboard from "./pages/BappDashboard";
 import CostDashboard from "./pages/CostDashboard";
 import ExecutiveBusinessDashboard from "./pages/ExecutiveBusinessDashboard";

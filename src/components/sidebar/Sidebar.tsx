@@ -10,7 +10,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-    
       {/* =========================
                 HEADER
       ========================= */}
@@ -43,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               <LayoutDashboard size={18} strokeWidth={1.8} />
             </span>
 
-            <span className="sidebar-link-text">Dashboard Payroll</span>
+            <span className="sidebar-link-text">Kinerja Layanan Divisi</span>
           </NavLink>
 
           <NavLink to="/dashboard/bapp" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`} title="BAPP & Revenue">
@@ -67,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               <ChartNoAxesCombined size={18} strokeWidth={1.8} />
             </span>
 
-            <span className="sidebar-link-text">Executive Dashboard</span>
+            <span className="sidebar-link-text">Operational Performance</span>
           </NavLink>
         </nav>
       </div>

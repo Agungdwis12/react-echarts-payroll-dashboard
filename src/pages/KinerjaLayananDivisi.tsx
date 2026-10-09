@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
+
 import { getMasterDetailDivisi } from "../services/dashboardService";
-import "./PayrollDashboard.css";
+
+import "./KinerjaLayananDivisi.css";
+
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 
 /* =========================================================
@@ -76,6 +79,8 @@ const parseNumber = (value: unknown): number => {
   return Number.isFinite(result) ? result : 0;
 };
 
+const PAGE_SIZE = 10;
+
 /* =========================================================
    SLA NORMALIZER
 ========================================================= */
@@ -139,26 +144,37 @@ const normalizeSLA = (value: unknown): number => {
 const monthMap: Record<string, number> = {
   jan: 0,
   januari: 0,
+
   feb: 1,
   februari: 1,
+
   mar: 2,
   maret: 2,
+
   apr: 3,
   april: 3,
+
   mei: 4,
   may: 4,
+
   jun: 5,
   juni: 5,
+
   jul: 6,
   juli: 6,
+
   aug: 7,
   agustus: 7,
+
   sep: 8,
   september: 8,
+
   okt: 9,
   oktober: 9,
+
   nov: 10,
   november: 10,
+
   des: 11,
   desember: 11,
   dec: 11,
@@ -229,7 +245,6 @@ const formatMonth = (value: string): string => {
 
   return date.toLocaleDateString("id-ID", {
     month: "short",
-
     year: "numeric",
   });
 };
@@ -269,10 +284,137 @@ const formatCompactRupiah = (value: number) => {
 };
 
 /* =========================================================
+   GLOBAL MULTI SELECT
+   Dipakai untuk Bulan & Tahun
+========================================================= */
+
+interface MultiSelectProps {
+  value: string[];
+  options: string[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  onChange: (value: string[]) => void;
+}
+
+const MultiSelect: React.FC<MultiSelectProps> = ({ value, options, placeholder = "Semua", searchPlaceholder = "Cari...", onChange }) => {
+  const [open, setOpen] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) {
+      return options;
+    }
+
+    return options.filter((option) => option.toLowerCase().includes(keyword));
+  }, [options, search]);
+
+  const toggleOption = (option: string) => {
+    if (value.includes(option)) {
+      onChange(value.filter((item) => item !== option));
+      return;
+    }
+
+    onChange([...value, option]);
+  };
+
+  const selectAll = () => {
+    onChange([...options]);
+  };
+
+  const clearAll = () => {
+    onChange([]);
+  };
+
+  const displayValue = () => {
+    if (value.length === 0) {
+      return placeholder;
+    }
+
+    if (value.length === 1) {
+      return value[0];
+    }
+
+    return `${value.length} dipilih`;
+  };
+
+  return (
+    <div ref={wrapperRef} className={`multi-select ${open ? "is-open" : ""}`}>
+      {" "}
+      <button type="button" className="multi-select-trigger" onClick={() => setOpen((prev) => !prev)}>
+        <span className="multi-select-value">{displayValue()}</span>
+
+        <span className="multi-select-arrow" />
+      </button>
+      {open && (
+        <div className="multi-select-dropdown">
+          <div className="multi-select-search">
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={searchPlaceholder} autoFocus />
+          </div>
+
+          <div className="multi-select-actions">
+            <button type="button" onClick={selectAll}>
+              Pilih Semua
+            </button>
+
+            <button type="button" onClick={clearAll}>
+              Hapus Semua
+            </button>
+          </div>
+
+          <div className="multi-select-options">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const checked = value.includes(option);
+
+                return (
+                  <label key={option} className={`multi-select-option ${checked ? "is-selected" : ""}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
+
+                    <span className="multi-select-checkbox">
+                      {checked && (
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m5 12 4 4L19 6" />
+                        </svg>
+                      )}
+                    </span>
+
+                    <span className="multi-select-label">{option}</span>
+                  </label>
+                );
+              })
+            ) : (
+              <div className="multi-select-empty">Tidak ada data</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* =========================================================
    COMPONENT
 ========================================================= */
 
-const PayrollDashboard: React.FC = () => {
+const KinerjaLayananDivisi: React.FC = () => {
   const [data, setData] = useState<PayrollRow[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -291,9 +433,14 @@ const PayrollDashboard: React.FC = () => {
 
   const [unit, setUnit] = useState("");
 
-  const [bulan, setBulan] = useState("");
+  /* MULTI SELECT */
+  const [bulan, setBulan] = useState<string[]>([]);
 
-  const [tahun, setTahun] = useState("");
+  /* MULTI SELECT */
+  const [tahun, setTahun] = useState<string[]>([]);
+
+  /* button nexttable */
+  const [currentPage, setCurrentPage] = useState(1);
 
   /* =====================================================
        LOAD DATA
@@ -303,7 +450,6 @@ const PayrollDashboard: React.FC = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-
         setError("");
 
         const result = await getMasterDetailDivisi();
@@ -322,88 +468,83 @@ const PayrollDashboard: React.FC = () => {
   }, []);
 
   /* =====================================================
+       UNIT SCOPED DATA
+    ===================================================== */
 
-       FILTER OPTIONS
+  const unitScopedData = useMemo(() => {
+    if (!unit) {
+      return data;
+    }
 
+    return data.filter((item) => item.unit === unit);
+  }, [data, unit]);
+
+  /* =====================================================
+       DIVISI OPTIONS
     ===================================================== */
 
   const divisiOptions = useMemo(() => {
-    return [...new Set(data.map((item) => item.divisi).filter(Boolean))].sort();
-  }, [data]);
+    return [...new Set(unitScopedData.map((item) => item.divisi).filter(Boolean))].sort();
+  }, [unitScopedData]);
+
+  /* =====================================================
+       DEPARTEMEN OPTIONS
+    ===================================================== */
 
   const departemenOptions = useMemo(() => {
-    return [
-      ...new Set(
-        data
+    let sourceData = unit ? unitScopedData : data;
 
-          .filter((item) => !divisi || item.divisi === divisi)
+    if (divisi) {
+      sourceData = sourceData.filter((item) => item.divisi === divisi);
+    }
 
-          .map((item) => item.departemen)
+    return [...new Set(sourceData.map((item) => item.departemen).filter(Boolean))].sort();
+  }, [data, unit, unitScopedData, divisi]);
 
-          .filter(Boolean),
-      ),
-    ].sort();
-  }, [data, divisi]);
+  /* =====================================================
+       LAYANAN OPTIONS
+    ===================================================== */
 
   const layananOptions = useMemo(() => {
-    return [
-      ...new Set(
-        data
+    let sourceData = unit ? unitScopedData : data;
 
-          .filter((item) => (!divisi || item.divisi === divisi) && (!departemen || item.departemen === departemen))
+    if (divisi) {
+      sourceData = sourceData.filter((item) => item.divisi === divisi);
+    }
 
-          .map((item) => item.layanan)
+    if (departemen) {
+      sourceData = sourceData.filter((item) => item.departemen === departemen);
+    }
 
-          .filter(Boolean),
-      ),
-    ].sort();
-  }, [data, divisi, departemen]);
+    return [...new Set(sourceData.map((item) => item.layanan).filter(Boolean))].sort();
+  }, [data, unit, unitScopedData, divisi, departemen]);
+
+  /* =====================================================
+       UNIT OPTIONS
+    ===================================================== */
 
   const unitOptions = useMemo(() => {
-    return [
-      ...new Set(
-        data
-
-          .filter((item) => (!divisi || item.divisi === divisi) && (!departemen || item.departemen === departemen) && (!layanan || item.layanan === layanan))
-
-          .map((item) => item.unit)
-
-          .filter(Boolean),
-      ),
-    ].sort();
-  }, [data, divisi, departemen, layanan]);
+    return [...new Set(data.map((item) => item.unit).filter(Boolean))].sort();
+  }, [data]);
 
   /* =====================================================
        MONTH OPTIONS
-       Dropdown hanya:
-       Januari - Desember
     ===================================================== */
 
   const monthOptions = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
   const monthFilterMap: Record<string, number> = {
     Januari: 1,
-
     Februari: 2,
-
     Maret: 3,
-
     April: 4,
-
     Mei: 5,
-
     Juni: 6,
-
     Juli: 7,
-
     Agustus: 8,
-
     September: 9,
-
     Oktober: 10,
-
     November: 11,
-
     Desember: 12,
   };
 
@@ -415,7 +556,6 @@ const PayrollDashboard: React.FC = () => {
     return [
       ...new Set(
         data
-
           .map((item) => {
             const timestamp = getMonthTimestamp(item.periode_bulan);
 
@@ -425,7 +565,6 @@ const PayrollDashboard: React.FC = () => {
 
             return String(new Date(timestamp).getFullYear());
           })
-
           .filter(Boolean),
       ),
     ].sort((a, b) => Number(a) - Number(b));
@@ -433,11 +572,18 @@ const PayrollDashboard: React.FC = () => {
 
   /* =====================================================
        FILTERED DATA
+       
+       Filter:
+       Unit
+       + Divisi
+       + Departemen
+       + Layanan
+       + Multiple Bulan
+       + Multiple Tahun
     ===================================================== */
 
   const filteredData = useMemo(() => {
     return data
-
       .filter((item) => {
         const timestamp = getMonthTimestamp(item.periode_bulan);
 
@@ -447,18 +593,33 @@ const PayrollDashboard: React.FC = () => {
 
         const itemYear = date ? String(date.getFullYear()) : "";
 
-        return (
-          (!divisi || item.divisi === divisi) &&
-          (!departemen || item.departemen === departemen) &&
-          (!layanan || item.layanan === layanan) &&
-          (!unit || item.unit === unit) &&
-          (!bulan || itemMonth === monthFilterMap[bulan]) &&
-          (!tahun || itemYear === tahun)
-        );
-      })
+        const monthMatch = bulan.length === 0 || bulan.some((selectedMonth) => monthFilterMap[selectedMonth] === itemMonth);
 
+        const yearMatch = tahun.length === 0 || tahun.includes(itemYear);
+
+        return (!unit || item.unit === unit) && (!divisi || item.divisi === divisi) && (!departemen || item.departemen === departemen) && (!layanan || item.layanan === layanan) && monthMatch && yearMatch;
+      })
       .sort((a, b) => getMonthTimestamp(a.periode_bulan) - getMonthTimestamp(b.periode_bulan));
-  }, [data, divisi, departemen, layanan, unit, bulan, tahun]);
+  }, [data, unit, divisi, departemen, layanan, bulan, tahun]);
+
+  /* =================================================
+   TABLE PAGINATION
+================================================= */
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+
+  const paginatedData = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const startRow = filteredData.length === 0 ? 0 : startIndex + 1;
+
+  const endRow = Math.min(startIndex + PAGE_SIZE, filteredData.length);
+
+  /* Kembali ke halaman pertama ketika filter berubah */
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [unit, divisi, departemen, layanan, bulan, tahun]);
 
   /* =====================================================
        KPI
@@ -481,13 +642,9 @@ const PayrollDashboard: React.FC = () => {
       string,
       {
         transaksi: number;
-
         sdm: number;
-
         nominal: number;
-
         slaTotal: number;
-
         slaCount: number;
       }
     >();
@@ -506,21 +663,24 @@ const PayrollDashboard: React.FC = () => {
       }
 
       const current = map.get(key)!;
+
       current.transaksi += parseNumber(item.jumlah_transaksi);
+
       current.sdm += parseNumber(item.sdm_diproses);
+
       current.nominal += parseNumber(item.total_thp);
+
       const sla = normalizeSLA(item.sla_tercapai);
+
       current.slaTotal += sla;
+
       current.slaCount += 1;
     });
 
     return [...map.entries()]
-
       .sort(([a], [b]) => getMonthTimestamp(a) - getMonthTimestamp(b))
-
       .map(([month, value]) => ({
         month,
-
         label: formatMonth(month),
         transaksi: value.transaksi,
         sdm: value.sdm,
@@ -531,7 +691,6 @@ const PayrollDashboard: React.FC = () => {
 
   /* =====================================================
        NOMINAL PER LAYANAN
-       TOP 8 + LAINNYA
     ===================================================== */
 
   const nominalByLayanan = useMemo(() => {
@@ -551,14 +710,12 @@ const PayrollDashboard: React.FC = () => {
 
     const result = top8.map(([name, value]) => ({
       name,
-
       value,
     }));
 
     if (otherTotal > 0) {
       result.push({
         name: "Lainnya",
-
         value: otherTotal,
       });
     }
@@ -567,26 +724,21 @@ const PayrollDashboard: React.FC = () => {
   }, [filteredData]);
 
   /* =====================================================
-       RESET
+       RESET FILTER
     ===================================================== */
 
   const resetFilter = () => {
-    setDivisi("");
-
-    setDepartemen("");
-
-    setLayanan("");
-
     setUnit("");
-
-    setBulan("");
-
-    setTahun("");
+    setDivisi("");
+    setDepartemen("");
+    setLayanan("");
+    setBulan([]);
+    setTahun([]);
   };
 
   /* =====================================================
-     CHART - TRANSACTION
-  ===================================================== */
+       CHART - TRANSACTION
+    ===================================================== */
 
   const transactionChartOption = useMemo(
     () => ({
@@ -596,20 +748,28 @@ const PayrollDashboard: React.FC = () => {
 
       tooltip: {
         trigger: "axis",
+
         axisPointer: {
           type: "shadow",
+
           shadowStyle: {
             color: "rgba(91, 141, 239, 0.08)",
           },
         },
+
         backgroundColor: "#202f42",
+
         borderColor: "rgba(255,255,255,0.12)",
+
         borderWidth: 1,
+
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
         },
+
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
+
         valueFormatter: (value: number) => formatNumber(value),
       },
 
@@ -623,16 +783,21 @@ const PayrollDashboard: React.FC = () => {
 
       xAxis: {
         type: "category",
+
         data: monthlyData.map((item) => item.label),
+
         axisLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -641,6 +806,7 @@ const PayrollDashboard: React.FC = () => {
           color: "#b8c6d6",
           margin: 10,
         },
+
         splitLine: {
           show: false,
         },
@@ -648,28 +814,36 @@ const PayrollDashboard: React.FC = () => {
 
       yAxis: {
         type: "value",
+
         axisLine: {
           show: false,
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
+
           formatter: (value: number) => {
             if (value >= 1_000_000) {
               return `${(value / 1_000_000).toFixed(1)} jt`;
             }
+
             if (value >= 1_000) {
               return `${Math.round(value / 1_000)} rb`;
             }
+
             return value;
           },
         },
+
         splitLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
@@ -682,44 +856,74 @@ const PayrollDashboard: React.FC = () => {
         {
           name: "Jumlah Transaksi",
           type: "bar",
+
           data: monthlyData.map((item) => item.transaksi),
+
           barMaxWidth: 30,
           barMinHeight: 3,
+
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
+
             color: {
               type: "linear",
+
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
+
               colorStops: [
-                { offset: 0, color: "#78adf8" },
-                { offset: 0.45, color: "#4f8edc" },
-                { offset: 1, color: "#2868bd" },
+                {
+                  offset: 0,
+                  color: "#78adf8",
+                },
+                {
+                  offset: 0.45,
+                  color: "#4f8edc",
+                },
+                {
+                  offset: 1,
+                  color: "#2868bd",
+                },
               ],
             },
+
             shadowBlur: 8,
+
             shadowColor: "rgba(79,142,220,0.20)",
           },
+
           emphasis: {
             focus: "series",
+
             itemStyle: {
               shadowBlur: 16,
+
               shadowColor: "rgba(91,141,239,0.35)",
+
               color: {
                 type: "linear",
+
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
+
                 colorStops: [
-                  { offset: 0, color: "#9ac2ff" },
-                  { offset: 1, color: "#3f7fd4" },
+                  {
+                    offset: 0,
+                    color: "#9ac2ff",
+                  },
+                  {
+                    offset: 1,
+                    color: "#3f7fd4",
+                  },
                 ],
               },
             },
           },
+
           label: {
             show: false,
           },
@@ -730,8 +934,8 @@ const PayrollDashboard: React.FC = () => {
   );
 
   /* =====================================================
-     CHART - SDM
-  ===================================================== */
+       CHART - SDM
+    ===================================================== */
 
   const sdmChartOption = useMemo(
     () => ({
@@ -741,20 +945,28 @@ const PayrollDashboard: React.FC = () => {
 
       tooltip: {
         trigger: "axis",
+
         axisPointer: {
           type: "shadow",
+
           shadowStyle: {
             color: "rgba(85,184,196,0.08)",
           },
         },
+
         backgroundColor: "#202f42",
+
         borderColor: "rgba(255,255,255,0.12)",
+
         borderWidth: 1,
+
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
         },
+
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
+
         valueFormatter: (value: number) => formatNumber(value),
       },
 
@@ -768,16 +980,21 @@ const PayrollDashboard: React.FC = () => {
 
       xAxis: {
         type: "category",
+
         data: monthlyData.map((item) => item.label),
+
         axisLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -786,6 +1003,7 @@ const PayrollDashboard: React.FC = () => {
           color: "#b8c6d6",
           margin: 10,
         },
+
         splitLine: {
           show: false,
         },
@@ -793,28 +1011,36 @@ const PayrollDashboard: React.FC = () => {
 
       yAxis: {
         type: "value",
+
         axisLine: {
           show: false,
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
+
           formatter: (value: number) => {
             if (value >= 1_000_000) {
               return `${(value / 1_000_000).toFixed(1)} jt`;
             }
+
             if (value >= 1_000) {
               return `${Math.round(value / 1_000)} rb`;
             }
+
             return value;
           },
         },
+
         splitLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
@@ -826,45 +1052,76 @@ const PayrollDashboard: React.FC = () => {
       series: [
         {
           name: "SDM Diproses",
+
           type: "bar",
+
           data: monthlyData.map((item) => item.sdm),
+
           barMaxWidth: 30,
           barMinHeight: 3,
+
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
+
             color: {
               type: "linear",
+
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
+
               colorStops: [
-                { offset: 0, color: "#79d8df" },
-                { offset: 0.45, color: "#55b8c4" },
-                { offset: 1, color: "#278d99" },
+                {
+                  offset: 0,
+                  color: "#79d8df",
+                },
+                {
+                  offset: 0.45,
+                  color: "#55b8c4",
+                },
+                {
+                  offset: 1,
+                  color: "#278d99",
+                },
               ],
             },
+
             shadowBlur: 8,
+
             shadowColor: "rgba(85,184,196,0.20)",
           },
+
           emphasis: {
             focus: "series",
+
             itemStyle: {
               shadowBlur: 16,
+
               shadowColor: "rgba(85,184,196,0.35)",
+
               color: {
                 type: "linear",
+
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
+
                 colorStops: [
-                  { offset: 0, color: "#9be7ec" },
-                  { offset: 1, color: "#3ea7b3" },
+                  {
+                    offset: 0,
+                    color: "#9be7ec",
+                  },
+                  {
+                    offset: 1,
+                    color: "#3ea7b3",
+                  },
                 ],
               },
             },
           },
+
           label: {
             show: false,
           },
@@ -875,8 +1132,8 @@ const PayrollDashboard: React.FC = () => {
   );
 
   /* =====================================================
-     CHART - NOMINAL
-  ===================================================== */
+       CHART - NOMINAL
+    ===================================================== */
 
   const nominalChartOption = useMemo(() => {
     const chartData = nominalByLayanan.slice().reverse();
@@ -888,32 +1145,43 @@ const PayrollDashboard: React.FC = () => {
 
       tooltip: {
         trigger: "axis",
+
         axisPointer: {
           type: "shadow",
+
           shadowStyle: {
             color: "rgba(85,185,133,0.08)",
           },
         },
+
         backgroundColor: "#202f42",
+
         borderColor: "rgba(255,255,255,0.12)",
+
         borderWidth: 1,
+
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
         },
+
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
+
         formatter: (params: any) => {
           const item = params?.[0];
-          if (!item) return "";
+
+          if (!item) {
+            return "";
+          }
 
           return `
-            <div style="color:#aebdce;font-size:10px;margin-bottom:5px;">
-              ${item.name}
-            </div>
-            <div style="color:#f1f5f9;font-size:12px;font-weight:700;">
-              ${formatRupiah(item.value)}
-            </div>
-          `;
+                <div style="color:#aebdce;font-size:10px;margin-bottom:5px;">
+                  ${item.name}
+                </div>
+                <div style="color:#f1f5f9;font-size:12px;font-weight:700;">
+                  ${formatRupiah(item.value)}
+                </div>
+              `;
         },
       },
 
@@ -927,34 +1195,44 @@ const PayrollDashboard: React.FC = () => {
 
       xAxis: {
         type: "value",
+
         axisLine: {
           show: false,
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
+
           formatter: (value: number) => {
             if (value >= 1_000_000_000_000) {
               return `${(value / 1_000_000_000_000).toFixed(1)} T`;
             }
+
             if (value >= 1_000_000_000) {
               return `${(value / 1_000_000_000).toFixed(0)} M`;
             }
+
             if (value >= 1_000_000) {
               return `${(value / 1_000_000).toFixed(0)} Jt`;
             }
+
             if (value >= 1_000) {
               return `${(value / 1_000).toFixed(0)} Rb`;
             }
+
             return value;
           },
         },
+
         splitLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
@@ -965,19 +1243,26 @@ const PayrollDashboard: React.FC = () => {
 
       yAxis: {
         type: "category",
+
         data: chartData.map((item) => item.name),
+
         axisLine: {
           show: false,
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#c0ccda",
+
           width: 100,
+
           overflow: "truncate",
+
           formatter: (value: string) => (value.length > 18 ? `${value.substring(0, 18)}...` : value),
         },
       },
@@ -985,65 +1270,106 @@ const PayrollDashboard: React.FC = () => {
       series: [
         {
           name: "Nominal",
+
           type: "bar",
+
           data: chartData.map((item) => item.value),
+
           barMaxWidth: 18,
           barMinHeight: 4,
+
           itemStyle: {
             borderRadius: [0, 7, 7, 0],
+
             color: {
               type: "linear",
+
               x: 0,
               y: 0,
               x2: 1,
               y2: 0,
+
               colorStops: [
-                { offset: 0, color: "#287a55" },
-                { offset: 0.5, color: "#55b985" },
-                { offset: 1, color: "#8bd6ae" },
+                {
+                  offset: 0,
+                  color: "#287a55",
+                },
+                {
+                  offset: 0.5,
+                  color: "#55b985",
+                },
+                {
+                  offset: 1,
+                  color: "#8bd6ae",
+                },
               ],
             },
+
             shadowBlur: 8,
+
             shadowColor: "rgba(85,185,133,0.20)",
           },
+
           emphasis: {
             focus: "series",
+
             itemStyle: {
               shadowBlur: 16,
+
               shadowColor: "rgba(85,185,133,0.35)",
+
               color: {
                 type: "linear",
+
                 x: 0,
                 y: 0,
                 x2: 1,
                 y2: 0,
+
                 colorStops: [
-                  { offset: 0, color: "#37946a" },
-                  { offset: 1, color: "#9ae0b8" },
+                  {
+                    offset: 0,
+                    color: "#37946a",
+                  },
+                  {
+                    offset: 1,
+                    color: "#9ae0b8",
+                  },
                 ],
               },
             },
           },
+
           label: {
             show: true,
+
             position: "right",
+
             color: "#b9c9d9",
+
             fontSize: 8,
+
             fontWeight: 600,
+
             formatter: (params: any) => {
               const value = Number(params.value);
+
               if (value >= 1_000_000_000_000) {
                 return `Rp ${(value / 1_000_000_000_000).toFixed(1)} T`;
               }
+
               if (value >= 1_000_000_000) {
                 return `Rp ${(value / 1_000_000_000).toFixed(0)} M`;
               }
+
               if (value >= 1_000_000) {
                 return `Rp ${(value / 1_000_000).toFixed(0)} Jt`;
               }
+
               if (value >= 1_000) {
                 return `Rp ${(value / 1_000).toFixed(0)} Rb`;
               }
+
               return `Rp ${value.toLocaleString("id-ID")}`;
             },
           },
@@ -1053,31 +1379,41 @@ const PayrollDashboard: React.FC = () => {
   }, [nominalByLayanan]);
 
   /* =====================================================
-     CHART - SLA
-  ===================================================== */
+       CHART - SLA
+    ===================================================== */
 
   const slaChartOption = useMemo(
     () => ({
       animation: true,
+
       animationDuration: 750,
+
       animationEasing: "cubicOut",
 
       tooltip: {
         trigger: "axis",
+
         axisPointer: {
           type: "shadow",
+
           shadowStyle: {
             color: "rgba(217,164,65,0.08)",
           },
         },
+
         backgroundColor: "#202f42",
+
         borderColor: "rgba(255,255,255,0.12)",
+
         borderWidth: 1,
+
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
         },
+
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
+
         valueFormatter: (value: number) => `${Math.round(value)}%`,
       },
 
@@ -1091,16 +1427,21 @@ const PayrollDashboard: React.FC = () => {
 
       xAxis: {
         type: "category",
+
         data: monthlyData.map((item) => item.label),
+
         axisLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -1109,6 +1450,7 @@ const PayrollDashboard: React.FC = () => {
           color: "#b8c6d6",
           margin: 10,
         },
+
         splitLine: {
           show: false,
         },
@@ -1116,23 +1458,32 @@ const PayrollDashboard: React.FC = () => {
 
       yAxis: {
         type: "value",
+
         min: 0,
+
         max: 100,
+
         interval: 20,
+
         axisLine: {
           show: false,
         },
+
         axisTick: {
           show: false,
         },
+
         axisLabel: {
           fontSize: 9,
           fontWeight: 600,
           color: "#b8c6d6",
+
           formatter: (value: number) => `${value}%`,
         },
+
         splitLine: {
           show: true,
+
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
@@ -1144,45 +1495,77 @@ const PayrollDashboard: React.FC = () => {
       series: [
         {
           name: "SLA Tercapai",
+
           type: "bar",
+
           data: monthlyData.map((item) => Math.min(Math.max(Math.round(item.sla), 0), 100)),
+
           barMaxWidth: 29,
+
           barMinHeight: 3,
+
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
+
             color: {
               type: "linear",
+
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
+
               colorStops: [
-                { offset: 0, color: "#f1c66d" },
-                { offset: 0.45, color: "#d9a441" },
-                { offset: 1, color: "#a87925" },
+                {
+                  offset: 0,
+                  color: "#f1c66d",
+                },
+                {
+                  offset: 0.45,
+                  color: "#d9a441",
+                },
+                {
+                  offset: 1,
+                  color: "#a87925",
+                },
               ],
             },
+
             shadowBlur: 8,
+
             shadowColor: "rgba(217,164,65,0.20)",
           },
+
           emphasis: {
             focus: "series",
+
             itemStyle: {
               shadowBlur: 16,
+
               shadowColor: "rgba(217,164,65,0.35)",
+
               color: {
                 type: "linear",
+
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
+
                 colorStops: [
-                  { offset: 0, color: "#f7d88f" },
-                  { offset: 1, color: "#d9a441" },
+                  {
+                    offset: 0,
+                    color: "#f7d88f",
+                  },
+                  {
+                    offset: 1,
+                    color: "#d9a441",
+                  },
                 ],
               },
             },
           },
+
           label: {
             show: false,
           },
@@ -1193,29 +1576,31 @@ const PayrollDashboard: React.FC = () => {
   );
 
   /* =====================================================
-
        RENDER
-
     ===================================================== */
 
-    if (loading) {
-      return (
-        <div className="bapp-state">
-          <div className="bapp-spinner" />
-          <span>Memuat data payroll...</span>
-        </div>
-      );
-    }
-  
+  if (loading) {
+    return (
+      <div className="app-state app-state-loading">
+        <div className="app-spinner" />
+
+        <span>Memuat data Payroll...</span>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="payroll-error">
-        <h3>Gagal Memuat Data</h3>
-        <p>{error}</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          Coba Lagi
-        </button>
+      <div className="app-state app-state-error">
+        <div className="app-state-content">
+          <h2>Gagal Memuat Dashboard Payroll</h2>
+
+          <p>{error}</p>
+
+          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
+            Coba Lagi
+          </button>
+        </div>
       </div>
     );
   }
@@ -1223,11 +1608,8 @@ const PayrollDashboard: React.FC = () => {
   return (
     <div className="payroll-page">
       {/* =================================================
-
-            HEADER
-
+             HEADER
         ================================================= */}
-
       <header className="bapp-header">
         <div className="bapp-header-copy">
           <div className="bapp-title-row">
@@ -1247,15 +1629,13 @@ const PayrollDashboard: React.FC = () => {
         </div>
       </header>
       {/* =================================================
-
-            FILTER
-
+             FILTER
         ================================================= */}
-
       <section className="payroll-filter-card">
         <div className="bapp-filter-heading">
           <div>
             <span className="bapp-section-kicker">FILTER DATA</span>
+
             <h2>Parameter Dashboard</h2>
           </div>
 
@@ -1269,8 +1649,31 @@ const PayrollDashboard: React.FC = () => {
 
             <span>Reset Filter</span>
           </button>
-        </div>{" "}
+        </div>
+
         <div className="filter-grid">
+          {/* UNIT */}
+
+          <div className="filter-field">
+            <label>Unit</label>
+
+            <SearchableSelect
+              value={unit}
+              options={unitOptions}
+              placeholder="Semua Unit"
+              searchPlaceholder="Cari unit..."
+              onChange={(value) => {
+                setUnit(value);
+
+                setDivisi("");
+
+                setDepartemen("");
+
+                setLayanan("");
+              }}
+            />
+          </div>
+
           {/* DIVISI */}
 
           <div className="filter-field">
@@ -1287,8 +1690,6 @@ const PayrollDashboard: React.FC = () => {
                 setDepartemen("");
 
                 setLayanan("");
-
-                setUnit("");
               }}
             />
           </div>
@@ -1307,8 +1708,6 @@ const PayrollDashboard: React.FC = () => {
                 setDepartemen(value);
 
                 setLayanan("");
-
-                setUnit("");
               }}
             />
           </div>
@@ -1318,51 +1717,29 @@ const PayrollDashboard: React.FC = () => {
           <div className="filter-field">
             <label>Layanan</label>
 
-            <SearchableSelect
-              value={layanan}
-              options={layananOptions}
-              placeholder="Semua Layanan"
-              searchPlaceholder="Cari layanan..."
-              onChange={(value) => {
-                setLayanan(value);
-
-                setUnit("");
-              }}
-            />
+            <SearchableSelect value={layanan} options={layananOptions} placeholder="Semua Layanan" searchPlaceholder="Cari layanan..." onChange={setLayanan} />
           </div>
 
-          {/* UNIT */}
-
-          <div className="filter-field">
-            <label>Unit</label>
-
-            <SearchableSelect value={unit} options={unitOptions} placeholder="Semua Unit" searchPlaceholder="Cari unit..." onChange={setUnit} />
-          </div>
-
-          {/* BULAN */}
+          {/* BULAN MULTI */}
 
           <div className="filter-field">
             <label>Bulan</label>
 
-            <SearchableSelect value={bulan} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setBulan} />
+            <MultiSelect value={bulan} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setBulan} />
           </div>
 
-          {/* TAHUN */}
+          {/* TAHUN MULTI */}
 
           <div className="filter-field">
             <label>Tahun</label>
 
-            <SearchableSelect value={tahun} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setTahun} />
+            <MultiSelect value={tahun} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setTahun} />
           </div>
         </div>
       </section>
-
       {/* =================================================
-
-            KPI
-
+             KPI
         ================================================= */}
-
       <section className="kpi-grid">
         <div className="kpi-card kpi-blue">
           <div className="kpi-icon">▦</div>
@@ -1404,13 +1781,9 @@ const PayrollDashboard: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* =================================================
-
-            CHARTS
-
+             CHARTS
         ================================================= */}
-
       <section className="chart-grid">
         {/* TRANSACTION */}
 
@@ -1425,7 +1798,6 @@ const PayrollDashboard: React.FC = () => {
                 option={transactionChartOption}
                 style={{
                   width: "100%",
-
                   height: "100%",
                 }}
                 notMerge
@@ -1450,7 +1822,6 @@ const PayrollDashboard: React.FC = () => {
                 option={sdmChartOption}
                 style={{
                   width: "100%",
-
                   height: "100%",
                 }}
                 notMerge
@@ -1475,7 +1846,6 @@ const PayrollDashboard: React.FC = () => {
                 option={nominalChartOption}
                 style={{
                   width: "100%",
-
                   height: "100%",
                 }}
                 notMerge
@@ -1500,7 +1870,6 @@ const PayrollDashboard: React.FC = () => {
                 option={slaChartOption}
                 style={{
                   width: "100%",
-
                   height: "100%",
                 }}
                 notMerge
@@ -1512,20 +1881,19 @@ const PayrollDashboard: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* =================================================
-
-            TABLE
-
+             TABLE
         ================================================= */}
-
+      {/* =================================================
+    TABLE
+================================================= */}
       <section className="table-card">
         <div className="table-header">
           <div>
             <h3>Detail Kinerja Layanan</h3>
 
             <span>
-              Menampilkan {formatNumber(Math.min(filteredData.length, 10))} dari {formatNumber(filteredData.length)} data
+              Menampilkan {formatNumber(startRow)}–{formatNumber(endRow)} dari {formatNumber(filteredData.length)} data
             </span>
           </div>
 
@@ -1539,33 +1907,26 @@ const PayrollDashboard: React.FC = () => {
             <thead>
               <tr>
                 <th>No.</th>
-
                 <th>Bulan</th>
-
                 <th>Divisi</th>
-
                 <th>Departemen</th>
-
                 <th>Layanan</th>
-
                 <th>Jumlah Transaksi</th>
-
                 <th>SDM Diproses</th>
-
                 <th>SLA Tercapai</th>
-
                 <th>Total Nominal</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredData.length > 0 ? (
-                filteredData.slice(0, 10).map((item, index) => {
+              {paginatedData.length > 0 ? (
+                paginatedData.map((item, index) => {
                   const sla = normalizeSLA(item.sla_tercapai);
+                  const rowNumber = startIndex + index + 1;
 
                   return (
                     <tr key={item.id}>
-                      <td className="number-cell">{index + 1}.</td>
+                      <td className="number-cell">{rowNumber}.</td>
 
                       <td>{formatMonth(item.periode_bulan)}</td>
 
@@ -1599,9 +1960,26 @@ const PayrollDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </section>
+
+        {/* PAGINATION */}
+        {filteredData.length > 0 && (
+          <div className="table-pagination">
+            <button type="button" className="pagination-button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}>
+              ← Sebelumnya
+            </button>
+
+            <span className="pagination-info">
+              Halaman {currentPage} dari {totalPages}
+            </span>
+
+            <button type="button" className="pagination-button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>
+              Berikutnya →
+            </button>
+          </div>
+        )}
+      </section>{" "}
     </div>
   );
 };
 
-export default PayrollDashboard;
+export default KinerjaLayananDivisi;

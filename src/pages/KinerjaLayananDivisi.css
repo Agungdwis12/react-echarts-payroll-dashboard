@@ -196,29 +196,50 @@
 
 .searchable-select-trigger {
   position: relative;
+  box-sizing: border-box;
+
   width: 100%;
-  height: 40px;
+  height: 38px;
+  min-height: 38px;
+
   display: flex;
   align-items: center;
+
   padding: 0 35px 0 12px;
-  border: 1px solid rgba(194, 210, 228, 0.16);
+
+  border: 1px solid rgba(126, 151, 179, 0.22);
   border-radius: 9px;
-  background: #202e40;
-  color: #e6edf5;
+
+  background: rgba(12, 23, 37, 0.5);
+  color: #dce6f0;
+
   font-family: inherit;
   font-size: 10px;
   font-weight: 550;
+
   outline: none;
   cursor: pointer;
+
   transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .searchable-select-trigger:hover {
-  border-color: rgba(194, 210, 228, 0.27);
-  background: #263548;
+  border-color: rgba(91, 150, 225, 0.55);
+  background: rgba(18, 34, 54, 0.78);
+}
+
+.searchable-select.is-open .searchable-select-trigger {
+  border-color: rgba(91, 150, 225, 0.7);
+  background: rgba(18, 34, 54, 0.78);
+  box-shadow: 0 0 0 2px rgba(91, 141, 239, 0.08);
+}
+
+.searchable-select.is-disabled .searchable-select-trigger {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .searchable-select.is-open .searchable-select-trigger {
@@ -236,7 +257,7 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  color: #e6edf5;
+  color: #dce6f0;
   white-space: nowrap;
   text-overflow: ellipsis;
 }

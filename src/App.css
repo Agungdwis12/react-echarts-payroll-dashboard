@@ -10,6 +10,407 @@
 }
 
 /* =========================================================
+   GLOBAL APP STATE
+   Loading / Error / Empty State
+   ========================================================= */
+
+.app-state {
+  position: relative;
+
+  width: 100%;
+  min-height: 100dvh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 50% 42%,
+      rgba(48, 105, 174, 0.10) 0%,
+      rgba(13, 26, 43, 0) 42%
+    ),
+    linear-gradient(
+      135deg,
+      #0b1727 0%,
+      #0d1a2b 50%,
+      #0a1625 100%
+    );
+
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   DECORATIVE BACKGROUND
+   ========================================================= */
+
+.app-state::before {
+  content: "";
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  width: 420px;
+  height: 420px;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  background: rgba(65, 133, 210, 0.035);
+
+  filter: blur(60px);
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.app-state-loading {
+  flex-direction: column;
+  gap: 16px;
+
+  text-align: center;
+}
+
+
+/* Loading spinner container */
+
+.app-spinner-wrapper {
+  position: relative;
+
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* Outer ring */
+
+.app-spinner-wrapper::before {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  border: 2px solid rgba(115, 157, 204, 0.15);
+
+  border-radius: 50%;
+}
+
+
+/* Spinner */
+
+.app-spinner {
+  width: 34px;
+  height: 34px;
+
+  border: 3px solid rgba(142, 164, 192, 0.16);
+
+  border-top-color: #5b9bea;
+  border-right-color: #397bc5;
+
+  border-radius: 50%;
+
+  animation: app-spinner-rotate 0.85s linear infinite;
+
+  box-shadow:
+    0 0 18px rgba(72, 139, 220, 0.18);
+}
+
+
+@keyframes app-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* Loading title */
+
+.app-state-loading-title {
+  margin: 2px 0 0;
+
+  color: #e9f1f9;
+
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+
+/* Loading description */
+
+.app-state-loading-description {
+  margin: -8px 0 0;
+
+  color: #7189a5;
+
+  font-size: 12px;
+  font-weight: 400;
+}
+
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.app-state-error {
+  text-align: center;
+}
+
+
+/* Content */
+
+.app-state-content {
+  position: relative;
+  z-index: 2;
+
+  width: min(420px, calc(100% - 40px));
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 32px 36px 34px;
+
+  box-sizing: border-box;
+
+  border: 1px solid rgba(103, 143, 186, 0.16);
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22, 39, 60, 0.72),
+      rgba(13, 28, 46, 0.82)
+    );
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+
+  backdrop-filter: blur(12px);
+}
+
+
+/* =========================================================
+   ERROR ICON
+   ========================================================= */
+
+.app-error-icon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 16px;
+
+  border: 1px solid rgba(239, 110, 110, 0.20);
+  border-radius: 50%;
+
+  background: rgba(190, 55, 70, 0.08);
+
+  color: #f07b84;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  box-shadow:
+    0 0 24px rgba(221, 75, 90, 0.08);
+}
+
+
+/* =========================================================
+   ERROR TITLE
+   ========================================================= */
+
+.app-state-content h2 {
+  margin: 0 0 8px;
+
+  color: #f4f7fb;
+
+  font-size: 17px;
+  font-weight: 700;
+
+  line-height: 1.45;
+}
+
+
+/* =========================================================
+   ERROR MESSAGE
+   ========================================================= */
+
+.app-state-content p {
+  max-width: 320px;
+
+  margin: 0 0 22px;
+
+  color: #8499b1;
+
+  font-size: 12px;
+  font-weight: 400;
+
+  line-height: 1.6;
+
+  word-break: break-word;
+}
+
+
+/* =========================================================
+   RETRY BUTTON
+   ========================================================= */
+
+.app-retry-button {
+  min-width: 118px;
+  height: 40px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 20px;
+
+  border: 1px solid rgba(78, 132, 194, 0.55);
+  border-radius: 8px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #173452 0%,
+      #122a45 100%
+    );
+
+  color: #b9d8ff;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.16);
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+.app-retry-button:hover {
+  background:
+    linear-gradient(
+      135deg,
+      #1c4166 0%,
+      #173453 100%
+    );
+
+  border-color: rgba(89, 153, 222, 0.75);
+
+  color: #d6e8ff;
+
+  box-shadow:
+    0 8px 24px rgba(39, 101, 166, 0.18);
+}
+
+
+.app-retry-button:active {
+  transform: translateY(1px);
+
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.app-state-empty {
+  text-align: center;
+}
+
+
+.app-state-empty .app-state-content {
+  background: transparent;
+
+  border-color: transparent;
+
+  box-shadow: none;
+
+  backdrop-filter: none;
+}
+
+
+.app-state-empty-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 14px;
+
+  border: 1px solid rgba(117, 147, 180, 0.18);
+  border-radius: 50%;
+
+  background: rgba(94, 126, 160, 0.06);
+
+  color: #8198b1;
+
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 640px) {
+  .app-state-content {
+    width: calc(100% - 32px);
+
+    padding: 28px 22px 30px;
+
+    border-radius: 14px;
+  }
+
+  .app-state-content h2 {
+    font-size: 16px;
+  }
+
+  .app-state-content p {
+    font-size: 11px;
+  }
+
+  .app-retry-button {
+    height: 38px;
+
+    min-width: 108px;
+
+    font-size: 12px;
+  }
+}
+
+/* =========================================================
    2. SIDEBAR CONTAINER (DESKTOP)
    ========================================================= */
 
@@ -613,4 +1014,506 @@
   .main-content {
     padding: 72px 10px 20px;
   }
+}
+
+/* =========================================================
+   GLOBAL MULTI SELECT
+   Dipakai untuk filter Bulan / Tahun / filter multi-select
+   di semua dashboard
+========================================================= */
+
+.multi-select {
+  position: relative;
+  width: 100%;
+}
+
+.multi-select-trigger {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 9px;
+
+  background: #1f2c3d;
+  color: #e8eef5;
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+  text-align: left;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.multi-select-trigger:hover {
+  border-color: rgba(148, 163, 184, 0.38);
+}
+
+.multi-select-trigger-open {
+  border-color: rgba(91, 141, 239, 0.55);
+  background: #202f42;
+  box-shadow:
+    0 0 0 2px rgba(91, 141, 239, 0.08);
+}
+
+.multi-select-value {
+  color: #eef4fa;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.multi-select-placeholder {
+  color: #d0d8e3;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Toggle arrow untuk filter Bulan dan Tahun */
+.multi-select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid #a2afbf;
+  border-bottom: 1.5px solid #a2afbf;
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+
+/* Panah berputar ketika dropdown dibuka */
+.multi-select.is-open .multi-select-arrow {
+  transform: translateY(-30%) rotate(225deg);
+}
+
+/* Pastikan teks tidak bertabrakan dengan panah */
+.multi-select-trigger {
+  position: relative;
+  width: 100%;
+  padding-right: 35px;
+}
+
+/* =========================================================
+   DROPDOWN
+========================================================= */
+
+.multi-select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+
+  width: 100%;
+
+  z-index: 9999;
+
+  background: #1a293b;
+
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  border-radius: 9px;
+
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.30),
+    0 4px 12px rgba(0, 0, 0, 0.20);
+
+  overflow: hidden;
+}
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.multi-select-search {
+  padding: 9px;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.07);
+}
+
+.multi-select-search input {
+  width: 100%;
+  height: 36px;
+
+  box-sizing: border-box;
+
+  padding: 0 11px;
+
+  border:
+    1px solid rgba(148, 163, 184, 0.18);
+
+  border-radius: 7px;
+
+  background: #202f42;
+  color: #eef4fa;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.multi-select-search input::placeholder {
+  color: #7f90a5;
+}
+
+.multi-select-search input:focus {
+  border-color:
+    rgba(91, 141, 239, 0.45);
+}
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+
+.multi-select-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 8px 10px;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.07);
+}
+
+.multi-select-actions button {
+  padding: 0;
+
+  border: 0;
+  background: transparent;
+
+  color: #8db9f8;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.multi-select-actions button:last-child {
+  color: #9aaabd;
+}
+
+.multi-select-actions button:hover {
+  color: #c4dcff;
+}
+
+/* =========================================================
+   OPTIONS
+========================================================= */
+
+.multi-select-options {
+  max-height: 245px;
+
+  overflow-y: auto;
+
+  padding: 5px;
+}
+
+.multi-select-options::-webkit-scrollbar {
+  width: 7px;
+}
+
+.multi-select-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.multi-select-options::-webkit-scrollbar-thumb {
+  background:
+    rgba(148, 163, 184, 0.45);
+
+  border-radius: 10px;
+}
+
+.multi-select-option {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  min-height: 38px;
+
+  padding: 0 9px;
+
+  border-radius: 7px;
+
+  color: #dbe4ef;
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.multi-select-option:hover {
+  background:
+    rgba(255, 255, 255, 0.055);
+
+  color: #ffffff;
+}
+
+.multi-select-option-selected {
+  background:
+    rgba(79, 142, 220, 0.08);
+
+  color: #f3f7fc;
+}
+
+/* Hide native checkbox */
+.multi-select-option input {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+/* =========================================================
+   CUSTOM CHECKBOX
+========================================================= */
+
+.multi-select-checkbox {
+  width: 15px;
+  height: 15px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid rgba(148, 163, 184, 0.40);
+
+  border-radius: 4px;
+
+  background: #202f42;
+
+  color: #ffffff;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.multi-select-option-selected
+  .multi-select-checkbox {
+  background: #3182ce;
+
+  border-color: #3182ce;
+}
+
+.multi-select-label {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.multi-select-empty {
+  padding: 16px 10px;
+
+  text-align: center;
+
+  color: #7f90a5;
+
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* Efek hover pada filter Bulan dan Tahun */
+.multi-select-trigger:hover {
+  border-color: rgba(194, 210, 228, 0.27);
+  background: #263548;
+}
+
+/* Border menyala saat dropdown dibuka */
+.multi-select.is-open .multi-select-trigger {
+  border-color: rgba(91, 141, 239, 0.70);
+  background: #26364b;
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.10);
+}
+
+/* Efek saat tombol mendapat fokus */
+.multi-select-trigger:focus-visible {
+  outline: none;
+  border-color: rgba(91, 141, 239, 0.70);
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.10);
+}
+
+
+/* =========================================================
+   button next
+   ========================================================= */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid rgba(194, 210, 228, 0.1);
+}
+
+.pagination-button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(194, 210, 228, 0.16);
+  border-radius: 8px;
+  background: #202e40;
+  color: #e6edf5;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: #2c3b50;
+}
+
+.pagination-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #aeb9c8;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .table-pagination {
+    gap: 6px;
+    padding: 12px 8px;
+  }
+
+  .pagination-button {
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .pagination-info {
+    font-size: 10px;
+  }
+}
+
+
+/* =========================================
+   GLOBAL FILTER TRIGGER
+   MultiSelect Bulan dan Tahun
+========================================= */
+
+.multi-select-trigger {
+  box-sizing: border-box;
+  position: relative;
+
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding: 0 35px 0 12px;
+
+  border: 1px solid rgba(126, 151, 179, 0.22);
+  border-radius: 9px;
+
+  background: rgba(12, 23, 37, 0.5);
+  color: #dce6f0;
+
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 550;
+  line-height: normal;
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Warna teks pilihan */
+.multi-select-value {
+  color: #dce6f0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Hover */
+.multi-select-trigger:hover {
+  border-color: rgba(91, 150, 225, 0.55);
+  background: rgba(18, 34, 54, 0.78);
+}
+
+/* Border aktif saat dropdown terbuka */
+.multi-select.is-open .multi-select-trigger {
+  border-color: rgba(91, 150, 225, 0.7);
+  background: rgba(18, 34, 54, 0.78);
+  box-shadow: 0 0 0 2px rgba(91, 141, 239, 0.08);
+}
+
+/* Focus keyboard */
+.multi-select-trigger:focus-visible {
+  outline: none;
+  border-color: rgba(91, 150, 225, 0.7);
+  box-shadow: 0 0 0 2px rgba(91, 141, 239, 0.08);
+}
+
+/* Panah dropdown */
+.multi-select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+
+  width: 8px;
+  height: 8px;
+
+  border-right: 1.5px solid #a2afbf;
+  border-bottom: 1.5px solid #a2afbf;
+
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+
+/* Panah berputar saat terbuka */
+.multi-select.is-open .multi-select-arrow {
+  transform: translateY(-30%) rotate(225deg);
 }
