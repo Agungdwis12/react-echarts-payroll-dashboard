@@ -396,13 +396,9 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 ========================================================= */
 
 const BappDashboard: React.FC = () => {
-  const [monthlyRows, setMonthlyRows] = useState<
-    BappMonthlyRow[]
-  >([]);
+  const [monthlyRows, setMonthlyRows] = useState<BappMonthlyRow[]>([]);
 
-  const [detailRows, setDetailRows] = useState<
-    BappDetailRow[]
-  >([]);
+  const [detailRows, setDetailRows] = useState<BappDetailRow[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -410,12 +406,8 @@ const BappDashboard: React.FC = () => {
   /* FILTER STATE */
 
   const [selectedUnit, setSelectedUnit] = useState("");
-  const [selectedMonths, setSelectedMonths] = useState<
-    string[]
-  >([]);
-  const [selectedYears, setSelectedYears] = useState<
-    string[]
-  >([]);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
 
   /* PAGINATION STATE */
 
@@ -433,29 +425,18 @@ const BappDashboard: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const [monthlyData, detailData] = await Promise.all([
-          getMasterBappBulanan(),
-          getMasterDetailBapp(),
-        ]);
+        const [monthlyData, detailData] = await Promise.all([getMasterBappBulanan(), getMasterDetailBapp()]);
 
         if (!mounted) return;
 
-        setMonthlyRows(
-          Array.isArray(monthlyData) ? monthlyData : [],
-        );
+        setMonthlyRows(Array.isArray(monthlyData) ? monthlyData : []);
 
-        setDetailRows(
-          Array.isArray(detailData) ? detailData : [],
-        );
+        setDetailRows(Array.isArray(detailData) ? detailData : []);
       } catch (err) {
         console.error("BAPP dashboard error:", err);
 
         if (mounted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Gagal memuat data dashboard BAPP.",
-          );
+          setError(err instanceof Error ? err.message : "Gagal memuat data dashboard BAPP.");
         }
       } finally {
         if (mounted) setLoading(false);
@@ -474,21 +455,13 @@ const BappDashboard: React.FC = () => {
   ========================================================= */
 
   const unitOptions = useMemo(() => {
-    return uniqueSorted([
-      ...monthlyRows.map((row) => row.unit),
-      ...detailRows.map((row) => row.unit),
-    ]);
+    return uniqueSorted([...monthlyRows.map((row) => row.unit), ...detailRows.map((row) => row.unit)]);
   }, [monthlyRows, detailRows]);
 
   const yearOptions = useMemo(() => {
-    const years = [
-      ...monthlyRows.map((row) => getYear(row.periode_bulan)),
-      ...detailRows.map((row) => getYear(row.periode_bulan)),
-    ];
+    const years = [...monthlyRows.map((row) => getYear(row.periode_bulan)), ...detailRows.map((row) => getYear(row.periode_bulan))];
 
-    return Array.from(
-      new Set(years.filter((year) => Boolean(year))),
-    ).sort((a, b) => Number(a) - Number(b));
+    return Array.from(new Set(years.filter((year) => Boolean(year)))).sort((a, b) => Number(a) - Number(b));
   }, [monthlyRows, detailRows]);
 
   /* =========================================================
@@ -505,50 +478,31 @@ const BappDashboard: React.FC = () => {
 
       if (!date) return false;
 
-      const monthName = date
-        .toLocaleDateString("id-ID", { month: "long" })
-        .toLowerCase();
+      const monthName = date.toLocaleDateString("id-ID", { month: "long" }).toLowerCase();
 
       const year = String(date.getFullYear());
 
-      const monthMatch =
-        selectedMonths.length === 0 ||
-        selectedMonths.some(
-          (month) => month.toLowerCase() === monthName,
-        );
+      const monthMatch = selectedMonths.length === 0 || selectedMonths.some((month) => month.toLowerCase() === monthName);
 
-      const yearMatch =
-        selectedYears.length === 0 ||
-        selectedYears.includes(year);
+      const yearMatch = selectedYears.length === 0 || selectedYears.includes(year);
 
       return monthMatch && yearMatch;
     },
     [selectedMonths, selectedYears],
   );
 
-  const matchesUnit = useCallback(
-    (unit: string) => !selectedUnit || unit === selectedUnit,
-    [selectedUnit],
-  );
+  const matchesUnit = useCallback((unit: string) => !selectedUnit || unit === selectedUnit, [selectedUnit]);
 
   /* =========================================================
      FILTERED DATA
   ========================================================= */
 
   const filteredMonthlyRows = useMemo(() => {
-    return monthlyRows.filter(
-      (row) =>
-        matchesPeriod(row.periode_bulan) &&
-        matchesUnit(row.unit),
-    );
+    return monthlyRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit));
   }, [monthlyRows, matchesPeriod, matchesUnit]);
 
   const filteredDetailRows = useMemo(() => {
-    return detailRows.filter(
-      (row) =>
-        matchesPeriod(row.periode_bulan) &&
-        matchesUnit(row.unit),
-    );
+    return detailRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit));
   }, [detailRows, matchesPeriod, matchesUnit]);
 
   /* =========================================================
@@ -556,62 +510,29 @@ const BappDashboard: React.FC = () => {
   ========================================================= */
 
   const kpis = useMemo(() => {
-    const totalBapp = filteredMonthlyRows.reduce(
-      (sum, row) => sum + parseNumber(row.jumlah_bapp),
-      0,
-    );
+    const totalBapp = filteredMonthlyRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
 
-    const totalNominal = filteredMonthlyRows.reduce(
-      (sum, row) => sum + parseNumber(row.nominal),
-      0,
-    );
+    const totalNominal = filteredMonthlyRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
 
-    const doneRows = filteredMonthlyRows.filter((row) =>
-      isDone(row.status_bapp),
-    );
+    const doneRows = filteredMonthlyRows.filter((row) => isDone(row.status_bapp));
 
-    const onProcessRows = filteredMonthlyRows.filter((row) =>
-      isOnProcess(row.status_bapp),
-    );
+    const onProcessRows = filteredMonthlyRows.filter((row) => isOnProcess(row.status_bapp));
 
-    const noProcessRows = filteredMonthlyRows.filter((row) =>
-      isNoProcess(row.status_bapp),
-    );
+    const noProcessRows = filteredMonthlyRows.filter((row) => isNoProcess(row.status_bapp));
 
-    const doneCount = doneRows.reduce(
-      (sum, row) => sum + parseNumber(row.jumlah_bapp),
-      0,
-    );
+    const doneCount = doneRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
 
-    const onProcessCount = onProcessRows.reduce(
-      (sum, row) => sum + parseNumber(row.jumlah_bapp),
-      0,
-    );
+    const onProcessCount = onProcessRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
 
-    const noProcessCount = noProcessRows.reduce(
-      (sum, row) => sum + parseNumber(row.jumlah_bapp),
-      0,
-    );
+    const noProcessCount = noProcessRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
 
-    const doneNominal = doneRows.reduce(
-      (sum, row) => sum + parseNumber(row.nominal),
-      0,
-    );
+    const doneNominal = doneRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
 
-    const onProcessNominal = onProcessRows.reduce(
-      (sum, row) => sum + parseNumber(row.nominal),
-      0,
-    );
+    const onProcessNominal = onProcessRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
 
-    const noProcessNominal = noProcessRows.reduce(
-      (sum, row) => sum + parseNumber(row.nominal),
-      0,
-    );
+    const noProcessNominal = noProcessRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
 
-    const totalRevenue = filteredDetailRows.reduce(
-      (sum, row) => sum + parseNumber(row.revenue),
-      0,
-    );
+    const totalRevenue = filteredDetailRows.reduce((sum, row) => sum + parseNumber(row.revenue), 0);
 
     return {
       totalBapp,
@@ -623,16 +544,9 @@ const BappDashboard: React.FC = () => {
       doneNominal,
       onProcessNominal,
       noProcessNominal,
-      donePercentage:
-        totalBapp > 0 ? (doneCount / totalBapp) * 100 : 0,
-      onProcessPercentage:
-        totalBapp > 0
-          ? (onProcessCount / totalBapp) * 100
-          : 0,
-      noProcessPercentage:
-        totalBapp > 0
-          ? (noProcessCount / totalBapp) * 100
-          : 0,
+      donePercentage: totalBapp > 0 ? (doneCount / totalBapp) * 100 : 0,
+      onProcessPercentage: totalBapp > 0 ? (onProcessCount / totalBapp) * 100 : 0,
+      noProcessPercentage: totalBapp > 0 ? (noProcessCount / totalBapp) * 100 : 0,
     };
   }, [filteredMonthlyRows, filteredDetailRows]);
 
@@ -678,9 +592,7 @@ const BappDashboard: React.FC = () => {
       map.set(key, existing);
     });
 
-    return Array.from(map.values()).sort(
-      (a, b) => a.sort - b.sort,
-    );
+    return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
   }, [filteredMonthlyRows]);
 
   const nominalStatusChartOption = useMemo(
@@ -703,8 +615,7 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText:
-          "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
+        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
         formatter: (params: any[]) => {
           if (!params?.length) return "";
 
@@ -829,9 +740,7 @@ const BappDashboard: React.FC = () => {
           type: "bar",
           stack: "total",
           barMaxWidth: 32,
-          data: nominalStatusByMonth.map(
-            (item) => item.onProcess,
-          ),
+          data: nominalStatusByMonth.map((item) => item.onProcess),
           itemStyle: {
             borderRadius: [7, 7, 0, 0],
             color: {
@@ -853,9 +762,7 @@ const BappDashboard: React.FC = () => {
           type: "bar",
           stack: "total",
           barMaxWidth: 32,
-          data: nominalStatusByMonth.map(
-            (item) => item.noProcess,
-          ),
+          data: nominalStatusByMonth.map((item) => item.noProcess),
           itemStyle: {
             borderRadius: [3, 3, 0, 0],
             color: {
@@ -887,10 +794,7 @@ const BappDashboard: React.FC = () => {
     filteredMonthlyRows.forEach((row) => {
       const unit = row.unit || "Tidak diketahui";
 
-      map.set(
-        unit,
-        (map.get(unit) ?? 0) + parseNumber(row.jumlah_bapp),
-      );
+      map.set(unit, (map.get(unit) ?? 0) + parseNumber(row.jumlah_bapp));
     });
 
     return Array.from(map.entries())
@@ -911,8 +815,7 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText:
-          "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
+        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
         formatter: (params: any) => {
           return `
             <div style="font-weight:700;color:#f2f6fb;margin-bottom:5px;">
@@ -977,9 +880,9 @@ const BappDashboard: React.FC = () => {
                       x2: 1,
                       y2: 1,
                       colorStops: [
-                        { offset: 0, color: "#ffd477" },
-                        { offset: 0.5, color: "#efa938" },
-                        { offset: 1, color: "#c77c1b" },
+                        { offset: 0, color: "#8eb8ff" },
+                        { offset: 0.5, color: "#4e86dc" },
+                        { offset: 1, color: "#285aa7" },
                       ],
                     }
                   : {
@@ -989,9 +892,9 @@ const BappDashboard: React.FC = () => {
                       x2: 1,
                       y2: 1,
                       colorStops: [
-                        { offset: 0, color: "#8eb8ff" },
-                        { offset: 0.5, color: "#4e86dc" },
-                        { offset: 1, color: "#285aa7" },
+                        { offset: 0, color: "#FF7777" },
+                        { offset: 0.5, color: "#E31E24" },
+                        { offset: 1, color: "#A50F18" },
                       ],
                     },
             },
@@ -1012,10 +915,7 @@ const BappDashboard: React.FC = () => {
     filteredDetailRows.forEach((row) => {
       const layanan = row.layanan || "Tidak diketahui";
 
-      map.set(
-        layanan,
-        (map.get(layanan) ?? 0) + parseNumber(row.revenue),
-      );
+      map.set(layanan, (map.get(layanan) ?? 0) + parseNumber(row.revenue));
     });
 
     return Array.from(map.entries())
@@ -1043,8 +943,7 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText:
-          "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
+        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
         formatter: (params: any[]) => {
           const item = params?.[0];
 
@@ -1175,36 +1074,34 @@ const BappDashboard: React.FC = () => {
   /* =========================================================
      TABLE PAGINATION
   ========================================================= */
+  // Urutan status: No Process → On Process → Done
+  const getStatusPriority = (status: string | null | undefined): number => {
+    const normalizedStatus = status ?? "";
+
+    if (isNoProcess(normalizedStatus)) return 1;
+    if (isOnProcess(normalizedStatus)) return 2;
+    if (isDone(normalizedStatus)) return 3;
+
+    // Status lain diletakkan setelah Done
+    return 4;
+  };
 
   const sortedTableRows = useMemo(() => {
-    return [...filteredDetailRows].sort(
-      (a, b) =>
-        monthSortValue(b.periode_bulan) -
-        monthSortValue(a.periode_bulan),
-    );
+    return [...filteredDetailRows].sort((a, b) => {
+      return getStatusPriority(a.status) - getStatusPriority(b.status);
+    });
   }, [filteredDetailRows]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(sortedTableRows.length / PAGE_SIZE),
-  );
+  const totalPages = Math.max(1, Math.ceil(sortedTableRows.length / PAGE_SIZE));
 
   const startIndex = (currentPage - 1) * PAGE_SIZE;
 
   const tableRows = useMemo(() => {
-    return sortedTableRows.slice(
-      startIndex,
-      startIndex + PAGE_SIZE,
-    );
+    return sortedTableRows.slice(startIndex, startIndex + PAGE_SIZE);
   }, [sortedTableRows, startIndex]);
 
-  const startRow =
-    sortedTableRows.length === 0 ? 0 : startIndex + 1;
+  const startRow = sortedTableRows.length === 0 ? 0 : startIndex + 1;
 
-  const endRow = Math.min(
-    startIndex + PAGE_SIZE,
-    sortedTableRows.length,
-  );
+  const endRow = Math.min(startIndex + PAGE_SIZE, sortedTableRows.length);
 
   /* Kembali ke halaman pertama ketika filter berubah */
 
@@ -1223,11 +1120,7 @@ const BappDashboard: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const hasFilter = Boolean(
-    selectedUnit ||
-      selectedMonths.length > 0 ||
-      selectedYears.length > 0,
-  );
+  const hasFilter = Boolean(selectedUnit || selectedMonths.length > 0 || selectedYears.length > 0);
 
   /* =========================================================
      RENDER STATES
@@ -1249,11 +1142,7 @@ const BappDashboard: React.FC = () => {
           <h2>Gagal Memuat Dashboard</h2>
           <p>{error}</p>
 
-          <button
-            type="button"
-            className="app-retry-button"
-            onClick={() => window.location.reload()}
-          >
+          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
             Coba Lagi
           </button>
         </div>
@@ -1278,9 +1167,7 @@ const BappDashboard: React.FC = () => {
             </span>
           </div>
 
-          <p>
-            Monitoring BAPP, nominal, status, dan revenue layanan
-          </p>
+          <p>Monitoring BAPP, nominal, status, dan revenue layanan</p>
 
           <span className="bapp-source">
             Sumber data: <strong>master_bapp_bulanan</strong>
@@ -1297,30 +1184,13 @@ const BappDashboard: React.FC = () => {
       <section className="bapp-filter-card">
         <div className="bapp-filter-heading">
           <div>
-            <span className="bapp-section-kicker">
-              FILTER DATA
-            </span>
+            <span className="bapp-section-kicker">FILTER DATA</span>
 
             <h2>Parameter Dashboard</h2>
           </div>
 
-          <button
-            type="button"
-            className={`reset-filter ${
-              hasFilter ? "is-active" : ""
-            }`}
-            onClick={resetFilters}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+          <button type="button" className={`reset-filter ${hasFilter ? "is-active" : ""}`} onClick={resetFilters}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
               <path d="M21 3v5h-5" />
               <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
@@ -1335,37 +1205,19 @@ const BappDashboard: React.FC = () => {
           <div className="bapp-filter-item">
             <label>Unit</label>
 
-            <SearchableSelect
-              value={selectedUnit}
-              options={unitOptions}
-              placeholder="Semua Unit"
-              searchPlaceholder="Cari unit..."
-              onChange={setSelectedUnit}
-            />
+            <SearchableSelect value={selectedUnit} options={unitOptions} placeholder="Semua Unit" searchPlaceholder="Cari unit..." onChange={setSelectedUnit} />
           </div>
 
           <div className="bapp-filter-item">
             <label>Bulan</label>
 
-            <MultiSelect
-              value={selectedMonths}
-              options={monthOptions}
-              placeholder="Semua Bulan"
-              searchPlaceholder="Cari bulan..."
-              onChange={setSelectedMonths}
-            />
+            <MultiSelect value={selectedMonths} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonths} />
           </div>
 
           <div className="bapp-filter-item">
             <label>Tahun</label>
 
-            <MultiSelect
-              value={selectedYears}
-              options={yearOptions}
-              placeholder="Semua Tahun"
-              searchPlaceholder="Cari tahun..."
-              onChange={setSelectedYears}
-            />
+            <MultiSelect value={selectedYears} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setSelectedYears} />
           </div>
         </div>
       </section>
@@ -1383,9 +1235,7 @@ const BappDashboard: React.FC = () => {
 
           <strong>{formatNumber(kpis.totalBapp)}</strong>
 
-          <span className="bapp-kpi-sub">
-            {formatCompactRupiah(kpis.totalNominal)}
-          </span>
+          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.totalNominal)}</span>
         </article>
 
         <article className="bapp-kpi-card kpi-green">
@@ -1395,55 +1245,38 @@ const BappDashboard: React.FC = () => {
           </div>
 
           <strong>
-            {formatNumber(kpis.doneCount)}{" "}
-            <small>({kpis.donePercentage.toFixed(2)}%)</small>
+            {formatNumber(kpis.doneCount)} <small>({kpis.donePercentage.toFixed(2)}%)</small>
           </strong>
 
-          <span className="bapp-kpi-sub">
-            {formatCompactRupiah(kpis.doneNominal)}
-          </span>
+          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.doneNominal)}</span>
         </article>
 
         <article className="bapp-kpi-card kpi-amber">
           <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">
-              BAPP On Proses
-            </span>
+            <span className="bapp-kpi-label">BAPP On Proses</span>
 
             <span className="bapp-kpi-icon">◷</span>
           </div>
 
           <strong>
-            {formatNumber(kpis.onProcessCount)}{" "}
-            <small>
-              ({kpis.onProcessPercentage.toFixed(2)}%)
-            </small>
+            {formatNumber(kpis.onProcessCount)} <small>({kpis.onProcessPercentage.toFixed(2)}%)</small>
           </strong>
 
-          <span className="bapp-kpi-sub">
-            {formatCompactRupiah(kpis.onProcessNominal)}
-          </span>
+          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.onProcessNominal)}</span>
         </article>
 
         <article className="bapp-kpi-card kpi-red">
           <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">
-              BAPP No Proses
-            </span>
+            <span className="bapp-kpi-label">BAPP No Proses</span>
 
             <span className="bapp-kpi-icon">!</span>
           </div>
 
           <strong>
-            {formatNumber(kpis.noProcessCount)}{" "}
-            <small>
-              ({kpis.noProcessPercentage.toFixed(2)}%)
-            </small>
+            {formatNumber(kpis.noProcessCount)} <small>({kpis.noProcessPercentage.toFixed(2)}%)</small>
           </strong>
 
-          <span className="bapp-kpi-sub">
-            {formatCompactRupiah(kpis.noProcessNominal)}
-          </span>
+          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.noProcessNominal)}</span>
         </article>
       </section>
 
@@ -1455,9 +1288,7 @@ const BappDashboard: React.FC = () => {
         <article className="bapp-chart-card">
           <div className="bapp-chart-header">
             <div>
-              <span className="bapp-chart-kicker">
-                BAPP MONITORING
-              </span>
+              <span className="bapp-chart-kicker">BAPP MONITORING</span>
 
               <h3>Nominal BAPP per Status per Bulan</h3>
             </div>
@@ -1465,16 +1296,9 @@ const BappDashboard: React.FC = () => {
 
           <div className="bapp-chart-body bapp-chart-large">
             {nominalStatusByMonth.length > 0 ? (
-              <ReactECharts
-                option={nominalStatusChartOption}
-                style={{ height: "100%", width: "100%" }}
-                notMerge
-                lazyUpdate
-              />
+              <ReactECharts option={nominalStatusChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate />
             ) : (
-              <div className="bapp-empty-chart">
-                Tidak ada data untuk filter yang dipilih.
-              </div>
+              <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
             )}
           </div>
         </article>
@@ -1482,27 +1306,14 @@ const BappDashboard: React.FC = () => {
         <article className="bapp-chart-card">
           <div className="bapp-chart-header">
             <div>
-              <span className="bapp-chart-kicker">
-                DISTRIBUSI
-              </span>
+              <span className="bapp-chart-kicker">DISTRIBUSI</span>
 
               <h3>Jumlah BAPP per Unit</h3>
             </div>
           </div>
 
           <div className="bapp-chart-body bapp-chart-large">
-            {bappByUnit.length > 0 ? (
-              <ReactECharts
-                option={bappUnitChartOption}
-                style={{ height: "100%", width: "100%" }}
-                notMerge
-                lazyUpdate
-              />
-            ) : (
-              <div className="bapp-empty-chart">
-                Tidak ada data untuk filter yang dipilih.
-              </div>
-            )}
+            {bappByUnit.length > 0 ? <ReactECharts option={bappUnitChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate /> : <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
           </div>
         </article>
       </section>
@@ -1510,34 +1321,18 @@ const BappDashboard: React.FC = () => {
       <article className="bapp-chart-card bapp-revenue-card">
         <div className="bapp-chart-header">
           <div>
-            <span className="bapp-chart-kicker">
-              REVENUE ANALYSIS
-            </span>
+            <span className="bapp-chart-kicker">REVENUE ANALYSIS</span>
 
             <h3>Revenue BAPP per Layanan</h3>
           </div>
 
           <span className="bapp-chart-total">
-            Total Revenue:{" "}
-            <strong>
-              {formatCompactRupiah(kpis.totalRevenue)}
-            </strong>
+            Total Revenue: <strong>{formatCompactRupiah(kpis.totalRevenue)}</strong>
           </span>
         </div>
 
         <div className="bapp-chart-body bapp-revenue-chart">
-          {revenueByLayanan.length > 0 ? (
-            <ReactECharts
-              option={revenueChartOption}
-              style={{ height: "100%", width: "100%" }}
-              notMerge
-              lazyUpdate
-            />
-          ) : (
-            <div className="bapp-empty-chart">
-              Tidak ada data untuk filter yang dipilih.
-            </div>
-          )}
+          {revenueByLayanan.length > 0 ? <ReactECharts option={revenueChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate /> : <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
         </div>
       </article>
 
@@ -1548,17 +1343,13 @@ const BappDashboard: React.FC = () => {
       <section className="bapp-table-card">
         <div className="bapp-table-header">
           <div>
-            <span className="bapp-chart-kicker">
-              DETAIL DATA
-            </span>
+            <span className="bapp-chart-kicker">DETAIL DATA</span>
 
             <h3>Detail BAPP</h3>
           </div>
 
           <span className="bapp-table-count">
-            Menampilkan {formatNumber(startRow)}–
-            {formatNumber(endRow)} dari{" "}
-            {formatNumber(sortedTableRows.length)} data
+            Menampilkan {formatNumber(startRow)}–{formatNumber(endRow)} dari {formatNumber(sortedTableRows.length)} data
           </span>
         </div>
 
@@ -1585,37 +1376,19 @@ const BappDashboard: React.FC = () => {
 
                     <td>{formatMonth(row.periode_bulan)}</td>
 
-                    <td title={row.divisi}>
-                      {row.divisi || "-"}
-                    </td>
+                    <td title={row.divisi}>{row.divisi || "-"}</td>
 
-                    <td title={row.departemen}>
-                      {row.departemen || "-"}
-                    </td>
+                    <td title={row.departemen}>{row.departemen || "-"}</td>
 
-                    <td title={row.layanan}>
-                      {row.layanan || "-"}
-                    </td>
+                    <td title={row.layanan}>{row.layanan || "-"}</td>
 
                     <td>
-                      <span
-                        className={`bapp-status-pill ${
-                          isDone(row.status)
-                            ? "done"
-                            : isOnProcess(row.status)
-                              ? "process"
-                              : "no-process"
-                        }`}
-                      >
-                        {row.status || "-"}
-                      </span>
+                      <span className={`bapp-status-pill ${isDone(row.status) ? "done" : isOnProcess(row.status) ? "process" : "no-process"}`}>{row.status || "-"}</span>
                     </td>
 
                     <td>{row.unit || "-"}</td>
 
-                    <td className="bapp-money-cell">
-                      {formatRupiah(parseNumber(row.revenue))}
-                    </td>
+                    <td className="bapp-money-cell">{formatRupiah(parseNumber(row.revenue))}</td>
                   </tr>
                 ))
               ) : (
@@ -1633,16 +1406,7 @@ const BappDashboard: React.FC = () => {
 
         {sortedTableRows.length > 0 && (
           <div className="table-pagination">
-            <button
-              type="button"
-              className="pagination-button"
-              disabled={currentPage === 1}
-              onClick={() =>
-                setCurrentPage((page) =>
-                  Math.max(1, page - 1),
-                )
-              }
-            >
+            <button type="button" className="pagination-button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
               ← Sebelumnya
             </button>
 
@@ -1650,16 +1414,7 @@ const BappDashboard: React.FC = () => {
               Halaman {currentPage} dari {totalPages}
             </span>
 
-            <button
-              type="button"
-              className="pagination-button"
-              disabled={currentPage >= totalPages}
-              onClick={() =>
-                setCurrentPage((page) =>
-                  Math.min(totalPages, page + 1),
-                )
-              }
-            >
+            <button type="button" className="pagination-button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
               Berikutnya →
             </button>
           </div>
@@ -1667,6 +1422,6 @@ const BappDashboard: React.FC = () => {
       </section>
     </div>
   );
-};
+};;
 
 export default BappDashboard;
