@@ -703,8 +703,24 @@ const KinerjaLayananDivisi: React.FC = () => {
   };
 
   /* =====================================================
-       CHART - TRANSACTION
-    ===================================================== */
+   SHARED TOOLTIP STYLE
+===================================================== */
+
+  const sharedTooltipStyle = {
+    backgroundColor: "#202f42",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    padding: [8, 10],
+    textStyle: {
+      color: "#eef4fa",
+      fontSize: 10,
+    },
+    extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
+  };
+
+  /* =====================================================
+   CHART - TRANSACTION
+===================================================== */
 
   const transactionChartOption = useMemo(
     () => ({
@@ -713,30 +729,15 @@ const KinerjaLayananDivisi: React.FC = () => {
       animationEasing: "cubicOut",
 
       tooltip: {
+        ...sharedTooltipStyle,
         trigger: "axis",
-
         axisPointer: {
           type: "shadow",
-
           shadowStyle: {
-            color: "rgba(91, 141, 239, 0.08)",
+            color: "rgba(79,142,220,0.08)",
           },
         },
-
-        backgroundColor: "#202f42",
-
-        borderColor: "rgba(255,255,255,0.12)",
-
-        borderWidth: 1,
-
-        textStyle: {
-          color: "#eef4fa",
-          fontSize: 10,
-        },
-
-        extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
-
-        valueFormatter: (value: number) => formatNumber(value),
+        valueFormatter: (value: number) => formatNumber(Number(value)),
       },
 
       grid: {
@@ -749,21 +750,16 @@ const KinerjaLayananDivisi: React.FC = () => {
 
       xAxis: {
         type: "category",
-
         data: monthlyData.map((item) => item.label),
-
         axisLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -772,7 +768,6 @@ const KinerjaLayananDivisi: React.FC = () => {
           color: "#b8c6d6",
           margin: 10,
         },
-
         splitLine: {
           show: false,
         },
@@ -780,40 +775,31 @@ const KinerjaLayananDivisi: React.FC = () => {
 
       yAxis: {
         type: "value",
-
         axisLine: {
           show: false,
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
-
           formatter: (value: number) => {
             if (value >= 1_000_000) {
               return `${(value / 1_000_000).toFixed(1)} jt`;
             }
-
             if (value >= 1_000) {
               return `${Math.round(value / 1_000)} rb`;
             }
-
             return value;
           },
         },
-
         splitLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
-            type: "solid",
           },
         },
       },
@@ -822,74 +808,44 @@ const KinerjaLayananDivisi: React.FC = () => {
         {
           name: "Jumlah Transaksi",
           type: "bar",
-
           data: monthlyData.map((item) => item.transaksi),
-
           barMaxWidth: 30,
           barMinHeight: 3,
-
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
-
             color: {
               type: "linear",
-
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
-
               colorStops: [
-                {
-                  offset: 0,
-                  color: "#78adf8",
-                },
-                {
-                  offset: 0.45,
-                  color: "#4f8edc",
-                },
-                {
-                  offset: 1,
-                  color: "#2868bd",
-                },
+                { offset: 0, color: "#78adf8" },
+                { offset: 0.45, color: "#4f8edc" },
+                { offset: 1, color: "#2868bd" },
               ],
             },
-
             shadowBlur: 8,
-
             shadowColor: "rgba(79,142,220,0.20)",
           },
-
           emphasis: {
             focus: "series",
-
             itemStyle: {
               shadowBlur: 16,
-
               shadowColor: "rgba(91,141,239,0.35)",
-
               color: {
                 type: "linear",
-
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
-
                 colorStops: [
-                  {
-                    offset: 0,
-                    color: "#9ac2ff",
-                  },
-                  {
-                    offset: 1,
-                    color: "#3f7fd4",
-                  },
+                  { offset: 0, color: "#9ac2ff" },
+                  { offset: 1, color: "#3f7fd4" },
                 ],
               },
             },
           },
-
           label: {
             show: false,
           },
@@ -900,8 +856,8 @@ const KinerjaLayananDivisi: React.FC = () => {
   );
 
   /* =====================================================
-       CHART - SDM
-    ===================================================== */
+   CHART - SDM
+===================================================== */
 
   const sdmChartOption = useMemo(
     () => ({
@@ -910,90 +866,17 @@ const KinerjaLayananDivisi: React.FC = () => {
       animationEasing: "cubicOut",
 
       tooltip: {
+        ...sharedTooltipStyle,
         trigger: "axis",
-
         axisPointer: {
           type: "shadow",
-
           shadowStyle: {
             color: "rgba(85,184,196,0.08)",
           },
         },
+        valueFormatter: (value: number) => formatNumber(Number(value)),
+      },
 
-        backgroundColor: "#202f42",
-
-        borderColor: "rgba(255,255,255,0.12)",
-
-        borderWidth: 1,
-
-        padding: [10, 12],
-
-        textStyle: {
-          color: "#eef4fa",
-          fontSize: 10,
-        },
-
-        extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
-
-formatter: (params: any) => {
-  const item = Array.isArray(params) ? params[0] : params;
-
-  if (!item) return "";
-
-  const month = monthlyData[item.dataIndex]?.label ?? item.name;
-  const value = Number(item.value ?? 0);
-  const markerColor =
-    typeof item.color === "string" ? item.color : "#55b8c4";
-
-  return `
-    <div style="min-width: 175px;">
-      <div style="
-        color: #eef4fa;
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 10px;
-      ">
-        ${month}
-      </div>
-
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18px;
-      ">
-        <div style="
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #d5dfeb;
-          font-size: 11px;
-          white-space: nowrap;
-        ">
-          <span style="
-            width: 9px;
-            height: 9px;
-            flex-shrink: 0;
-            border-radius: 50%;
-            background: ${markerColor};
-            display: inline-block;
-          "></span>
-          SDM Diproses
-        </div>
-
-        <span style="
-          color: #eef4fa;
-          font-size: 12px;
-          font-weight: 700;
-          white-space: nowrap;
-        ">
-          ${formatNumber(value)}
-        </span>
-      </div>
-    </div>
-  `;
-},      },
-      
       grid: {
         left: 58,
         right: 20,
@@ -1004,21 +887,16 @@ formatter: (params: any) => {
 
       xAxis: {
         type: "category",
-
         data: monthlyData.map((item) => item.label),
-
         axisLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -1027,7 +905,6 @@ formatter: (params: any) => {
           color: "#b8c6d6",
           margin: 10,
         },
-
         splitLine: {
           show: false,
         },
@@ -1035,40 +912,31 @@ formatter: (params: any) => {
 
       yAxis: {
         type: "value",
-
         axisLine: {
           show: false,
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
-
           formatter: (value: number) => {
             if (value >= 1_000_000) {
               return `${(value / 1_000_000).toFixed(1)} jt`;
             }
-
             if (value >= 1_000) {
               return `${Math.round(value / 1_000)} rb`;
             }
-
             return value;
           },
         },
-
         splitLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
-            type: "solid",
           },
         },
       },
@@ -1076,76 +944,45 @@ formatter: (params: any) => {
       series: [
         {
           name: "SDM Diproses",
-
           type: "bar",
-
           data: monthlyData.map((item) => item.sdm),
-
           barMaxWidth: 30,
           barMinHeight: 3,
-
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
-
             color: {
               type: "linear",
-
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
-
               colorStops: [
-                {
-                  offset: 0,
-                  color: "#79d8df",
-                },
-                {
-                  offset: 0.45,
-                  color: "#55b8c4",
-                },
-                {
-                  offset: 1,
-                  color: "#278d99",
-                },
+                { offset: 0, color: "#79d8df" },
+                { offset: 0.45, color: "#55b8c4" },
+                { offset: 1, color: "#278d99" },
               ],
             },
-
             shadowBlur: 8,
-
             shadowColor: "rgba(85,184,196,0.20)",
           },
-
           emphasis: {
             focus: "series",
-
             itemStyle: {
               shadowBlur: 16,
-
               shadowColor: "rgba(85,184,196,0.35)",
-
               color: {
                 type: "linear",
-
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
-
                 colorStops: [
-                  {
-                    offset: 0,
-                    color: "#9be7ec",
-                  },
-                  {
-                    offset: 1,
-                    color: "#3ea7b3",
-                  },
+                  { offset: 0, color: "#9be7ec" },
+                  { offset: 1, color: "#3ea7b3" },
                 ],
               },
             },
           },
-
           label: {
             show: false,
           },
@@ -1156,125 +993,59 @@ formatter: (params: any) => {
   );
 
   /* =====================================================
-       CHART - NOMINAL
-    ===================================================== */
-  const nominalChartOption = useMemo(() => {
-    const chartData = monthlyData;
+   CHART - NOMINAL
+===================================================== */
 
-    return {
+  const nominalChartOption = useMemo(
+    () => ({
       animation: true,
-      animationDuration: 900,
+      animationDuration: 800,
       animationEasing: "cubicOut",
 
       tooltip: {
+        ...sharedTooltipStyle,
         trigger: "axis",
         axisPointer: {
           type: "shadow",
           shadowStyle: {
-            color: "rgba(85, 185, 133, 0.08)",
+            color: "rgba(85,185,133,0.08)",
           },
         },
-        backgroundColor: "#202f42",
-        borderColor: "rgba(255,255,255,0.12)",
-        borderWidth: 1,
-        padding: [10, 12],
-        textStyle: {
-          color: "#eef4fa",
-          fontSize: 10,
-        },
-        extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
-        formatter: (params: any) => {
-          const item = Array.isArray(params) ? params[0] : params;
-          if (!item) return "";
-
-          const month = chartData[item.dataIndex]?.label ?? item.name;
-
-          const value = Number(item.value ?? 0);
-          const markerColor = typeof item.color === "string" ? item.color : "#55b985";
-
-          return `
-          <div style="min-width:175px;">
-            <div style="
-              color:#eef4fa;
-              font-size:12px;
-              font-weight:600;
-              margin-bottom:10px;
-            ">
-              ${month}
-            </div>
-
-            <div style="
-              display:flex;
-              align-items:center;
-              justify-content:space-between;
-              gap:18px;
-            ">
-              <div style="
-                display:flex;
-                align-items:center;
-                gap:8px;
-                color:#d5dfeb;
-                font-size:11px;
-                white-space:nowrap;
-              ">
-                <span style="
-                  width:9px;
-                  height:9px;
-                  flex-shrink:0;
-                  border-radius:50%;
-                  background:${markerColor};
-                  display:inline-block;
-                "></span>
-                Total Nominal
-              </div>
-
-              <span style="
-                color:#eef4fa;
-                font-size:12px;
-                font-weight:700;
-                white-space:nowrap;
-              ">
-                ${formatRupiah(value)}
-              </span>
-            </div>
-          </div>
-        `;
-        },
+        valueFormatter: (value: number) =>
+          `Rp ${(Number(value) / 1_000_000).toLocaleString("id-ID", {
+            maximumFractionDigits: 2,
+          })} juta`,
       },
 
       grid: {
         left: 58,
-        right: 22,
-        top: 28,
-        bottom: 65,
+        right: 18,
+        top: 20,
+        bottom: 52,
         containLabel: true,
       },
 
       xAxis: {
         type: "category",
-        data: chartData.map((item) => item.label),
+        data: monthlyData.map((item) => item.label),
         boundaryGap: true,
-
         axisLine: {
           show: true,
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           interval: 0,
           rotate: 35,
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
-          margin: 12,
+          margin: 10,
         },
-
         splitLine: {
           show: false,
         },
@@ -1283,39 +1054,28 @@ formatter: (params: any) => {
       yAxis: {
         type: "value",
         min: 0,
-        scale: true,
-
         axisLine: {
           show: false,
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
-          margin: 10,
-
-          formatter: (value: number) => {
-            if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(1)} M`;
-            }
-
-            if (value >= 1_000_000) {
-              return `${(value / 1_000_000).toFixed(0)} Jt`;
-            }
-
-            if (value >= 1_000) {
-              return `${(value / 1_000).toFixed(0)} Rb`;
-            }
-
-            return value.toLocaleString("id-ID");
-          },
+          margin: 8,
+          formatter: (value: number) =>
+            (value / 1_000_000).toLocaleString("id-ID", {
+              maximumFractionDigits: 0,
+            }),
         },
-
+        nameLocation: "end",
+        nameGap: 10,
+        nameTextStyle: {
+          color: "#b8c6d6",
+          fontSize: 9,
+        },
         splitLine: {
           show: true,
           lineStyle: {
@@ -1329,107 +1089,56 @@ formatter: (params: any) => {
         {
           name: "Total Nominal",
           type: "bar",
-          data: chartData.map((item) => item.nominal),
-
-          barMaxWidth: 32,
-          barMinHeight: 3,
-          barCategoryGap: "35%",
-
-          showBackground: true,
-
-          backgroundStyle: {
-            color: "rgba(255,255,255,0.025)",
-            borderRadius: [6, 6, 1, 1],
-          },
-
+          showBackground: false,
+          data: monthlyData.map((item) => item.nominal),
           itemStyle: {
-            borderRadius: [6, 6, 1, 1],
-
+            borderRadius: [7, 7, 0, 0],
             color: {
               type: "linear",
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
-
               colorStops: [
-                { offset: 0, color: "#8bd6ae" },
-                { offset: 0.45, color: "#55b985" },
-                { offset: 1, color: "#287a55" },
+                { offset: 0, color: "#83d6aa" },
+                { offset: 1, color: "#26835c" },
               ],
             },
-
-            shadowBlur: 8,
-            shadowColor: "rgba(85,185,133,0.16)",
+            shadowBlur: 0,
+            shadowColor: "transparent",
           },
-
           emphasis: {
-            focus: "series",
-
-            itemStyle: {
-              shadowBlur: 16,
-              shadowColor: "rgba(85,185,133,0.32)",
-
-              color: {
-                type: "linear",
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-
-                colorStops: [
-                  { offset: 0, color: "#b0ebc9" },
-                  { offset: 1, color: "#45a875" },
-                ],
-              },
-            },
+            disabled: true,
           },
-
-          label: {
-            show: false,
+          select: {
+            disabled: true,
           },
         },
       ],
-    };
-  }, [monthlyData]);
+    }),
+    [monthlyData],
+  );
 
   /* =====================================================
-       CHART - SLA
-    ===================================================== */
+   CHART - SLA
+===================================================== */
 
   const slaChartOption = useMemo(
     () => ({
       animation: true,
-
       animationDuration: 750,
-
       animationEasing: "cubicOut",
 
       tooltip: {
+        ...sharedTooltipStyle,
         trigger: "axis",
-
         axisPointer: {
           type: "shadow",
-
           shadowStyle: {
             color: "rgba(217,164,65,0.08)",
           },
         },
-
-        backgroundColor: "#202f42",
-
-        borderColor: "rgba(255,255,255,0.12)",
-
-        borderWidth: 1,
-
-        textStyle: {
-          color: "#eef4fa",
-          fontSize: 10,
-        },
-
-        extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
-
-        valueFormatter: (value: number) => `${Math.round(value)}%`,
+        valueFormatter: (value: number) => `${Math.round(Number(value))}%`,
       },
 
       grid: {
@@ -1442,21 +1151,16 @@ formatter: (params: any) => {
 
       xAxis: {
         type: "category",
-
         data: monthlyData.map((item) => item.label),
-
         axisLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.16)",
           },
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           interval: 0,
           rotate: 35,
@@ -1465,7 +1169,6 @@ formatter: (params: any) => {
           color: "#b8c6d6",
           margin: 10,
         },
-
         splitLine: {
           show: false,
         },
@@ -1473,36 +1176,26 @@ formatter: (params: any) => {
 
       yAxis: {
         type: "value",
-
         min: 0,
-
         max: 100,
-
         interval: 20,
-
         axisLine: {
           show: false,
         },
-
         axisTick: {
           show: false,
         },
-
         axisLabel: {
           fontSize: 9,
           fontWeight: 600,
           color: "#b8c6d6",
-
           formatter: (value: number) => `${value}%`,
         },
-
         splitLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
-            type: "solid",
           },
         },
       },
@@ -1510,77 +1203,45 @@ formatter: (params: any) => {
       series: [
         {
           name: "SLA Tercapai",
-
           type: "bar",
-
           data: monthlyData.map((item) => Math.min(Math.max(Math.round(item.sla), 0), 100)),
-
           barMaxWidth: 29,
-
           barMinHeight: 3,
-
           itemStyle: {
             borderRadius: [6, 6, 1, 1],
-
             color: {
               type: "linear",
-
               x: 0,
               y: 0,
               x2: 0,
               y2: 1,
-
               colorStops: [
-                {
-                  offset: 0,
-                  color: "#f1c66d",
-                },
-                {
-                  offset: 0.45,
-                  color: "#d9a441",
-                },
-                {
-                  offset: 1,
-                  color: "#a87925",
-                },
+                { offset: 0, color: "#f1c66d" },
+                { offset: 0.45, color: "#d9a441" },
+                { offset: 1, color: "#a87925" },
               ],
             },
-
             shadowBlur: 8,
-
             shadowColor: "rgba(217,164,65,0.20)",
           },
-
           emphasis: {
             focus: "series",
-
             itemStyle: {
               shadowBlur: 16,
-
               shadowColor: "rgba(217,164,65,0.35)",
-
               color: {
                 type: "linear",
-
                 x: 0,
                 y: 0,
                 x2: 0,
                 y2: 1,
-
                 colorStops: [
-                  {
-                    offset: 0,
-                    color: "#f7d88f",
-                  },
-                  {
-                    offset: 1,
-                    color: "#d9a441",
-                  },
+                  { offset: 0, color: "#f7d88f" },
+                  { offset: 1, color: "#d9a441" },
                 ],
               },
             },
           },
-
           label: {
             show: false,
           },
@@ -1995,6 +1656,6 @@ formatter: (params: any) => {
       </section>{" "}
     </div>
   );
-};
+};;;;
 
 export default KinerjaLayananDivisi;
