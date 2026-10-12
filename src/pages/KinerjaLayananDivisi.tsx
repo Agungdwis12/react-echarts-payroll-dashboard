@@ -690,40 +690,6 @@ const KinerjaLayananDivisi: React.FC = () => {
   }, [filteredData]);
 
   /* =====================================================
-       NOMINAL PER LAYANAN
-    ===================================================== */
-
-  const nominalByLayanan = useMemo(() => {
-    const map = new Map<string, number>();
-
-    filteredData.forEach((item) => {
-      const name = item.layanan || "Lainnya";
-
-      map.set(name, (map.get(name) || 0) + parseNumber(item.total_thp));
-    });
-
-    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
-
-    const top8 = sorted.slice(0, 8);
-
-    const otherTotal = sorted.slice(8).reduce((sum, [, value]) => sum + value, 0);
-
-    const result = top8.map(([name, value]) => ({
-      name,
-      value,
-    }));
-
-    if (otherTotal > 0) {
-      result.push({
-        name: "Lainnya",
-        value: otherTotal,
-      });
-    }
-
-    return result;
-  }, [filteredData]);
-
-  /* =====================================================
        RESET FILTER
     ===================================================== */
 
@@ -960,6 +926,8 @@ const KinerjaLayananDivisi: React.FC = () => {
 
         borderWidth: 1,
 
+        padding: [10, 12],
+
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
@@ -967,9 +935,65 @@ const KinerjaLayananDivisi: React.FC = () => {
 
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
 
-        valueFormatter: (value: number) => formatNumber(value),
-      },
+formatter: (params: any) => {
+  const item = Array.isArray(params) ? params[0] : params;
 
+  if (!item) return "";
+
+  const month = monthlyData[item.dataIndex]?.label ?? item.name;
+  const value = Number(item.value ?? 0);
+  const markerColor =
+    typeof item.color === "string" ? item.color : "#55b8c4";
+
+  return `
+    <div style="min-width: 175px;">
+      <div style="
+        color: #eef4fa;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      ">
+        ${month}
+      </div>
+
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      ">
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #d5dfeb;
+          font-size: 11px;
+          white-space: nowrap;
+        ">
+          <span style="
+            width: 9px;
+            height: 9px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: ${markerColor};
+            display: inline-block;
+          "></span>
+          SDM Diproses
+        </div>
+
+        <span style="
+          color: #eef4fa;
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+        ">
+          ${formatNumber(value)}
+        </span>
+      </div>
+    </div>
+  `;
+},      },
+      
       grid: {
         left: 58,
         right: 20,
@@ -1134,67 +1158,132 @@ const KinerjaLayananDivisi: React.FC = () => {
   /* =====================================================
        CHART - NOMINAL
     ===================================================== */
-
   const nominalChartOption = useMemo(() => {
-    const chartData = nominalByLayanan.slice().reverse();
+    const chartData = monthlyData;
 
     return {
       animation: true,
-      animationDuration: 800,
+      animationDuration: 900,
       animationEasing: "cubicOut",
 
       tooltip: {
         trigger: "axis",
-
         axisPointer: {
           type: "shadow",
-
           shadowStyle: {
-            color: "rgba(85,185,133,0.08)",
+            color: "rgba(85, 185, 133, 0.08)",
           },
         },
-
         backgroundColor: "#202f42",
-
         borderColor: "rgba(255,255,255,0.12)",
-
         borderWidth: 1,
-
+        padding: [10, 12],
         textStyle: {
           color: "#eef4fa",
           fontSize: 10,
         },
-
         extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 8px;",
-
         formatter: (params: any) => {
-          const item = params?.[0];
+          const item = Array.isArray(params) ? params[0] : params;
+          if (!item) return "";
 
-          if (!item) {
-            return "";
-          }
+          const month = chartData[item.dataIndex]?.label ?? item.name;
+
+          const value = Number(item.value ?? 0);
+          const markerColor = typeof item.color === "string" ? item.color : "#55b985";
 
           return `
-                <div style="color:#aebdce;font-size:10px;margin-bottom:5px;">
-                  ${item.name}
-                </div>
-                <div style="color:#f1f5f9;font-size:12px;font-weight:700;">
-                  ${formatRupiah(item.value)}
-                </div>
-              `;
+          <div style="min-width:175px;">
+            <div style="
+              color:#eef4fa;
+              font-size:12px;
+              font-weight:600;
+              margin-bottom:10px;
+            ">
+              ${month}
+            </div>
+
+            <div style="
+              display:flex;
+              align-items:center;
+              justify-content:space-between;
+              gap:18px;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:8px;
+                color:#d5dfeb;
+                font-size:11px;
+                white-space:nowrap;
+              ">
+                <span style="
+                  width:9px;
+                  height:9px;
+                  flex-shrink:0;
+                  border-radius:50%;
+                  background:${markerColor};
+                  display:inline-block;
+                "></span>
+                Total Nominal
+              </div>
+
+              <span style="
+                color:#eef4fa;
+                font-size:12px;
+                font-weight:700;
+                white-space:nowrap;
+              ">
+                ${formatRupiah(value)}
+              </span>
+            </div>
+          </div>
+        `;
         },
       },
 
       grid: {
         left: 58,
-        right: 20,
-        top: 25,
-        bottom: 58,
+        right: 22,
+        top: 28,
+        bottom: 65,
         containLabel: true,
       },
 
       xAxis: {
+        type: "category",
+        data: chartData.map((item) => item.label),
+        boundaryGap: true,
+
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: "rgba(255,255,255,0.16)",
+          },
+        },
+
+        axisTick: {
+          show: false,
+        },
+
+        axisLabel: {
+          interval: 0,
+          rotate: 35,
+          fontSize: 9,
+          fontWeight: 500,
+          color: "#b8c6d6",
+          margin: 12,
+        },
+
+        splitLine: {
+          show: false,
+        },
+      },
+
+      yAxis: {
         type: "value",
+        min: 0,
+        scale: true,
 
         axisLine: {
           show: false,
@@ -1208,14 +1297,11 @@ const KinerjaLayananDivisi: React.FC = () => {
           fontSize: 9,
           fontWeight: 500,
           color: "#b8c6d6",
+          margin: 10,
 
           formatter: (value: number) => {
-            if (value >= 1_000_000_000_000) {
-              return `${(value / 1_000_000_000_000).toFixed(1)} T`;
-            }
-
             if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(0)} M`;
+              return `${(value / 1_000_000_000).toFixed(1)} M`;
             }
 
             if (value >= 1_000_000) {
@@ -1226,88 +1312,55 @@ const KinerjaLayananDivisi: React.FC = () => {
               return `${(value / 1_000).toFixed(0)} Rb`;
             }
 
-            return value;
+            return value.toLocaleString("id-ID");
           },
         },
 
         splitLine: {
           show: true,
-
           lineStyle: {
             color: "rgba(255,255,255,0.08)",
             width: 1,
-            type: "solid",
           },
-        },
-      },
-
-      yAxis: {
-        type: "category",
-
-        data: chartData.map((item) => item.name),
-
-        axisLine: {
-          show: false,
-        },
-
-        axisTick: {
-          show: false,
-        },
-
-        axisLabel: {
-          fontSize: 9,
-          fontWeight: 500,
-          color: "#c0ccda",
-
-          width: 100,
-
-          overflow: "truncate",
-
-          formatter: (value: string) => (value.length > 18 ? `${value.substring(0, 18)}...` : value),
         },
       },
 
       series: [
         {
-          name: "Nominal",
-
+          name: "Total Nominal",
           type: "bar",
+          data: chartData.map((item) => item.nominal),
 
-          data: chartData.map((item) => item.value),
+          barMaxWidth: 32,
+          barMinHeight: 3,
+          barCategoryGap: "35%",
 
-          barMaxWidth: 18,
-          barMinHeight: 4,
+          showBackground: true,
+
+          backgroundStyle: {
+            color: "rgba(255,255,255,0.025)",
+            borderRadius: [6, 6, 1, 1],
+          },
 
           itemStyle: {
-            borderRadius: [0, 7, 7, 0],
+            borderRadius: [6, 6, 1, 1],
 
             color: {
               type: "linear",
-
               x: 0,
               y: 0,
-              x2: 1,
-              y2: 0,
+              x2: 0,
+              y2: 1,
 
               colorStops: [
-                {
-                  offset: 0,
-                  color: "#287a55",
-                },
-                {
-                  offset: 0.5,
-                  color: "#55b985",
-                },
-                {
-                  offset: 1,
-                  color: "#8bd6ae",
-                },
+                { offset: 0, color: "#8bd6ae" },
+                { offset: 0.45, color: "#55b985" },
+                { offset: 1, color: "#287a55" },
               ],
             },
 
             shadowBlur: 8,
-
-            shadowColor: "rgba(85,185,133,0.20)",
+            shadowColor: "rgba(85,185,133,0.16)",
           },
 
           emphasis: {
@@ -1315,68 +1368,30 @@ const KinerjaLayananDivisi: React.FC = () => {
 
             itemStyle: {
               shadowBlur: 16,
-
-              shadowColor: "rgba(85,185,133,0.35)",
+              shadowColor: "rgba(85,185,133,0.32)",
 
               color: {
                 type: "linear",
-
                 x: 0,
                 y: 0,
-                x2: 1,
-                y2: 0,
+                x2: 0,
+                y2: 1,
 
                 colorStops: [
-                  {
-                    offset: 0,
-                    color: "#37946a",
-                  },
-                  {
-                    offset: 1,
-                    color: "#9ae0b8",
-                  },
+                  { offset: 0, color: "#b0ebc9" },
+                  { offset: 1, color: "#45a875" },
                 ],
               },
             },
           },
 
           label: {
-            show: true,
-
-            position: "right",
-
-            color: "#b9c9d9",
-
-            fontSize: 8,
-
-            fontWeight: 600,
-
-            formatter: (params: any) => {
-              const value = Number(params.value);
-
-              if (value >= 1_000_000_000_000) {
-                return `Rp ${(value / 1_000_000_000_000).toFixed(1)} T`;
-              }
-
-              if (value >= 1_000_000_000) {
-                return `Rp ${(value / 1_000_000_000).toFixed(0)} M`;
-              }
-
-              if (value >= 1_000_000) {
-                return `Rp ${(value / 1_000_000).toFixed(0)} Jt`;
-              }
-
-              if (value >= 1_000) {
-                return `Rp ${(value / 1_000).toFixed(0)} Rb`;
-              }
-
-              return `Rp ${value.toLocaleString("id-ID")}`;
-            },
+            show: false,
           },
         },
       ],
     };
-  }, [nominalByLayanan]);
+  }, [monthlyData]);
 
   /* =====================================================
        CHART - SLA
@@ -1837,11 +1852,11 @@ const KinerjaLayananDivisi: React.FC = () => {
 
         <div className="chart-card chart-green">
           <div className="chart-header">
-            <h3>Total Nominal per Layanan (Rp)</h3>
+            <h3>Total Nominal per Bulan (Rp)</h3>{" "}
           </div>
 
           <div className="chart-body">
-            {nominalByLayanan.length > 0 ? (
+            {monthlyData.length > 0 ? (
               <ReactECharts
                 option={nominalChartOption}
                 style={{

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import ReactECharts from "echarts-for-react";
 import { getGpm, getTarget, getDetailCost } from "../services/dashboardService";
 import "./CostDashboard.css";
@@ -155,16 +155,137 @@ const chartBaseTextColor = "#8292a6";
 const chartAxisLine = "rgba(194, 210, 228, 0.12)";
 const chartSplitLine = "rgba(194, 210, 228, 0.07)";
 
+/* =========================================================
+   GLOBAL MULTI SELECT
+   Menggunakan class dari app.css
+========================================================= */
+
+interface MultiSelectProps {
+  value: string[];
+  options: string[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  onChange: (value: string[]) => void;
+}
+
+const MultiSelect: React.FC<MultiSelectProps> = ({ value, options, placeholder = "Semua", searchPlaceholder = "Cari...", onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) return options;
+
+    return options.filter((option) => option.toLowerCase().includes(keyword));
+  }, [options, search]);
+
+  const toggleOption = (option: string) => {
+    if (value.includes(option)) {
+      onChange(value.filter((item) => item !== option));
+    } else {
+      onChange([...value, option]);
+    }
+  };
+
+  const displayValue = () => {
+    if (value.length === 0) return placeholder;
+
+    if (value.length === 1) return value[0];
+
+    return `${value.length} dipilih`;
+  };
+
+  return (
+    <div ref={wrapperRef} className={`multi-select ${open ? "is-open" : ""}`}>
+      <button type="button" className={`multi-select-trigger ${open ? "multi-select-trigger-open" : ""}`} onClick={() => setOpen((previous) => !previous)}>
+        <span className={`multi-select-value ${value.length === 0 ? "multi-select-placeholder" : ""}`}>{displayValue()}</span>
+
+        <span className="multi-select-arrow" />
+      </button>
+
+      {open && (
+        <div className="multi-select-dropdown">
+          <div className="multi-select-search">
+            <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} autoFocus />
+          </div>
+
+          <div className="multi-select-actions">
+            <button type="button" onClick={() => onChange([...options])}>
+              Pilih Semua
+            </button>
+
+            <button type="button" onClick={() => onChange([])}>
+              Hapus Semua
+            </button>
+          </div>
+
+          <div className="multi-select-options">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const checked = value.includes(option);
+
+                return (
+                  <label key={option} className={`multi-select-option ${checked ? "is-selected" : ""}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
+
+                    <span className="multi-select-checkbox">
+                      {checked && (
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m5 12 4 4L19 6" />
+                        </svg>
+                      )}
+                    </span>
+
+                    <span className="multi-select-label">{option}</span>
+                  </label>
+                );
+              })
+            ) : (
+              <div className="multi-select-empty">Tidak ada data</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
 const CostDashboard: React.FC = () => {
   const [gpmData, setGpmData] = useState<GpmRow[]>([]);
   const [targetData, setTargetData] = useState<TargetRow[]>([]);
   const [detailCostData, setDetailCostData] = useState<CostRow[]>([]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [selectedYear, setSelectedYear] = useState<string>("all");
+  // Array kosong berarti semua bulan atau tahun.
+  const [selectedMonth, setSelectedMonth] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  /* =========================================================
+       FETCH DATA
+    ========================================================= */
 
   useEffect(() => {
     const loadData = async () => {
@@ -188,55 +309,78 @@ const CostDashboard: React.FC = () => {
     loadData();
   }, []);
 
+  /* =========================================================
+       YEAR OPTIONS
+    ========================================================= */
+
   const years = useMemo(() => {
     const yearSet = new Set<number>();
 
     [...gpmData, ...targetData, ...detailCostData].forEach((row) => {
       const year = getYear(row.periode_bulan);
-      if (year) yearSet.add(year);
+
+      if (year) {
+        yearSet.add(year);
+      }
     });
 
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [gpmData, targetData, detailCostData]);
+
+  /* =========================================================
+       FILTER GPM
+    ========================================================= */
 
   const filteredGpm = useMemo(() => {
     return gpmData.filter((row) => {
       const month = getMonthNumber(row.periode_bulan);
       const year = getYear(row.periode_bulan);
 
-      const monthMatch = selectedMonth === "all" || month === Number(selectedMonth);
+      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
-      const yearMatch = selectedYear === "all" || year === Number(selectedYear);
+      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
 
       return monthMatch && yearMatch;
     });
   }, [gpmData, selectedMonth, selectedYear]);
+
+  /* =========================================================
+       FILTER TARGET
+    ========================================================= */
 
   const filteredTarget = useMemo(() => {
     return targetData.filter((row) => {
       const month = getMonthNumber(row.periode_bulan);
       const year = getYear(row.periode_bulan);
 
-      const monthMatch = selectedMonth === "all" || month === Number(selectedMonth);
+      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
-      const yearMatch = selectedYear === "all" || year === Number(selectedYear);
+      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
 
       return monthMatch && yearMatch;
     });
   }, [targetData, selectedMonth, selectedYear]);
+
+  /* =========================================================
+       FILTER DETAIL COST
+    ========================================================= */
 
   const filteredDetailCost = useMemo(() => {
     return detailCostData.filter((row) => {
       const month = getMonthNumber(row.periode_bulan);
       const year = getYear(row.periode_bulan);
 
-      const monthMatch = selectedMonth === "all" || month === Number(selectedMonth);
+      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
-      const yearMatch = selectedYear === "all" || year === Number(selectedYear);
+      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
 
       return monthMatch && yearMatch;
     });
   }, [detailCostData, selectedMonth, selectedYear]);
+
+  /* =========================================================
+       MONTHLY DATA
+    ========================================================= */
 
   const monthlyData = useMemo<MonthlyData[]>(() => {
     const monthMap = new Map<
@@ -252,6 +396,7 @@ const CostDashboard: React.FC = () => {
 
     targetData.forEach((row) => {
       const date = parseDate(row.periode_bulan);
+
       if (!date) return;
 
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -273,6 +418,7 @@ const CostDashboard: React.FC = () => {
 
     gpmData.forEach((row) => {
       const date = parseDate(row.periode_bulan);
+
       if (!date) return;
 
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -294,12 +440,11 @@ const CostDashboard: React.FC = () => {
     return Array.from(monthMap.entries())
       .filter(([key]) => {
         const [yearText, monthText] = key.split("-");
-        const year = Number(yearText);
         const month = Number(monthText);
 
-        const monthMatch = selectedMonth === "all" || month === Number(selectedMonth);
+        const monthMatch = selectedMonth.length === 0 || selectedMonth.includes(MONTH_NAMES[month - 1]);
 
-        const yearMatch = selectedYear === "all" || year === Number(selectedYear);
+        const yearMatch = selectedYear.length === 0 || selectedYear.includes(yearText);
 
         return monthMatch && yearMatch;
       })
@@ -316,6 +461,10 @@ const CostDashboard: React.FC = () => {
       }))
       .sort((a, b) => a.key.localeCompare(b.key));
   }, [targetData, gpmData, selectedMonth, selectedYear]);
+
+  /* =========================================================
+       KPI
+    ========================================================= */
 
   const kpi = useMemo(() => {
     const targetRevenue = filteredTarget.reduce((sum, row) => sum + parseNumber(row.nominal_target_sustain) + parseNumber(row.nominal_target_scaling), 0);
@@ -343,6 +492,10 @@ const CostDashboard: React.FC = () => {
     };
   }, [filteredTarget, filteredGpm]);
 
+  /* =========================================================
+       COST SUMMARY
+    ========================================================= */
+
   const costSummary = useMemo(() => {
     const summary = {
       beban_jarkom: 0,
@@ -357,9 +510,13 @@ const CostDashboard: React.FC = () => {
     filteredDetailCost.forEach((row) => {
       summary.beban_jarkom += parseNumber(row.beban_jarkom);
       summary.beban_jasnaker += parseNumber(row.beban_jasnaker);
+
       summary.beban_kerjasama_pihak_ketiga += parseNumber(row.beban_kerjasama_pihak_ketiga);
+
       summary.beban_lain_lain += parseNumber(row.beban_lain_lain);
+
       summary.beban_mandatory_gedung += parseNumber(row.beban_mandatory_gedung);
+
       summary.depresiasi += parseNumber(row.depresiasi);
       summary.total += parseNumber(row.total);
     });
@@ -402,6 +559,10 @@ const CostDashboard: React.FC = () => {
     };
   }, [filteredDetailCost]);
 
+  /* =========================================================
+       CHART: TARGET VS REALISASI REVENUE
+    ========================================================= */
+
   const revenueTargetOption = useMemo(() => {
     const labels = monthlyData.map((item) => item.label);
 
@@ -411,9 +572,13 @@ const CostDashboard: React.FC = () => {
         trigger: "axis",
         backgroundColor: "#182638",
         borderColor: "rgba(194,210,228,0.14)",
-        textStyle: { color: "#e8eef5", fontSize: 10 },
+        textStyle: {
+          color: "#e8eef5",
+          fontSize: 10,
+        },
         formatter: (params: any[]) => {
           const title = params?.[0]?.axisValue ?? "";
+
           const rows = params.map((item) => `${item.marker} ${item.seriesName}: ${formatRupiah(Number(item.value || 0))}`).join("<br/>");
 
           return `<b>${title}</b><br/>${rows}`;
@@ -422,7 +587,10 @@ const CostDashboard: React.FC = () => {
       legend: {
         top: 8,
         right: 10,
-        textStyle: { color: "#8292a6", fontSize: 9 },
+        textStyle: {
+          color: "#8292a6",
+          fontSize: 9,
+        },
       },
       grid: {
         left: 58,
@@ -433,8 +601,14 @@ const CostDashboard: React.FC = () => {
       xAxis: {
         type: "category",
         data: labels,
-        axisLine: { lineStyle: { color: chartAxisLine } },
-        axisTick: { show: false },
+        axisLine: {
+          lineStyle: {
+            color: chartAxisLine,
+          },
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
@@ -443,15 +617,21 @@ const CostDashboard: React.FC = () => {
       },
       yAxis: {
         type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
           formatter: (value: number) => formatChartValue(value),
         },
         splitLine: {
-          lineStyle: { color: chartSplitLine },
+          lineStyle: {
+            color: chartSplitLine,
+          },
         },
       },
       series: [
@@ -499,6 +679,10 @@ const CostDashboard: React.FC = () => {
     };
   }, [monthlyData]);
 
+  /* =========================================================
+       CHART: REVENUE VS COST
+    ========================================================= */
+
   const revenueCostOption = useMemo(() => {
     const labels = monthlyData.map((item) => item.label);
 
@@ -508,9 +692,13 @@ const CostDashboard: React.FC = () => {
         trigger: "axis",
         backgroundColor: "#182638",
         borderColor: "rgba(194,210,228,0.14)",
-        textStyle: { color: "#e8eef5", fontSize: 10 },
+        textStyle: {
+          color: "#e8eef5",
+          fontSize: 10,
+        },
         formatter: (params: any[]) => {
           const title = params?.[0]?.axisValue ?? "";
+
           const rows = params.map((item) => `${item.marker} ${item.seriesName}: ${formatRupiah(Number(item.value || 0))}`).join("<br/>");
 
           return `<b>${title}</b><br/>${rows}`;
@@ -519,7 +707,10 @@ const CostDashboard: React.FC = () => {
       legend: {
         top: 8,
         right: 10,
-        textStyle: { color: "#8292a6", fontSize: 9 },
+        textStyle: {
+          color: "#8292a6",
+          fontSize: 9,
+        },
       },
       grid: {
         left: 58,
@@ -531,8 +722,14 @@ const CostDashboard: React.FC = () => {
         type: "category",
         data: labels,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: chartAxisLine } },
-        axisTick: { show: false },
+        axisLine: {
+          lineStyle: {
+            color: chartAxisLine,
+          },
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
@@ -541,15 +738,21 @@ const CostDashboard: React.FC = () => {
       },
       yAxis: {
         type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
           formatter: (value: number) => formatChartValue(value),
         },
         splitLine: {
-          lineStyle: { color: chartSplitLine },
+          lineStyle: {
+            color: chartSplitLine,
+          },
         },
       },
       series: [
@@ -577,9 +780,18 @@ const CostDashboard: React.FC = () => {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: "rgba(85, 184, 196, 0.24)" },
-                { offset: 0.65, color: "rgba(85, 184, 196, 0.08)" },
-                { offset: 1, color: "rgba(85, 184, 196, 0)" },
+                {
+                  offset: 0,
+                  color: "rgba(85, 184, 196, 0.24)",
+                },
+                {
+                  offset: 0.65,
+                  color: "rgba(85, 184, 196, 0.08)",
+                },
+                {
+                  offset: 1,
+                  color: "rgba(85, 184, 196, 0)",
+                },
               ],
             },
           },
@@ -609,9 +821,18 @@ const CostDashboard: React.FC = () => {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: "rgba(217, 164, 65, 0.20)" },
-                { offset: 0.65, color: "rgba(217, 164, 65, 0.06)" },
-                { offset: 1, color: "rgba(217, 164, 65, 0)" },
+                {
+                  offset: 0,
+                  color: "rgba(217, 164, 65, 0.20)",
+                },
+                {
+                  offset: 0.65,
+                  color: "rgba(217, 164, 65, 0.06)",
+                },
+                {
+                  offset: 1,
+                  color: "rgba(217, 164, 65, 0)",
+                },
               ],
             },
           },
@@ -620,6 +841,10 @@ const CostDashboard: React.FC = () => {
       ],
     };
   }, [monthlyData]);
+
+  /* =========================================================
+       CHART: ACHIEVEMENT TREND
+    ========================================================= */
 
   const achievementOption = useMemo(() => {
     const labels = monthlyData.map((item) => item.label);
@@ -630,7 +855,10 @@ const CostDashboard: React.FC = () => {
         trigger: "axis",
         backgroundColor: "#182638",
         borderColor: "rgba(194,210,228,0.14)",
-        textStyle: { color: "#e8eef5", fontSize: 10 },
+        textStyle: {
+          color: "#e8eef5",
+          fontSize: 10,
+        },
         formatter: (params: any[]) => {
           const title = params?.[0]?.axisValue ?? "";
           const value = params?.[0]?.value;
@@ -648,8 +876,14 @@ const CostDashboard: React.FC = () => {
         type: "category",
         data: labels,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: chartAxisLine } },
-        axisTick: { show: false },
+        axisLine: {
+          lineStyle: {
+            color: chartAxisLine,
+          },
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
@@ -659,15 +893,21 @@ const CostDashboard: React.FC = () => {
       yAxis: {
         type: "value",
         min: 0,
-        axisLine: { show: false },
-        axisTick: { show: false },
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
           formatter: (value: number) => `${value}%`,
         },
         splitLine: {
-          lineStyle: { color: chartSplitLine },
+          lineStyle: {
+            color: chartSplitLine,
+          },
         },
       },
       series: [
@@ -696,9 +936,18 @@ const CostDashboard: React.FC = () => {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: "rgba(85, 185, 133, 0.23)" },
-                { offset: 0.65, color: "rgba(85, 185, 133, 0.07)" },
-                { offset: 1, color: "rgba(85, 185, 133, 0)" },
+                {
+                  offset: 0,
+                  color: "rgba(85, 185, 133, 0.23)",
+                },
+                {
+                  offset: 0.65,
+                  color: "rgba(85, 185, 133, 0.07)",
+                },
+                {
+                  offset: 1,
+                  color: "rgba(85, 185, 133, 0)",
+                },
               ],
             },
           },
@@ -722,6 +971,10 @@ const CostDashboard: React.FC = () => {
     };
   }, [monthlyData]);
 
+  /* =========================================================
+       CHART: COST COMPOSITION
+    ========================================================= */
+
   const costCompositionOption = useMemo(() => {
     const items = costSummary.components;
 
@@ -734,7 +987,10 @@ const CostDashboard: React.FC = () => {
         },
         backgroundColor: "#182638",
         borderColor: "rgba(194,210,228,0.14)",
-        textStyle: { color: "#e8eef5", fontSize: 10 },
+        textStyle: {
+          color: "#e8eef5",
+          fontSize: 10,
+        },
         formatter: (params: any[]) => {
           const item = params?.[0];
           const source = items.find((entry) => entry.name === item?.name);
@@ -752,23 +1008,33 @@ const CostDashboard: React.FC = () => {
       },
       xAxis: {
         type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
           formatter: (value: number) => formatChartValue(value),
         },
         splitLine: {
-          lineStyle: { color: chartSplitLine },
+          lineStyle: {
+            color: chartSplitLine,
+          },
         },
       },
       yAxis: {
         type: "category",
         inverse: true,
         data: items.map((item) => item.name),
-        axisLine: { show: false },
-        axisTick: { show: false },
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
         axisLabel: {
           color: "#9aaabd",
           fontSize: 9,
@@ -820,34 +1086,50 @@ const CostDashboard: React.FC = () => {
     };
   }, [costSummary.components]);
 
+  /* =========================================================
+       RESET FILTER
+    ========================================================= */
+
   const resetFilters = () => {
-    setSelectedMonth("all");
-    setSelectedYear("all");
+    setSelectedMonth([]);
+    setSelectedYear([]);
   };
 
-if (loading) {
-  return (
-    <div className="app-state app-state-loading">
-      <div className="app-spinner" />
-      <span>Memuat data Cost Payroll...</span>
-    </div>
-  );
-}
+  /* =========================================================
+       LOADING
+    ========================================================= */
 
-if (error) {
-  return (
-    <div className="app-state app-state-error">
-      <div className="app-state-content">
-        <h2>Gagal Memuat Dashboard Cost Payroll</h2>
-        <p>{error}</p>
-
-        <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
-          Coba Lagi
-        </button>
+  if (loading) {
+    return (
+      <div className="app-state app-state-loading">
+        <div className="app-spinner" />
+        <span>Memuat data Cost Payroll...</span>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
+  /* =========================================================
+       ERROR
+    ========================================================= */
+
+  if (error) {
+    return (
+      <div className="app-state app-state-error">
+        <div className="app-state-content">
+          <h2>Gagal Memuat Dashboard Cost Payroll</h2>
+          <p>{error}</p>
+
+          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================
+       MAIN UI
+    ========================================================= */
 
   return (
     <div className="cost-page">
@@ -869,45 +1151,46 @@ if (error) {
           </span>
         </div>
       </header>
+
       {error && <div className="cost-error">{error}</div>}
 
-      <section className="cost-filter-card">
-        <div className="cost-filter-group">
-          <label htmlFor="cost-month">Bulan</label>
-          <select id="cost-month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
-            <option value="all">Semua Bulan</option>
-            {MONTH_NAMES.map((month, index) => (
-              <option key={month} value={String(index + 1)}>
-                {month}
-              </option>
-            ))}
-          </select>
+      {/* FILTER */}
+      <section className="bapp-filter-card cost-bapp-filter-card">
+        <div className="bapp-filter-heading">
+          <div>
+            <span className="bapp-section-kicker">FILTER DATA</span>
+
+            <h2>Parameter Dashboard</h2>
+          </div>
+
+          <button type="button" className="reset-filter" onClick={resetFilters}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+
+            <span>Reset Filter</span>
+          </button>
         </div>
 
-        <div className="cost-filter-group">
-          <label htmlFor="cost-year">Tahun</label>
-          <select id="cost-year" value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)}>
-            <option value="all">Semua Tahun</option>
-            {years.map((year) => (
-              <option key={year} value={String(year)}>
-                {year}
-              </option>
-            ))}
-          </select>
+        <div className="bapp-filter-grid cost-filter-grid">
+          <div className="bapp-filter-item">
+            <label>Bulan</label>
+
+            <MultiSelect value={selectedMonth} options={MONTH_NAMES} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonth} />
+          </div>
+
+          <div className="bapp-filter-item">
+            <label>Tahun</label>
+
+            <MultiSelect value={selectedYear} options={years.map((year) => String(year))} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setSelectedYear} />
+          </div>
         </div>
-
-        <button type="button" className="reset-filter" onClick={resetFilters}>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
-            <path d="M21 3v5h-5" />
-            <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-            <path d="M3 21v-5h5" />
-          </svg>
-
-          <span>Reset Filter</span>
-        </button>
       </section>
 
+      {/* KPI */}
       <section className="cost-kpi-grid">
         <article className="cost-kpi-card blue">
           <div className="cost-kpi-label">Target Revenue</div>
@@ -934,6 +1217,7 @@ if (error) {
         </article>
       </section>
 
+      {/* CHART TARGET VS REALISASI */}
       <section className="cost-chart-card chart-blue">
         <div className="cost-chart-header">
           <div>
@@ -941,9 +1225,11 @@ if (error) {
             <span>Perbandingan target dan realisasi revenue per bulan</span>
           </div>
         </div>
+
         <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueTargetOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
       </section>
 
+      {/* CHART REVENUE VS COST & ACHIEVEMENT */}
       <div className="cost-chart-grid">
         <section className="cost-chart-card chart-cyan">
           <div className="cost-chart-header">
@@ -952,6 +1238,7 @@ if (error) {
               <span>Revenue Payroll BAPP dibandingkan dengan Cost Payroll</span>
             </div>
           </div>
+
           <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueCostOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
         </section>
 
@@ -962,10 +1249,12 @@ if (error) {
               <span>Trend pencapaian realisasi terhadap target revenue</span>
             </div>
           </div>
+
           <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={achievementOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
         </section>
       </div>
 
+      {/* CHART COST COMPOSITION */}
       <section className="cost-chart-card chart-red">
         <div className="cost-chart-header">
           <div>
@@ -973,6 +1262,7 @@ if (error) {
             <span>Kontribusi masing-masing komponen terhadap total cost</span>
           </div>
         </div>
+
         <div className="cost-chart-body">
           {costSummary.components.length ? (
             <ReactECharts
@@ -990,6 +1280,7 @@ if (error) {
         </div>
       </section>
 
+      {/* DETAIL COST TABLE */}
       <section className="cost-table-card">
         <div className="cost-table-title">
           <div>
@@ -1023,13 +1314,21 @@ if (error) {
                 filteredDetailCost.map((row, index) => (
                   <tr key={`${row.periode_bulan}-${index}`}>
                     <td className="cost-number-cell">{index + 1}</td>
+
                     <td className="cost-month-cell">{getMonthYearLabel(row.periode_bulan)}</td>
+
                     <td>{formatRupiah(parseNumber(row.beban_jarkom))}</td>
+
                     <td>{formatRupiah(parseNumber(row.beban_jasnaker))}</td>
+
                     <td>{formatRupiah(parseNumber(row.beban_kerjasama_pihak_ketiga))}</td>
+
                     <td>{formatRupiah(parseNumber(row.beban_lain_lain))}</td>
+
                     <td>{formatRupiah(parseNumber(row.beban_mandatory_gedung))}</td>
+
                     <td>{formatRupiah(parseNumber(row.depresiasi))}</td>
+
                     <td className="cost-total-cell">{formatRupiah(parseNumber(row.total))}</td>
                   </tr>
                 ))

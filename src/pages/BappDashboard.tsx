@@ -127,22 +127,27 @@ const formatCompactRupiah = (value: number): string => {
   return formatRupiah(value);
 };
 
+
 const parseDate = (value: string): Date | null => {
   if (!value) return null;
 
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  // Jika formatnya hanya tanggal, pertahankan tanggal tersebut.
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
-  if (match) {
-    return new Date(
-      Number(match[1]),
-      Number(match[2]) - 1,
-      Number(match[3]),
-    );
+  if (dateOnlyMatch) {
+    return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]));
   }
 
-  const date = new Date(value);
+  // Timestamp dari database dikonversi ke zona waktu Jakarta (UTC+7).
+  const timestamp = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(timestamp.getTime())) {
+    return null;
+  }
+
+  const jakartaDate = new Date(timestamp.getTime() + 7 * 60 * 60 * 1000);
+
+  return new Date(jakartaDate.getUTCFullYear(), jakartaDate.getUTCMonth(), jakartaDate.getUTCDate());
 };
 
 const getYear = (value: string): string => {
@@ -342,40 +347,18 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                 const checked = value.includes(option);
 
                 return (
-                  <label
-                    key={option}
-                    className={`multi-select-option ${
-                      checked
-                        ? "multi-select-option-selected"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleOption(option)}
-                    />
+                  <label key={option} className={`multi-select-option ${checked ? "is-selected" : ""}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
 
                     <span className="multi-select-checkbox">
                       {checked && (
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="11"
-                          height="11"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <path d="m5 12 4 4L19 6" />
                         </svg>
                       )}
                     </span>
 
-                    <span className="multi-select-label">
-                      {option}
-                    </span>
+                    <span className="multi-select-label">{option}</span>
                   </label>
                 );
               })

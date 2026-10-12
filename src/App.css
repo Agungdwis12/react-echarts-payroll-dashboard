@@ -1318,11 +1318,19 @@
     border-color 0.15s ease;
 }
 
-.multi-select-option-selected
-  .multi-select-checkbox {
+.multi-select-option.is-selected .multi-select-checkbox {
   background: #3182ce;
-
   border-color: #3182ce;
+}
+
+.multi-select-option.is-selected {
+  background: #203449;
+  color: #ffffff;
+}
+
+.multi-select-option.is-selected .multi-select-label {
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .multi-select-label {
