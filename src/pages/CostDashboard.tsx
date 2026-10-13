@@ -53,10 +53,22 @@ const parseNumber = (value: unknown): number => {
     return 0;
   }
 
-  const normalized = String(value).replace(/\s/g, "").replace(/\./g, "").replace(/,/g, ".");
+  let str = String(value).trim().replace(/\s/g, "").replace(/^Rp/i, "");
 
-  const parsed = Number(normalized);
+  // Format Indonesia: 12.456.452.904 atau 12.456.452,50
+  if (str.includes(",")) {
+    str = str.replace(/\./g, "").replace(",", ".");
+  } else {
+    // Format angka dengan pemisah ribuan titik:
+    // 12.456.452.904 -> 12456452904
+    // Angka desimal API 12456452904.00 tetap dipertahankan.
+    const parts = str.split(".");
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/\./g, "");
+    }
+  }
 
+  const parsed = Number(str);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
@@ -108,44 +120,47 @@ const formatRupiah = (value: number): string => {
 };
 
 const formatCompactRupiah = (value: number): string => {
+  if (!Number.isFinite(value)) return "Rp 0";
+
   const absolute = Math.abs(value);
 
   if (absolute >= 1_000_000_000_000) {
-    return `Rp ${(value / 1_000_000_000_000).toFixed(2)} Triliun`;
+    return `Rp ${(value / 1_000_000_000_000).toFixed(2).replace(".", ",")} Triliun`;
   }
 
   if (absolute >= 1_000_000_000) {
-    return `Rp ${(value / 1_000_000_000).toFixed(2)} Miliar`;
+    return `Rp ${(value / 1_000_000_000).toFixed(2).replace(".", ",")} Miliar`;
   }
 
   if (absolute >= 1_000_000) {
-    return `Rp ${(value / 1_000_000).toFixed(2)} Juta`;
+    return `Rp ${(value / 1_000_000).toFixed(2).replace(".", ",")} Juta`;
   }
 
   if (absolute >= 1_000) {
-    return `Rp ${(value / 1_000).toFixed(2)} Ribu`;
+    return `Rp ${(value / 1_000).toFixed(2).replace(".", ",")} Ribu`;
   }
 
-  return formatRupiah(value);
+  return `Rp ${value.toLocaleString("id-ID")}`;
 };
+
 
 const formatChartValue = (value: number): string => {
   const absolute = Math.abs(value);
 
   if (absolute >= 1_000_000_000_000) {
-    return `Rp ${(value / 1_000_000_000_000).toFixed(1)} T`;
+    return `Rp ${(value / 1_000_000_000_000).toFixed(0)} T`;
   }
 
   if (absolute >= 1_000_000_000) {
-    return `Rp ${(value / 1_000_000_000).toFixed(1)} M`;
+    return `Rp ${(value / 1_000_000_000).toFixed(0)} M`;
   }
 
   if (absolute >= 1_000_000) {
-    return `Rp ${(value / 1_000_000).toFixed(1)} Jt`;
+    return `Rp ${(value / 1_000_000).toFixed(0)} Jt`;
   }
 
   if (absolute >= 1_000) {
-    return `Rp ${(value / 1_000).toFixed(1)} Rb`;
+    return `Rp ${(value / 1_000).toFixed(0)} Rb`;
   }
 
   return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
@@ -157,7 +172,6 @@ const chartSplitLine = "rgba(194, 210, 228, 0.07)";
 
 /* =========================================================
    GLOBAL MULTI SELECT
-   Menggunakan class dari app.css
 ========================================================= */
 
 interface MultiSelectProps {
@@ -206,7 +220,6 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ value, options, placeholder =
 
   const displayValue = () => {
     if (value.length === 0) return placeholder;
-
     if (value.length === 1) return value[0];
 
     return `${value.length} dipilih`;
@@ -284,8 +297,8 @@ const CostDashboard: React.FC = () => {
   const [error, setError] = useState("");
 
   /* =========================================================
-       FETCH DATA
-    ========================================================= */
+     FETCH DATA
+  ========================================================= */
 
   useEffect(() => {
     const loadData = async () => {
@@ -310,8 +323,8 @@ const CostDashboard: React.FC = () => {
   }, []);
 
   /* =========================================================
-       YEAR OPTIONS
-    ========================================================= */
+     YEAR OPTIONS
+  ========================================================= */
 
   const years = useMemo(() => {
     const yearSet = new Set<number>();
@@ -328,8 +341,8 @@ const CostDashboard: React.FC = () => {
   }, [gpmData, targetData, detailCostData]);
 
   /* =========================================================
-       FILTER GPM
-    ========================================================= */
+     FILTER GPM
+  ========================================================= */
 
   const filteredGpm = useMemo(() => {
     return gpmData.filter((row) => {
@@ -345,8 +358,8 @@ const CostDashboard: React.FC = () => {
   }, [gpmData, selectedMonth, selectedYear]);
 
   /* =========================================================
-       FILTER TARGET
-    ========================================================= */
+     FILTER TARGET
+  ========================================================= */
 
   const filteredTarget = useMemo(() => {
     return targetData.filter((row) => {
@@ -362,8 +375,8 @@ const CostDashboard: React.FC = () => {
   }, [targetData, selectedMonth, selectedYear]);
 
   /* =========================================================
-       FILTER DETAIL COST
-    ========================================================= */
+     FILTER DETAIL COST
+  ========================================================= */
 
   const filteredDetailCost = useMemo(() => {
     return detailCostData.filter((row) => {
@@ -379,8 +392,8 @@ const CostDashboard: React.FC = () => {
   }, [detailCostData, selectedMonth, selectedYear]);
 
   /* =========================================================
-       MONTHLY DATA
-    ========================================================= */
+     MONTHLY DATA: TARGET & REVENUE
+  ========================================================= */
 
   const monthlyData = useMemo<MonthlyData[]>(() => {
     const monthMap = new Map<
@@ -463,8 +476,8 @@ const CostDashboard: React.FC = () => {
   }, [targetData, gpmData, selectedMonth, selectedYear]);
 
   /* =========================================================
-       KPI
-    ========================================================= */
+     KPI
+  ========================================================= */
 
   const kpi = useMemo(() => {
     const targetRevenue = filteredTarget.reduce((sum, row) => sum + parseNumber(row.nominal_target_sustain) + parseNumber(row.nominal_target_scaling), 0);
@@ -493,8 +506,8 @@ const CostDashboard: React.FC = () => {
   }, [filteredTarget, filteredGpm]);
 
   /* =========================================================
-       COST SUMMARY
-    ========================================================= */
+     COST SUMMARY: BREAKDOWN PER KATEGORI
+  ========================================================= */
 
   const costSummary = useMemo(() => {
     const summary = {
@@ -547,10 +560,11 @@ const CostDashboard: React.FC = () => {
         value: summary.depresiasi,
       },
     ]
+      .filter((item) => item.value !== 0)
       .sort((a, b) => b.value - a.value)
       .map((item) => ({
         ...item,
-        percentage: summary.total > 0 ? (item.value / summary.total) * 100 : 0,
+        percentage: summary.total !== 0 ? (item.value / summary.total) * 100 : 0,
       }));
 
     return {
@@ -560,44 +574,80 @@ const CostDashboard: React.FC = () => {
   }, [filteredDetailCost]);
 
   /* =========================================================
-       CHART: TARGET VS REALISASI REVENUE
-    ========================================================= */
+     CHART: TARGET VS REALISASI REVENUE
+  ========================================================= */
 
   const revenueTargetOption = useMemo(() => {
     const labels = monthlyData.map((item) => item.label);
 
+    const achievementData = monthlyData.map((item) => (item.targetRevenue > 0 ? (item.realisasiRevenue / item.targetRevenue) * 100 : null));
+
     return {
       backgroundColor: "transparent",
+
       tooltip: {
         trigger: "axis",
+        axisPointer: {
+          type: "shadow",
+          shadowStyle: {
+            color: "rgba(255, 255, 255, 0.04)",
+          },
+        },
         backgroundColor: "#182638",
-        borderColor: "rgba(194,210,228,0.14)",
+        borderColor: "rgba(194, 210, 228, 0.14)",
         textStyle: {
           color: "#e8eef5",
           fontSize: 10,
         },
         formatter: (params: any[]) => {
-          const title = params?.[0]?.axisValue ?? "";
+          if (!params?.length) return "";
 
-          const rows = params.map((item) => `${item.marker} ${item.seriesName}: ${formatRupiah(Number(item.value || 0))}`).join("<br/>");
+          const title = params[0]?.axisValue ?? "";
+
+          const rows = params
+            .map((item) => {
+              const rawValue = item.value;
+
+              const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null;
+
+              const formattedValue =
+                value === null
+                  ? "-"
+                  : item.seriesName === "Achievement (%)"
+                    ? `${value.toLocaleString("id-ID", {
+                        maximumFractionDigits: 2,
+                      })}%`
+                    : formatRupiah(value);
+
+              return `${item.marker} ${item.seriesName}: <b>${formattedValue}</b>`;
+            })
+            .join("<br/>");
 
           return `<b>${title}</b><br/>${rows}`;
         },
       },
+
       legend: {
         top: 8,
         right: 10,
+        data: ["Target Revenue", "Realisasi Revenue", "Achievement (%)"],
         textStyle: {
           color: "#8292a6",
           fontSize: 9,
         },
+        itemWidth: 12,
+        itemHeight: 8,
+        itemGap: 14,
       },
+
       grid: {
         left: 58,
-        right: 20,
+        right: 58,
         top: 48,
         bottom: 42,
+        containLabel: true,
       },
+
       xAxis: {
         type: "category",
         data: labels,
@@ -613,32 +663,64 @@ const CostDashboard: React.FC = () => {
           color: chartBaseTextColor,
           fontSize: 9,
           margin: 10,
+          hideOverlap: true,
         },
       },
-      yAxis: {
-        type: "value",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          formatter: (value: number) => formatChartValue(value),
-        },
-        splitLine: {
-          lineStyle: {
-            color: chartSplitLine,
+
+      yAxis: [
+        {
+          type: "value",
+          min: 0,
+          axisLabel: {
+            color: chartBaseTextColor,
+            fontSize: 9,
+            formatter: (value: number) => formatChartValue(value),
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: chartSplitLine,
+              type: "solid",
+            },
           },
         },
-      },
+        {
+          type: "value",
+          position: "right",
+          min: 0,
+          max: (value: { max: number }) => Math.max(100, Math.ceil(value.max / 20) * 20),
+          interval: 20,
+          axisLabel: {
+            color: chartBaseTextColor,
+            fontSize: 9,
+            formatter: (value: number) => `${value.toFixed(0)}%`,
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          splitLine: {
+            show: false,
+          },
+        },
+      ],
+
       series: [
         {
           name: "Target Revenue",
           type: "bar",
-          barMaxWidth: 18,
+          yAxisIndex: 0,
+          barMaxWidth: 24,
+          barGap: "25%",
+          barCategoryGap: "40%",
           itemStyle: {
             borderRadius: [4, 4, 0, 0],
             color: {
@@ -653,12 +735,16 @@ const CostDashboard: React.FC = () => {
               ],
             },
           },
+          emphasis: {
+            focus: "series",
+          },
           data: monthlyData.map((item) => item.targetRevenue),
         },
         {
           name: "Realisasi Revenue",
           type: "bar",
-          barMaxWidth: 18,
+          yAxisIndex: 0,
+          barMaxWidth: 24,
           itemStyle: {
             borderRadius: [4, 4, 0, 0],
             color: {
@@ -673,55 +759,132 @@ const CostDashboard: React.FC = () => {
               ],
             },
           },
+          emphasis: {
+            focus: "series",
+          },
           data: monthlyData.map((item) => item.realisasiRevenue),
+        },
+        {
+          name: "Achievement (%)",
+          type: "line",
+          yAxisIndex: 1,
+          z: 10,
+          smooth: 0.3,
+          connectNulls: false,
+          showSymbol: true,
+          symbol: "circle",
+          symbolSize: 7,
+          lineStyle: {
+            color: {
+              type: "linear",
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
+              colorStops: [
+                { offset: 0, color: "#F9D976" },
+                { offset: 0.5, color: "#F5B544" },
+                { offset: 1, color: "#F08A35" },
+              ],
+            },
+            width: 3,
+            cap: "round",
+            shadowColor: "rgba(245, 181, 68, 0.25)",
+            shadowBlur: 6,
+          },
+          itemStyle: {
+            color: "#F5B544",
+            borderColor: "#FFFFFF",
+            borderWidth: 1.5,
+          },
+          emphasis: {
+            focus: "series",
+            scale: 1.3,
+          },
+          data: achievementData,
         },
       ],
     };
   }, [monthlyData]);
 
   /* =========================================================
-       CHART: REVENUE VS COST
-    ========================================================= */
+     CHART: REVENUE VS COST & GPM
+  ========================================================= */
 
   const revenueCostOption = useMemo(() => {
-    const labels = monthlyData.map((item) => item.label);
+    const validData = monthlyData.filter((item) => Number(item.revenue) !== 0 || Number(item.cost) !== 0);
+
+    const labels = validData.map((item) => item.label);
+
+    const gpmSeriesData = validData.map((item) => (item.revenue > 0 ? ((item.revenue - item.cost) / item.revenue) * 100 : null));
 
     return {
       backgroundColor: "transparent",
+
       tooltip: {
         trigger: "axis",
+        axisPointer: {
+          type: "shadow",
+          shadowStyle: {
+            color: "rgba(255, 255, 255, 0.04)",
+          },
+        },
         backgroundColor: "#182638",
-        borderColor: "rgba(194,210,228,0.14)",
+        borderColor: "rgba(194, 210, 228, 0.14)",
         textStyle: {
           color: "#e8eef5",
           fontSize: 10,
         },
         formatter: (params: any[]) => {
-          const title = params?.[0]?.axisValue ?? "";
+          if (!params?.length) return "";
 
-          const rows = params.map((item) => `${item.marker} ${item.seriesName}: ${formatRupiah(Number(item.value || 0))}`).join("<br/>");
+          const title = params[0]?.axisValue ?? "";
 
-          return `<b>${title}</b><br/>${rows}`;
+          const rows = params.map((item) => {
+            const rawValue = item.value;
+
+            const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null;
+
+            const formattedValue =
+              value === null
+                ? "-"
+                : item.seriesName === "GPM (%)"
+                  ? `${value.toLocaleString("id-ID", {
+                      maximumFractionDigits: 2,
+                    })}%`
+                  : formatRupiah(value);
+
+            return `${item.marker} ${item.seriesName}: <b>${formattedValue}</b>`;
+          });
+
+          return `<b>${title}</b><br/>${rows.join("<br/>")}`;
         },
       },
+
       legend: {
         top: 8,
         right: 10,
+        data: ["Revenue Payroll BAPP", "Cost Payroll", "GPM (%)"],
         textStyle: {
           color: "#8292a6",
           fontSize: 9,
         },
+        itemWidth: 12,
+        itemHeight: 8,
+        itemGap: 14,
       },
+
       grid: {
         left: 58,
-        right: 20,
+        right: 58,
         top: 48,
         bottom: 42,
+        containLabel: true,
       },
+
       xAxis: {
         type: "category",
         data: labels,
-        boundaryGap: false,
         axisLine: {
           lineStyle: {
             color: chartAxisLine,
@@ -733,46 +896,64 @@ const CostDashboard: React.FC = () => {
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
-          margin: 10,
+          hideOverlap: true,
         },
       },
-      yAxis: {
-        type: "value",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          formatter: (value: number) => formatChartValue(value),
-        },
-        splitLine: {
-          lineStyle: {
-            color: chartSplitLine,
+
+      yAxis: [
+        {
+          type: "value",
+          min: 0,
+          axisLabel: {
+            color: chartBaseTextColor,
+            fontSize: 9,
+            formatter: (value: number) => formatChartValue(value),
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: chartSplitLine,
+              type: "solid",
+            },
           },
         },
-      },
+        {
+          type: "value",
+          position: "right",
+          scale: true,
+          axisLabel: {
+            color: chartBaseTextColor,
+            fontSize: 9,
+            formatter: (value: number) => `${value.toFixed(0)}%`,
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          splitLine: {
+            show: false,
+          },
+        },
+      ],
+
       series: [
         {
           name: "Revenue Payroll BAPP",
-          type: "line",
-          smooth: 0.4,
-          symbol: "circle",
-          symbolSize: 5,
-          lineStyle: {
-            width: 1.8,
-            color: "#55b8c4",
-            shadowColor: "rgba(85, 184, 196, 0.38)",
-            shadowBlur: 9,
-            shadowOffsetY: 3,
-          },
+          type: "bar",
+          yAxisIndex: 0,
+          barMaxWidth: 22,
+          barGap: "20%",
+          barCategoryGap: "35%",
           itemStyle: {
-            color: "#55b8c4",
-          },
-          areaStyle: {
+            borderRadius: [4, 4, 0, 0],
             color: {
               type: "linear",
               x: 0,
@@ -780,40 +961,23 @@ const CostDashboard: React.FC = () => {
               x2: 0,
               y2: 1,
               colorStops: [
-                {
-                  offset: 0,
-                  color: "rgba(85, 184, 196, 0.24)",
-                },
-                {
-                  offset: 0.65,
-                  color: "rgba(85, 184, 196, 0.08)",
-                },
-                {
-                  offset: 1,
-                  color: "rgba(85, 184, 196, 0)",
-                },
+                { offset: 0, color: "#6EE7A0" },
+                { offset: 1, color: "#219663" },
               ],
             },
           },
-          data: monthlyData.map((item) => item.revenue),
+          emphasis: {
+            focus: "series",
+          },
+          data: validData.map((item) => item.revenue),
         },
         {
           name: "Cost Payroll",
-          type: "line",
-          smooth: 0.4,
-          symbol: "circle",
-          symbolSize: 5,
-          lineStyle: {
-            width: 1.8,
-            color: "#d9a441",
-            shadowColor: "rgba(217, 164, 65, 0.36)",
-            shadowBlur: 9,
-            shadowOffsetY: 3,
-          },
+          type: "bar",
+          yAxisIndex: 0,
+          barMaxWidth: 22,
           itemStyle: {
-            color: "#d9a441",
-          },
-          areaStyle: {
+            borderRadius: [4, 4, 0, 0],
             color: {
               type: "linear",
               x: 0,
@@ -821,61 +985,127 @@ const CostDashboard: React.FC = () => {
               x2: 0,
               y2: 1,
               colorStops: [
-                {
-                  offset: 0,
-                  color: "rgba(217, 164, 65, 0.20)",
-                },
-                {
-                  offset: 0.65,
-                  color: "rgba(217, 164, 65, 0.06)",
-                },
-                {
-                  offset: 1,
-                  color: "rgba(217, 164, 65, 0)",
-                },
+                { offset: 0, color: "#F4B95F" },
+                { offset: 1, color: "#B87527" },
               ],
             },
           },
-          data: monthlyData.map((item) => item.cost),
+          emphasis: {
+            focus: "series",
+          },
+          data: validData.map((item) => item.cost),
+        },
+        {
+          name: "GPM (%)",
+          type: "line",
+          yAxisIndex: 1,
+          z: 10,
+          smooth: 0.3,
+          connectNulls: false,
+          showSymbol: true,
+          symbol: "circle",
+          symbolSize: 7,
+          lineStyle: {
+            color: {
+              type: "linear",
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
+              colorStops: [
+                { offset: 0, color: "#93C5FD" },
+                { offset: 0.5, color: "#3B82F6" },
+                { offset: 1, color: "#2563EB" },
+              ],
+            },
+            width: 3,
+            cap: "round",
+          },
+          itemStyle: {
+            color: "#60A5FA",
+            borderColor: "#FFFFFF",
+            borderWidth: 1.5,
+            shadowColor: "rgba(59, 130, 246, 0.45)",
+            shadowBlur: 8,
+          },
+          emphasis: {
+            focus: "series",
+            scale: 1.3,
+          },
+          data: gpmSeriesData,
         },
       ],
     };
   }, [monthlyData]);
 
   /* =========================================================
-       CHART: ACHIEVEMENT TREND
-    ========================================================= */
+     CHART: TOTAL COST PER BULAN
+     Sumber: detail_cost.total
+  ========================================================= */
 
-  const achievementOption = useMemo(() => {
-    const labels = monthlyData.map((item) => item.label);
+  const totalCostMonthlyOption = useMemo(() => {
+    const monthMap = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        total: number;
+      }
+    >();
+
+    filteredDetailCost.forEach((row) => {
+      const date = parseDate(row.periode_bulan);
+
+      if (!date) return;
+
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+      const current = monthMap.get(key) ?? {
+        key,
+        label: `${MONTH_NAMES[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`,
+        total: 0,
+      };
+
+      // Gunakan kolom total agar nominal kategori tidak dihitung dua kali.
+      current.total += parseNumber(row.total);
+
+      monthMap.set(key, current);
+    });
+
+    const rows = Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
 
     return {
       backgroundColor: "transparent",
+
       tooltip: {
         trigger: "axis",
         backgroundColor: "#182638",
-        borderColor: "rgba(194,210,228,0.14)",
+        borderColor: "rgba(194, 210, 228, 0.14)",
         textStyle: {
           color: "#e8eef5",
           fontSize: 10,
         },
         formatter: (params: any[]) => {
-          const title = params?.[0]?.axisValue ?? "";
-          const value = params?.[0]?.value;
+          const item = params?.[0];
 
-          return `<b>${title}</b><br/>${params?.[0]?.marker ?? ""} Achievement: ${value === null || value === undefined ? "-" : `${Number(value).toFixed(1)}%`}`;
+          if (!item) return "";
+
+          return `<b>${item.axisValue}</b><br/>${item.marker} Total Cost: <b>${formatRupiah(Number(item.value) || 0)}</b>`;
         },
       },
+
       grid: {
-        left: 48,
-        right: 22,
-        top: 30,
-        bottom: 42,
+        left: 65,
+        right: 24,
+        top: 22,
+        bottom: 38,
+        containLabel: true,
       },
+
       xAxis: {
         type: "category",
-        data: labels,
         boundaryGap: false,
+        data: rows.map((item) => item.label),
         axisLine: {
           lineStyle: {
             color: chartAxisLine,
@@ -887,9 +1117,12 @@ const CostDashboard: React.FC = () => {
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
-          margin: 10,
+          interval: "auto",
+          hideOverlap: true,
+          margin: 12,
         },
       },
+
       yAxis: {
         type: "value",
         min: 0,
@@ -902,7 +1135,7 @@ const CostDashboard: React.FC = () => {
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
-          formatter: (value: number) => `${value}%`,
+          formatter: (value: number) => formatChartValue(value),
         },
         splitLine: {
           lineStyle: {
@@ -910,23 +1143,36 @@ const CostDashboard: React.FC = () => {
           },
         },
       },
+
       series: [
         {
-          name: "Revenue Achievement",
+          name: "Total Cost",
           type: "line",
-          smooth: 0.4,
-          symbol: "circle",
-          symbolSize: 5,
+          smooth: 0.3,
           connectNulls: false,
+          showSymbol: true,
+          symbol: "circle",
+          symbolSize: 7,
           lineStyle: {
-            width: 1.8,
-            color: "#55b985",
-            shadowColor: "rgba(85, 185, 133, 0.38)",
-            shadowBlur: 9,
-            shadowOffsetY: 3,
+            color: {
+              type: "linear",
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
+              colorStops: [
+                { offset: 0, color: "#93C5FD" },
+                { offset: 0.5, color: "#60A5FA" },
+                { offset: 1, color: "#3B82F6" },
+              ],
+            },
+            width: 3,
+            cap: "round",
           },
           itemStyle: {
-            color: "#55b985",
+            color: "#60A5FA",
+            borderColor: "#FFFFFF",
+            borderWidth: 1.5,
           },
           areaStyle: {
             color: {
@@ -938,76 +1184,70 @@ const CostDashboard: React.FC = () => {
               colorStops: [
                 {
                   offset: 0,
-                  color: "rgba(85, 185, 133, 0.23)",
-                },
-                {
-                  offset: 0.65,
-                  color: "rgba(85, 185, 133, 0.07)",
+                  color: "rgba(96, 165, 250, 0.25)",
                 },
                 {
                   offset: 1,
-                  color: "rgba(85, 185, 133, 0)",
+                  color: "rgba(96, 165, 250, 0.02)",
                 },
               ],
             },
           },
-          markLine: {
-            symbol: "none",
-            lineStyle: {
-              color: "rgba(217, 164, 65, 0.55)",
-              type: "dashed",
-              width: 1,
-            },
-            label: {
-              color: "#c9aa69",
-              fontSize: 9,
-              formatter: "Target 100%",
-            },
-            data: [{ yAxis: 100 }],
+          emphasis: {
+            focus: "series",
+            scale: 1.2,
           },
-          data: monthlyData.map((item) => item.achievement),
+          data: rows.map((item) => item.total),
         },
       ],
     };
-  }, [monthlyData]);
+  }, [filteredDetailCost]);
 
   /* =========================================================
-       CHART: COST COMPOSITION
-    ========================================================= */
+     CHART: BIAYA PER KATEGORI
+  ========================================================= */
 
-  const costCompositionOption = useMemo(() => {
+  const costByCategoryOption = useMemo(() => {
     const items = costSummary.components;
 
     return {
       backgroundColor: "transparent",
+
       tooltip: {
         trigger: "axis",
         axisPointer: {
           type: "shadow",
         },
         backgroundColor: "#182638",
-        borderColor: "rgba(194,210,228,0.14)",
+        borderColor: "rgba(194, 210, 228, 0.14)",
         textStyle: {
           color: "#e8eef5",
           fontSize: 10,
         },
         formatter: (params: any[]) => {
           const item = params?.[0];
-          const source = items.find((entry) => entry.name === item?.name);
+
+          if (!item) return "";
+
+          const source = items[item.dataIndex];
 
           if (!source) return "";
 
-          return `<b>${source.name}</b><br/>${item.marker} ${formatRupiah(source.value)}<br/>${source.percentage.toFixed(1)}% dari total`;
+          return `<b>${source.name}</b><br/>` + `${item.marker} ${formatRupiah(source.value)}<br/>` + `${source.percentage.toFixed(1)}% dari total`;
         },
       },
+
       grid: {
-        left: 170,
+        left: 10,
         right: 65,
-        top: 18,
-        bottom: 24,
+        top: 20,
+        bottom: 25,
+        containLabel: true,
       },
+
       xAxis: {
         type: "value",
+        min: 0,
         axisLine: {
           show: false,
         },
@@ -1025,6 +1265,7 @@ const CostDashboard: React.FC = () => {
           },
         },
       },
+
       yAxis: {
         type: "category",
         inverse: true,
@@ -1036,19 +1277,21 @@ const CostDashboard: React.FC = () => {
           show: false,
         },
         axisLabel: {
-          color: "#9aaabd",
-          fontSize: 9,
-          width: 150,
+          color: "#b8c6d8",
+          fontSize: 10,
+          width: 155,
           overflow: "truncate",
         },
       },
+
       series: [
         {
-          name: "Cost",
+          name: "Biaya",
           type: "bar",
-          barMaxWidth: 22,
+          barMaxWidth: 25,
+
           itemStyle: {
-            borderRadius: [0, 5, 5, 0],
+            borderRadius: [0, 6, 6, 0],
             color: {
               type: "linear",
               x: 0,
@@ -1056,39 +1299,40 @@ const CostDashboard: React.FC = () => {
               x2: 1,
               y2: 0,
               colorStops: [
-                { offset: 0, color: "#8f2929" },
-                { offset: 0.45, color: "#c33f3f" },
-                { offset: 0.75, color: "#db5757" },
-                { offset: 1, color: "#ed7777" },
+                { offset: 0, color: "#93C5FD" },
+                { offset: 0.5, color: "#60A5FA" },
+                { offset: 1, color: "#818CF8" },
               ],
             },
           },
+
           emphasis: {
             itemStyle: {
-              shadowColor: "rgba(220, 70, 70, 0.38)",
-              shadowBlur: 10,
-              shadowOffsetX: 3,
+              color: "#A5B4FC",
             },
           },
+
           label: {
             show: true,
             position: "right",
-            color: "#d9a6a6",
-            fontSize: 9,
+            color: "#A5B4FC",
+            fontSize: 10,
             formatter: (params: any) => {
               const source = items[params.dataIndex];
+
               return source ? `${source.percentage.toFixed(1)}%` : "";
             },
           },
+
           data: items.map((item) => item.value),
         },
       ],
     };
-  }, [costSummary.components]);
+  }, [costSummary]);
 
   /* =========================================================
-       RESET FILTER
-    ========================================================= */
+     RESET FILTER
+  ========================================================= */
 
   const resetFilters = () => {
     setSelectedMonth([]);
@@ -1096,8 +1340,8 @@ const CostDashboard: React.FC = () => {
   };
 
   /* =========================================================
-       LOADING
-    ========================================================= */
+     LOADING
+  ========================================================= */
 
   if (loading) {
     return (
@@ -1109,8 +1353,8 @@ const CostDashboard: React.FC = () => {
   }
 
   /* =========================================================
-       ERROR
-    ========================================================= */
+     ERROR
+  ========================================================= */
 
   if (error) {
     return (
@@ -1128,8 +1372,8 @@ const CostDashboard: React.FC = () => {
   }
 
   /* =========================================================
-       MAIN UI
-    ========================================================= */
+     MAIN UI
+  ========================================================= */
 
   return (
     <div className="cost-page">
@@ -1152,14 +1396,12 @@ const CostDashboard: React.FC = () => {
         </div>
       </header>
 
-      {error && <div className="cost-error">{error}</div>}
-
       {/* FILTER */}
+
       <section className="bapp-filter-card cost-bapp-filter-card">
         <div className="bapp-filter-heading">
           <div>
             <span className="bapp-section-kicker">FILTER DATA</span>
-
             <h2>Parameter Dashboard</h2>
           </div>
 
@@ -1191,33 +1433,43 @@ const CostDashboard: React.FC = () => {
       </section>
 
       {/* KPI */}
+
       <section className="cost-kpi-grid">
         <article className="cost-kpi-card blue">
           <div className="cost-kpi-label">Target Revenue</div>
+
           <div className="cost-kpi-value">{formatCompactRupiah(kpi.targetRevenue)}</div>
+
           <div className="cost-kpi-description">Target Sustain + Scaling</div>
         </article>
 
         <article className="cost-kpi-card green">
           <div className="cost-kpi-label">Realisasi Revenue</div>
+
           <div className="cost-kpi-value">{formatCompactRupiah(kpi.realisasiRevenue)}</div>
+
           <div className="cost-kpi-description">Realisasi Sustain + Scaling</div>
         </article>
 
         <article className="cost-kpi-card cyan">
           <div className="cost-kpi-label">Revenue Achievement</div>
+
           <div className="cost-kpi-value">{kpi.achievement.toFixed(1)}%</div>
+
           <div className="cost-kpi-description">Realisasi Revenue / Target Revenue</div>
         </article>
 
         <article className="cost-kpi-card orange">
           <div className="cost-kpi-label">GPM</div>
+
           <div className="cost-kpi-value">{kpi.gpm.toFixed(1)}%</div>
+
           <div className="cost-kpi-description">Revenue Payroll BAPP - Cost Payroll</div>
         </article>
       </section>
 
       {/* CHART TARGET VS REALISASI */}
+
       <section className="cost-chart-card chart-blue">
         <div className="cost-chart-header">
           <div>
@@ -1229,58 +1481,55 @@ const CostDashboard: React.FC = () => {
         <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueTargetOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
       </section>
 
-      {/* CHART REVENUE VS COST & ACHIEVEMENT */}
+      {/* CHART REVENUE VS COST & GPM */}
+
       <div className="cost-chart-grid">
         <section className="cost-chart-card chart-cyan">
           <div className="cost-chart-header">
             <div>
-              <h3>Revenue vs Cost Payroll</h3>
-              <span>Revenue Payroll BAPP dibandingkan dengan Cost Payroll</span>
+              <h3>Revenue vs Cost Payroll &amp; GPM</h3>
+              <span>Perbandingan Revenue Payroll BAPP, Cost Payroll, dan Gross Profit Margin</span>
             </div>
           </div>
 
           <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueCostOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
         </section>
+      </div>
 
-        <section className="cost-chart-card chart-green">
+      {/* CHART TOTAL COST & BIAYA PER KATEGORI */}
+
+      <div className="cost-breakdown-grid">
+        {/* KIRI: TOTAL COST PER BULAN */}
+        <section className="cost-chart-card chart-cyan">
           <div className="cost-chart-header">
             <div>
-              <h3>Revenue Achievement % Trend</h3>
-              <span>Trend pencapaian realisasi terhadap target revenue</span>
+              <h3>Total Cost per Bulan</h3>
+              <span>Tren total biaya bulanan</span>
             </div>
           </div>
 
-          <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={achievementOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
+          <div className="cost-chart-body">
+            {filteredDetailCost.length > 0 ? <ReactECharts option={totalCostMonthlyOption} style={{ width: "100%", height: 340 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
+          </div>
+        </section>
+
+        {/* KANAN: BIAYA PER KATEGORI */}
+        <section className="cost-chart-card chart-blue">
+          <div className="cost-chart-header">
+            <div>
+              <h3>Biaya per Kategori</h3>
+              <span>Nominal dan persentase tiap komponen biaya</span>
+            </div>
+          </div>
+
+          <div className="cost-chart-body">
+            {costSummary.components.length > 0 ? <ReactECharts option={costByCategoryOption} style={{ width: "100%", height: 340 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
+          </div>
         </section>
       </div>
 
-      {/* CHART COST COMPOSITION */}
-      <section className="cost-chart-card chart-red">
-        <div className="cost-chart-header">
-          <div>
-            <h3>Cost Composition</h3>
-            <span>Kontribusi masing-masing komponen terhadap total cost</span>
-          </div>
-        </div>
-
-        <div className="cost-chart-body">
-          {costSummary.components.length ? (
-            <ReactECharts
-              option={costCompositionOption}
-              style={{
-                width: "100%",
-                height: Math.max(320, costSummary.components.length * 48),
-              }}
-              notMerge
-              lazyUpdate
-            />
-          ) : (
-            <div className="cost-empty-chart">Tidak ada data</div>
-          )}
-        </div>
-      </section>
-
       {/* DETAIL COST TABLE */}
+
       <section className="cost-table-card">
         <div className="cost-table-title">
           <div>
@@ -1310,7 +1559,7 @@ const CostDashboard: React.FC = () => {
             </thead>
 
             <tbody>
-              {filteredDetailCost.length ? (
+              {filteredDetailCost.length > 0 ? (
                 filteredDetailCost.map((row, index) => (
                   <tr key={`${row.periode_bulan}-${index}`}>
                     <td className="cost-number-cell">{index + 1}</td>

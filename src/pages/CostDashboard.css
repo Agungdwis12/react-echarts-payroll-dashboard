@@ -290,13 +290,45 @@
   font-size: 10px;
 }
 
+
+
+/* Layout Total Cost dan Biaya per Kategori */
+.cost-page .cost-breakdown-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.cost-page .cost-breakdown-grid > .cost-chart-card {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.cost-page .cost-breakdown-grid .cost-chart-body {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .cost-page .cost-breakdown-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
+
 /* =========================================================
    CHART GRID
 ========================================================= */
 
 .cost-chart-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
   gap: 18px;
 }
 
