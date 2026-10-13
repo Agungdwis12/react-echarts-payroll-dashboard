@@ -992,7 +992,7 @@ const KinerjaLayananDivisi: React.FC = () => {
     [monthlyData],
   );
 
-  /* =====================================================
+/* =====================================================
    CHART - NOMINAL
 ===================================================== */
 
@@ -1011,10 +1011,29 @@ const KinerjaLayananDivisi: React.FC = () => {
             color: "rgba(85,185,133,0.08)",
           },
         },
-        valueFormatter: (value: number) =>
-          `Rp ${(Number(value) / 1_000_000).toLocaleString("id-ID", {
-            maximumFractionDigits: 2,
-          })} juta`,
+        valueFormatter: (value: number) => {
+          const nominal = Number(value);
+
+          if (nominal >= 1_000_000_000_000) {
+            return `Rp ${(nominal / 1_000_000_000_000).toLocaleString("id-ID", {
+              maximumFractionDigits: 2,
+            })} triliun`;
+          }
+
+          if (nominal >= 1_000_000_000) {
+            return `Rp ${(nominal / 1_000_000_000).toLocaleString("id-ID", {
+              maximumFractionDigits: 2,
+            })} miliar`;
+          }
+
+          if (nominal >= 1_000_000) {
+            return `Rp ${(nominal / 1_000_000).toLocaleString("id-ID", {
+              maximumFractionDigits: 2,
+            })} juta`;
+          }
+
+          return `Rp ${nominal.toLocaleString("id-ID")}`;
+        },
       },
 
       grid: {
@@ -1557,12 +1576,12 @@ const KinerjaLayananDivisi: React.FC = () => {
           </div>
         </div>
       </section>
+
+
       {/* =================================================
              TABLE
         ================================================= */}
-      {/* =================================================
-    TABLE
-================================================= */}
+
       <section className="table-card">
         <div className="table-header">
           <div>
