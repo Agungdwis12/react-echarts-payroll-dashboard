@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, ChartNoAxesCombined, TrendingUp, X, Building2, Filter } from "lucide-react";
+import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, TrendingUp, X, Building2, Filter } from "lucide-react";
 import { getMasterBappBulanan, getMasterDetailBapp } from "../services/dashboardService";
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 import MultiSelect from "../components/dashboard/MultiSelect";

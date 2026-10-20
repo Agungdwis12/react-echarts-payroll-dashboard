@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo,useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { Activity, Building2, CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Filter, Layers3, RefreshCw, TrendingUp, Users } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Filter, Layers3, RefreshCw, TrendingUp, Users } from "lucide-react";
 
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 import MultiSelect from "../components/dashboard/MultiSelect";
@@ -871,7 +871,7 @@ const KinerjaLayananDivisi: React.FC = () => {
   const comparisonLabels = MONTHS.map((month) => month.slice(0, 3));
 
   const comparisonMonthlyData = useMemo<ComparisonMonthlyPoint[]>(() => {
-    const result: ComparisonMonthlyPoint[] = MONTHS.map((month, monthIndex) => ({
+    const result: ComparisonMonthlyPoint[] = MONTHS.map((month) => ({
       label: month.slice(0, 3),
       values: Object.fromEntries(
         comparisonYears.map((year) => [
