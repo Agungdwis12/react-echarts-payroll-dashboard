@@ -1,17 +1,9 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import {
-  getMasterBappBulanan,
-  getMasterDetailBapp,
-} from "../services/dashboardService";
-import "./BappDashboard.css";
+import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, ChartNoAxesCombined, TrendingUp, X, Building2, Filter } from "lucide-react";
+import { getMasterBappBulanan, getMasterDetailBapp } from "../services/dashboardService";
 import SearchableSelect from "../components/dashboard/SearchableSelect";
+import MultiSelect from "../components/dashboard/MultiSelect";
 
 /* =========================================================
    TYPES
@@ -41,23 +33,39 @@ interface BappDetailRow {
   created_at?: string;
 }
 
+interface ChartMonth {
+  sort: number;
+  label: string;
+  done: number;
+  onProcess: number;
+  noProcess: number;
+}
+
+interface ChartConfig {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  theme: "green" | "blue" | "cyan";
+  option: Record<string, any>;
+  empty: string;
+  hasData: boolean;
+  layout: "top" | "full";
+  showTotalRevenue?: boolean;
+}
+
 /* =========================================================
    HELPERS
 ========================================================= */
 
 const parseNumber = (value: unknown): number => {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
+  if (value === null || value === undefined || value === "") return 0;
 
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
 
-  let text = String(value)
-    .trim()
-    .replace(/\s/g, "")
-    .replace(/Rp/gi, "");
+  let text = String(value).trim().replace(/\s/g, "").replace(/Rp/gi, "");
 
   if (!text) return 0;
 
@@ -91,7 +99,6 @@ const parseNumber = (value: unknown): number => {
   }
 
   const result = Number(text);
-
   return Number.isFinite(result) ? result : 0;
 };
 
@@ -100,10 +107,7 @@ const formatNumber = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const formatRupiah = (value: number) =>
-  `Rp ${new Intl.NumberFormat("id-ID", {
-    maximumFractionDigits: 0,
-  }).format(value)}`;
+const formatRupiah = (value: number) => `Rp ${formatNumber(value)}`;
 
 const formatCompactRupiah = (value: number): string => {
   const absolute = Math.abs(value);
@@ -127,23 +131,18 @@ const formatCompactRupiah = (value: number): string => {
   return formatRupiah(value);
 };
 
-
 const parseDate = (value: string): Date | null => {
   if (!value) return null;
 
-  // Jika formatnya hanya tanggal, pertahankan tanggal tersebut.
   const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
   if (dateOnlyMatch) {
     return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]));
   }
 
-  // Timestamp dari database dikonversi ke zona waktu Jakarta (UTC+7).
   const timestamp = new Date(value);
 
-  if (Number.isNaN(timestamp.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(timestamp.getTime())) return null;
 
   const jakartaDate = new Date(timestamp.getTime() + 7 * 60 * 60 * 1000);
 
@@ -152,23 +151,18 @@ const parseDate = (value: string): Date | null => {
 
 const getYear = (value: string): string => {
   const date = parseDate(value);
-
   return date ? String(date.getFullYear()) : "";
 };
 
 const getMonthKey = (value: string): string => {
   const date = parseDate(value);
-
   if (!date) return "";
 
-  return `${date.getFullYear()}-${String(
-    date.getMonth() + 1,
-  ).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
 
 const formatMonth = (value: string): string => {
   const date = parseDate(value);
-
   if (!date) return value;
 
   return date.toLocaleDateString("id-ID", {
@@ -179,197 +173,106 @@ const formatMonth = (value: string): string => {
 
 const monthSortValue = (value: string): number => {
   const date = parseDate(value);
-
-  return date
-    ? date.getFullYear() * 100 + date.getMonth()
-    : 0;
+  return date ? date.getFullYear() * 100 + date.getMonth() : 0;
 };
 
-const uniqueSorted = (values: string[]) =>
-  Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b, "id-ID"),
-  );
+const uniqueSorted = (values: string[]) => Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "id-ID"));
 
 const statusKey = (value: string) => value.trim().toLowerCase();
 
 const isDone = (value: string) => statusKey(value) === "done";
 
-const isOnProcess = (value: string) =>
-  statusKey(value) === "on proses" ||
-  statusKey(value) === "on process" ||
-  statusKey(value) === "on_progress";
+const isOnProcess = (value: string) => {
+  const status = statusKey(value);
 
-const isNoProcess = (value: string) =>
-  statusKey(value) === "no proses" ||
-  statusKey(value) === "not proses" ||
-  statusKey(value) === "not process";
+  return status === "on proses" || status === "on process" || status === "on_progress";
+};
 
-/* =========================================================
-   PAGINATION & MONTH OPTIONS
-========================================================= */
+const isNoProcess = (value: string) => {
+  const status = statusKey(value);
+
+  return status === "no proses" || status === "not proses" || status === "not process";
+};
 
 const PAGE_SIZE = 10;
 
-const monthOptions = [
-  "Januari",
-  "Februari",
-  "Maret",
-  "April",
-  "Mei",
-  "Juni",
-  "Juli",
-  "Agustus",
-  "September",
-  "Oktober",
-  "November",
-  "Desember",
-];
+const monthOptions = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 /* =========================================================
-   GLOBAL MULTI SELECT
-   Menggunakan CSS global dari App.css
+   RESPONSIVE ECHART
 ========================================================= */
 
-interface MultiSelectProps {
-  value: string[];
-  options: string[];
-  placeholder?: string;
-  searchPlaceholder?: string;
-  onChange: (value: string[]) => void;
+interface ResponsiveEChartProps {
+  option: Record<string, any>;
+  className?: string;
 }
 
-const MultiSelect: React.FC<MultiSelectProps> = ({
-  value,
-  options,
-  placeholder = "Semua",
-  searchPlaceholder = "Cari...",
-  onChange,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const wrapperRef = useRef<HTMLDivElement>(null);
+const ResponsiveEChart: React.FC<ResponsiveEChartProps> = ({ option, className = "h-full w-full" }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
+    const element = containerRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+
+      if (typeof width === "number") {
+        setChartWidth(width);
       }
-    };
+    });
 
-    document.addEventListener("mousedown", handleClickOutside);
+    observer.observe(element);
 
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside,
-      );
-    };
+    return () => observer.disconnect();
   }, []);
 
-  const filteredOptions = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+  const responsiveOption = useMemo(() => {
+    const xAxis = option.xAxis;
 
-    if (!keyword) return options;
+    if (!xAxis || Array.isArray(xAxis)) return option;
 
-    return options.filter((option) =>
-      option.toLowerCase().includes(keyword),
-    );
-  }, [options, search]);
+    const labels: string[] = Array.isArray(xAxis.data) ? xAxis.data.map((value: unknown) => String(value ?? "")) : [];
 
-  const toggleOption = (option: string) => {
-    if (value.includes(option)) {
-      onChange(value.filter((item) => item !== option));
-    } else {
-      onChange([...value, option]);
-    }
-  };
+    const labelCount = labels.length;
+    const spacePerLabel = labelCount > 0 ? chartWidth / labelCount : chartWidth;
 
-  const displayValue =
-    value.length === 0
-      ? placeholder
-      : value.length === 1
-        ? value[0]
-        : `${value.length} dipilih`;
+    const maxLabelLength = labels.reduce((max, label) => Math.max(max, label.length), 0);
+
+    const requiredSpace = Math.max(58, Math.min(118, maxLabelLength * 5.8));
+
+    const rotate = chartWidth > 0 && labelCount > 1 && spacePerLabel < requiredSpace ? (maxLabelLength > 12 ? 40 : 30) : 0;
+
+    const oldAxisLabel = xAxis.axisLabel || {};
+    const oldGrid = option.grid || {};
+
+    return {
+      ...option,
+      grid: {
+        ...oldGrid,
+        bottom: rotate > 0 ? Math.max(Number(oldGrid.bottom) || 0, maxLabelLength > 12 ? 70 : 58) : 38,
+        containLabel: true,
+      },
+      xAxis: {
+        ...xAxis,
+        axisLabel: {
+          ...oldAxisLabel,
+          interval: 0,
+          rotate,
+          hideOverlap: false,
+          width: undefined,
+          overflow: "none",
+          margin: rotate > 0 ? 10 : 8,
+          align: rotate > 0 ? "right" : "center",
+        },
+      },
+    };
+  }, [option, chartWidth]);
 
   return (
-    <div
-      ref={wrapperRef}
-      className={`multi-select ${open ? "is-open" : ""}`}
-    >
-      <button
-        type="button"
-        className="multi-select-trigger"
-        onClick={() => setOpen((previous) => !previous)}
-      >
-        <span className="multi-select-value">
-          {displayValue}
-        </span>
-
-        <span className="multi-select-arrow" />
-      </button>
-
-      {open && (
-        <div className="multi-select-dropdown">
-          <div className="multi-select-search">
-            <input
-              type="text"
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder={searchPlaceholder}
-              autoFocus
-            />
-          </div>
-
-          <div className="multi-select-actions">
-            <button
-              type="button"
-              onClick={() => onChange([...options])}
-            >
-              Pilih Semua
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onChange([])}
-            >
-              Hapus Semua
-            </button>
-          </div>
-
-          <div className="multi-select-options">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const checked = value.includes(option);
-
-                return (
-                  <label key={option} className={`multi-select-option ${checked ? "is-selected" : ""}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
-
-                    <span className="multi-select-checkbox">
-                      {checked && (
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m5 12 4 4L19 6" />
-                        </svg>
-                      )}
-                    </span>
-
-                    <span className="multi-select-label">{option}</span>
-                  </label>
-                );
-              })
-            ) : (
-              <div className="multi-select-empty">
-                Tidak ada data
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+    <div ref={containerRef} className={className}>
+      <ReactECharts option={responsiveOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate opts={{ renderer: "canvas" }} />
     </div>
   );
 };
@@ -380,25 +283,16 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
 const BappDashboard: React.FC = () => {
   const [monthlyRows, setMonthlyRows] = useState<BappMonthlyRow[]>([]);
-
   const [detailRows, setDetailRows] = useState<BappDetailRow[]>([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  /* FILTER STATE */
 
   const [selectedUnit, setSelectedUnit] = useState("");
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
-
-  /* PAGINATION STATE */
-
   const [currentPage, setCurrentPage] = useState(1);
 
-  /* =========================================================
-     FETCH
-  ========================================================= */
+  /* FETCH */
 
   useEffect(() => {
     let mounted = true;
@@ -413,7 +307,6 @@ const BappDashboard: React.FC = () => {
         if (!mounted) return;
 
         setMonthlyRows(Array.isArray(monthlyData) ? monthlyData : []);
-
         setDetailRows(Array.isArray(detailData) ? detailData : []);
       } catch (err) {
         console.error("BAPP dashboard error:", err);
@@ -433,32 +326,21 @@ const BappDashboard: React.FC = () => {
     };
   }, []);
 
-  /* =========================================================
-     FILTER OPTIONS
-  ========================================================= */
+  /* FILTER OPTIONS */
 
-  const unitOptions = useMemo(() => {
-    return uniqueSorted([...monthlyRows.map((row) => row.unit), ...detailRows.map((row) => row.unit)]);
-  }, [monthlyRows, detailRows]);
+  const unitOptions = useMemo(() => uniqueSorted([...monthlyRows.map((row) => row.unit), ...detailRows.map((row) => row.unit)]), [monthlyRows, detailRows]);
 
   const yearOptions = useMemo(() => {
     const years = [...monthlyRows.map((row) => getYear(row.periode_bulan)), ...detailRows.map((row) => getYear(row.periode_bulan))];
 
-    return Array.from(new Set(years.filter((year) => Boolean(year)))).sort((a, b) => Number(a) - Number(b));
+    return Array.from(new Set(years.filter(Boolean))).sort((a, b) => Number(a) - Number(b));
   }, [monthlyRows, detailRows]);
 
-  /* =========================================================
-     FILTER LOGIC
-
-     Unit
-     + Multiple Bulan
-     + Multiple Tahun
-  ========================================================= */
+  /* FILTER LOGIC */
 
   const matchesPeriod = useCallback(
     (periode: string) => {
       const date = parseDate(periode);
-
       if (!date) return false;
 
       const monthName = date.toLocaleDateString("id-ID", { month: "long" }).toLowerCase();
@@ -476,21 +358,11 @@ const BappDashboard: React.FC = () => {
 
   const matchesUnit = useCallback((unit: string) => !selectedUnit || unit === selectedUnit, [selectedUnit]);
 
-  /* =========================================================
-     FILTERED DATA
-  ========================================================= */
+  const filteredMonthlyRows = useMemo(() => monthlyRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit)), [monthlyRows, matchesPeriod, matchesUnit]);
 
-  const filteredMonthlyRows = useMemo(() => {
-    return monthlyRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit));
-  }, [monthlyRows, matchesPeriod, matchesUnit]);
+  const filteredDetailRows = useMemo(() => detailRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit)), [detailRows, matchesPeriod, matchesUnit]);
 
-  const filteredDetailRows = useMemo(() => {
-    return detailRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit));
-  }, [detailRows, matchesPeriod, matchesUnit]);
-
-  /* =========================================================
-     KPI
-  ========================================================= */
+  /* KPI */
 
   const kpis = useMemo(() => {
     const totalBapp = filteredMonthlyRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
@@ -503,17 +375,13 @@ const BappDashboard: React.FC = () => {
 
     const noProcessRows = filteredMonthlyRows.filter((row) => isNoProcess(row.status_bapp));
 
-    const doneCount = doneRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
+    const sumCount = (rows: BappMonthlyRow[]) => rows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
 
-    const onProcessCount = onProcessRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
+    const sumNominal = (rows: BappMonthlyRow[]) => rows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
 
-    const noProcessCount = noProcessRows.reduce((sum, row) => sum + parseNumber(row.jumlah_bapp), 0);
-
-    const doneNominal = doneRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
-
-    const onProcessNominal = onProcessRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
-
-    const noProcessNominal = noProcessRows.reduce((sum, row) => sum + parseNumber(row.nominal), 0);
+    const doneCount = sumCount(doneRows);
+    const onProcessCount = sumCount(onProcessRows);
+    const noProcessCount = sumCount(noProcessRows);
 
     const totalRevenue = filteredDetailRows.reduce((sum, row) => sum + parseNumber(row.revenue), 0);
 
@@ -524,9 +392,9 @@ const BappDashboard: React.FC = () => {
       doneCount,
       onProcessCount,
       noProcessCount,
-      doneNominal,
-      onProcessNominal,
-      noProcessNominal,
+      doneNominal: sumNominal(doneRows),
+      onProcessNominal: sumNominal(onProcessRows),
+      noProcessNominal: sumNominal(noProcessRows),
       donePercentage: totalBapp > 0 ? (doneCount / totalBapp) * 100 : 0,
       onProcessPercentage: totalBapp > 0 ? (onProcessCount / totalBapp) * 100 : 0,
       noProcessPercentage: totalBapp > 0 ? (noProcessCount / totalBapp) * 100 : 0,
@@ -534,24 +402,16 @@ const BappDashboard: React.FC = () => {
   }, [filteredMonthlyRows, filteredDetailRows]);
 
   /* =========================================================
-     CHART 1 - NOMINAL BAPP BY STATUS / MONTH
+     CHART 1: NOMINAL BAPP PER STATUS PER BULAN
+     Default: 8 bulan terbaru.
+     Filter periode aktif: semua bulan yang sesuai.
   ========================================================= */
 
   const nominalStatusByMonth = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        sort: number;
-        label: string;
-        done: number;
-        onProcess: number;
-        noProcess: number;
-      }
-    >();
+    const map = new Map<string, ChartMonth>();
 
     filteredMonthlyRows.forEach((row) => {
       const key = getMonthKey(row.periode_bulan);
-
       if (!key) return;
 
       const existing = map.get(key) ?? {
@@ -575,13 +435,17 @@ const BappDashboard: React.FC = () => {
       map.set(key, existing);
     });
 
-    return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
-  }, [filteredMonthlyRows]);
+    const sortedMonths = Array.from(map.values()).sort((a, b) => a.sort - b.sort);
+
+    const isPeriodFiltered = selectedMonths.length > 0 || selectedYears.length > 0;
+
+    return isPeriodFiltered ? sortedMonths : sortedMonths.slice(-8);
+  }, [filteredMonthlyRows, selectedMonths, selectedYears]);
 
   const nominalStatusChartOption = useMemo(
     () => ({
       animation: true,
-      animationDuration: 850,
+      animationDuration: 700,
       animationEasing: "cubicOut",
       tooltip: {
         trigger: "axis",
@@ -598,21 +462,23 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
+        extraCssText: "box-shadow:0 10px 25px rgba(0,0,0,.28);border-radius:9px;",
         formatter: (params: any[]) => {
           if (!params?.length) return "";
 
           let html = `
-            <div style="font-weight:700;color:#f2f6fb;margin-bottom:7px;">
+            <div style="font-weight:700;color:#f2f6fb;margin-bottom:6px">
               ${params[0].axisValue}
             </div>
           `;
 
           params.forEach((item) => {
             html += `
-              <div style="display:flex;justify-content:space-between;gap:20px;margin:4px 0;">
-                <span style="color:#9fb0c3;">${item.marker}${item.seriesName}</span>
-                <strong style="color:#f2f6fb;">${formatCompactRupiah(Number(item.value) || 0)}</strong>
+              <div style="display:flex;justify-content:space-between;gap:16px;margin:4px 0">
+                <span style="color:#9fb0c3">${item.marker}${item.seriesName}</span>
+                <strong style="color:#f2f6fb">
+                  ${formatCompactRupiah(Number(item.value) || 0)}
+                </strong>
               </div>
             `;
           });
@@ -622,20 +488,20 @@ const BappDashboard: React.FC = () => {
       },
       legend: {
         top: 0,
-        left: 0,
-        itemWidth: 10,
+        left: 2,
+        itemWidth: 9,
         itemHeight: 8,
-        itemGap: 16,
+        itemGap: 12,
         textStyle: {
           color: "#aebed0",
           fontSize: 9,
         },
       },
       grid: {
-        left: 52,
-        right: 18,
-        top: 42,
-        bottom: 65,
+        left: 22,
+        right: 10,
+        top: 27,
+        bottom: 42,
         containLabel: true,
       },
       xAxis: {
@@ -646,26 +512,19 @@ const BappDashboard: React.FC = () => {
             color: "rgba(148, 163, 184, 0.25)",
           },
         },
-        axisTick: {
-          show: false,
-        },
+        axisTick: { show: false },
         axisLabel: {
           interval: 0,
-          rotate: 30,
-          fontSize: 8,
+          fontSize: 9,
           color: "#aebed0",
-          margin: 14,
-          align: "right",
+          margin: 8,
+          hideOverlap: false,
         },
       },
       yAxis: {
         type: "value",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
+        axisLine: { show: false },
+        axisTick: { show: false },
         axisLabel: {
           fontSize: 9,
           color: "#9aacc0",
@@ -675,7 +534,7 @@ const BappDashboard: React.FC = () => {
             }
 
             if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(0)} M`;
+              return `${(value / 1_000_000_000).toFixed(1)} M`;
             }
 
             if (value >= 1_000_000) {
@@ -698,10 +557,10 @@ const BappDashboard: React.FC = () => {
           name: "Done",
           type: "bar",
           stack: "total",
-          barMaxWidth: 32,
+          barMaxWidth: 30,
           data: nominalStatusByMonth.map((item) => item.done),
           itemStyle: {
-            borderRadius: [7, 7, 0, 0],
+            borderRadius: [5, 5, 0, 0],
             color: {
               type: "linear",
               x: 0,
@@ -714,18 +573,16 @@ const BappDashboard: React.FC = () => {
                 { offset: 1, color: "#19784f" },
               ],
             },
-            shadowBlur: 8,
-            shadowColor: "rgba(52, 211, 136, .18)",
           },
         },
         {
           name: "On Proses",
           type: "bar",
           stack: "total",
-          barMaxWidth: 32,
+          barMaxWidth: 30,
           data: nominalStatusByMonth.map((item) => item.onProcess),
           itemStyle: {
-            borderRadius: [7, 7, 0, 0],
+            borderRadius: [4, 4, 0, 0],
             color: {
               type: "linear",
               x: 0,
@@ -744,7 +601,7 @@ const BappDashboard: React.FC = () => {
           name: "No Proses",
           type: "bar",
           stack: "total",
-          barMaxWidth: 32,
+          barMaxWidth: 30,
           data: nominalStatusByMonth.map((item) => item.noProcess),
           itemStyle: {
             borderRadius: [3, 3, 0, 0],
@@ -768,7 +625,7 @@ const BappDashboard: React.FC = () => {
   );
 
   /* =========================================================
-     CHART 2 - BAPP BY UNIT
+     CHART 2: JUMLAH BAPP PER UNIT
   ========================================================= */
 
   const bappByUnit = useMemo(() => {
@@ -788,7 +645,7 @@ const BappDashboard: React.FC = () => {
   const bappUnitChartOption = useMemo(
     () => ({
       animation: true,
-      animationDuration: 900,
+      animationDuration: 700,
       tooltip: {
         trigger: "item",
         backgroundColor: "#172436",
@@ -798,29 +655,32 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
-        formatter: (params: any) => {
-          return `
-            <div style="font-weight:700;color:#f2f6fb;margin-bottom:5px;">
-              ${params.name}
-            </div>
-            <div style="color:#9fb0c3;">
-              Jumlah BAPP:
-              <strong style="color:#f2f6fb;">${formatNumber(Number(params.value) || 0)}</strong>
-            </div>
-            <div style="color:#9fb0c3;margin-top:3px;">
-              Persentase:
-              <strong style="color:#f2f6fb;">${Number(params.percent).toFixed(1)}%</strong>
-            </div>
-          `;
-        },
+        extraCssText: "border-radius:9px;",
+        formatter: (params: any) => `
+          <div style="font-weight:700;color:#f2f6fb;margin-bottom:5px">
+            ${params.name}
+          </div>
+          <div style="color:#9fb0c3">
+            Jumlah BAPP:
+            <strong style="color:#f2f6fb">
+              ${formatNumber(Number(params.value) || 0)}
+            </strong>
+          </div>
+          <div style="color:#9fb0c3;margin-top:3px">
+            Persentase:
+            <strong style="color:#f2f6fb">
+              ${Number(params.percent).toFixed(1)}%
+            </strong>
+          </div>
+        `,
       },
       legend: {
-        bottom: 2,
+        type: "scroll",
+        bottom: 0,
         left: "center",
         itemWidth: 9,
         itemHeight: 9,
-        itemGap: 14,
+        itemGap: 12,
         textStyle: {
           color: "#aebed0",
           fontSize: 9,
@@ -830,8 +690,8 @@ const BappDashboard: React.FC = () => {
         {
           name: "Jumlah BAPP",
           type: "pie",
-          radius: ["46%", "72%"],
-          center: ["50%", "48%"],
+          radius: ["43%", "68%"],
+          center: ["50%", "46%"],
           avoidLabelOverlap: true,
           itemStyle: {
             borderColor: "#1a293b",
@@ -845,43 +705,40 @@ const BappDashboard: React.FC = () => {
             fontWeight: 600,
             formatter: "{d}%",
           },
-          labelLine: {
-            show: false,
-          },
-          data: bappByUnit.map((item, index) => ({
-            ...item,
-            itemStyle: {
-              borderColor: "#1a293b",
-              borderWidth: 3,
-              borderRadius: 5,
-              color:
-                index === 0
-                  ? {
-                      type: "linear",
-                      x: 0,
-                      y: 0,
-                      x2: 1,
-                      y2: 1,
-                      colorStops: [
-                        { offset: 0, color: "#8eb8ff" },
-                        { offset: 0.5, color: "#4e86dc" },
-                        { offset: 1, color: "#285aa7" },
-                      ],
-                    }
-                  : {
-                      type: "linear",
-                      x: 0,
-                      y: 0,
-                      x2: 1,
-                      y2: 1,
-                      colorStops: [
-                        { offset: 0, color: "#FF7777" },
-                        { offset: 0.5, color: "#E31E24" },
-                        { offset: 1, color: "#A50F18" },
-                      ],
-                    },
-            },
-          })),
+          labelLine: { show: false },
+          data: bappByUnit.map((item, index) => {
+            const palette = [
+              ["#8eb8ff", "#4e86dc", "#285aa7"],
+              ["#ff9999", "#e85b67", "#a83243"],
+              ["#8ee8cf", "#31b99b", "#167a68"],
+              ["#c4a7ff", "#8b69dd", "#5b3b9d"],
+              ["#ffd978", "#efa938", "#b86e16"],
+              ["#7dd3fc", "#299bd0", "#17618a"],
+            ];
+
+            const colors = palette[index % palette.length];
+
+            return {
+              ...item,
+              itemStyle: {
+                borderColor: "#1a293b",
+                borderWidth: 3,
+                borderRadius: 5,
+                color: {
+                  type: "linear",
+                  x: 0,
+                  y: 0,
+                  x2: 1,
+                  y2: 1,
+                  colorStops: [
+                    { offset: 0, color: colors[0] },
+                    { offset: 0.5, color: colors[1] },
+                    { offset: 1, color: colors[2] },
+                  ],
+                },
+              },
+            };
+          }),
         },
       ],
     }),
@@ -889,7 +746,7 @@ const BappDashboard: React.FC = () => {
   );
 
   /* =========================================================
-     CHART 3 - REVENUE BY LAYANAN
+     CHART 3: REVENUE PER LAYANAN
   ========================================================= */
 
   const revenueByLayanan = useMemo(() => {
@@ -909,7 +766,7 @@ const BappDashboard: React.FC = () => {
   const revenueChartOption = useMemo(
     () => ({
       animation: true,
-      animationDuration: 900,
+      animationDuration: 700,
       animationEasing: "cubicOut",
       tooltip: {
         trigger: "axis",
@@ -926,27 +783,26 @@ const BappDashboard: React.FC = () => {
           color: "#e8eef6",
           fontSize: 10,
         },
-        extraCssText: "box-shadow:0 14px 32px rgba(0,0,0,.35);border-radius:9px;",
+        extraCssText: "border-radius:9px;",
         formatter: (params: any[]) => {
           const item = params?.[0];
-
           if (!item) return "";
 
           return `
-            <div style="color:#9fb0c3;font-size:10px;margin-bottom:5px;">
+            <div style="color:#9fb0c3;font-size:10px;margin-bottom:5px">
               ${item.name}
             </div>
-            <div style="color:#f2f6fb;font-size:13px;font-weight:700;">
+            <div style="color:#f2f6fb;font-size:13px;font-weight:700">
               ${formatRupiah(Number(item.value) || 0)}
             </div>
           `;
         },
       },
       grid: {
-        left: 50,
-        right: 25,
-        top: 18,
-        bottom: 80,
+        left: 18,
+        right: 12,
+        top: 12,
+        bottom: 42,
         containLabel: true,
       },
       xAxis: {
@@ -956,33 +812,23 @@ const BappDashboard: React.FC = () => {
         axisLine: {
           lineStyle: {
             color: "rgba(148, 163, 184, 0.18)",
-            width: 1,
           },
         },
-        axisTick: {
-          show: false,
-        },
+        axisTick: { show: false },
         axisLabel: {
           interval: 0,
-          rotate: 45,
           fontSize: 9,
           color: "#9eafc2",
-          margin: 12,
-          align: "right",
-          width: 80,
-          overflow: "truncate",
-          hideOverlap: true,
+          margin: 9,
+          align: "center",
+          hideOverlap: false,
           formatter: (value: string) => value,
         },
       },
       yAxis: {
         type: "value",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
+        axisLine: { show: false },
+        axisTick: { show: false },
         axisLabel: {
           fontSize: 9,
           color: "#9aacc0",
@@ -992,7 +838,7 @@ const BappDashboard: React.FC = () => {
             }
 
             if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(0)} M`;
+              return `${(value / 1_000_000_000).toFixed(1)} M`;
             }
 
             if (value >= 1_000_000) {
@@ -1018,7 +864,7 @@ const BappDashboard: React.FC = () => {
           barMaxWidth: 28,
           barMinHeight: 3,
           itemStyle: {
-            borderRadius: [7, 7, 2, 2],
+            borderRadius: [6, 6, 1, 1],
             color: {
               type: "linear",
               x: 0,
@@ -1031,25 +877,12 @@ const BappDashboard: React.FC = () => {
                 { offset: 1, color: "#225da8" },
               ],
             },
-            shadowBlur: 8,
-            shadowColor: "rgba(57, 132, 235, .2)",
           },
           emphasis: {
             focus: "series",
             itemStyle: {
-              shadowBlur: 17,
-              shadowColor: "rgba(80, 155, 255, .4)",
-              color: {
-                type: "linear",
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: "#b2d2ff" },
-                  { offset: 1, color: "#3d83e2" },
-                ],
-              },
+              shadowBlur: 12,
+              shadowColor: "rgba(80, 155, 255, .3)",
             },
           },
         },
@@ -1059,9 +892,9 @@ const BappDashboard: React.FC = () => {
   );
 
   /* =========================================================
-     TABLE PAGINATION
+     TABLE & PAGINATION
   ========================================================= */
-  // Urutan status: No Process → On Process → Done
+
   const getStatusPriority = (status: string | null | undefined): number => {
     const normalizedStatus = status ?? "";
 
@@ -1069,36 +902,32 @@ const BappDashboard: React.FC = () => {
     if (isOnProcess(normalizedStatus)) return 2;
     if (isDone(normalizedStatus)) return 3;
 
-    // Status lain diletakkan setelah Done
     return 4;
   };
 
-  const sortedTableRows = useMemo(() => {
-    return [...filteredDetailRows].sort((a, b) => {
-      return getStatusPriority(a.status) - getStatusPriority(b.status);
-    });
-  }, [filteredDetailRows]);
+  const sortedTableRows = useMemo(() => [...filteredDetailRows].sort((a, b) => getStatusPriority(a.status) - getStatusPriority(b.status)), [filteredDetailRows]);
+
   const totalPages = Math.max(1, Math.ceil(sortedTableRows.length / PAGE_SIZE));
 
   const startIndex = (currentPage - 1) * PAGE_SIZE;
 
-  const tableRows = useMemo(() => {
-    return sortedTableRows.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [sortedTableRows, startIndex]);
+  const tableRows = useMemo(() => sortedTableRows.slice(startIndex, startIndex + PAGE_SIZE), [sortedTableRows, startIndex]);
 
   const startRow = sortedTableRows.length === 0 ? 0 : startIndex + 1;
 
   const endRow = Math.min(startIndex + PAGE_SIZE, sortedTableRows.length);
 
-  /* Kembali ke halaman pertama ketika filter berubah */
-
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedUnit, selectedMonths, selectedYears]);
 
-  /* =========================================================
-     RESET FILTER
-  ========================================================= */
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  /* RESET FILTER */
 
   const resetFilters = () => {
     setSelectedUnit("");
@@ -1110,13 +939,13 @@ const BappDashboard: React.FC = () => {
   const hasFilter = Boolean(selectedUnit || selectedMonths.length > 0 || selectedYears.length > 0);
 
   /* =========================================================
-     RENDER STATES
+     LOADING & ERROR
   ========================================================= */
 
   if (loading) {
     return (
-      <div className="app-state app-state-loading">
-        <div className="app-spinner" />
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-xs text-slate-300">
+        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
         <span>Memuat data BAPP...</span>
       </div>
     );
@@ -1124,12 +953,13 @@ const BappDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="app-state app-state-error">
-        <div className="app-state-content">
-          <h2>Gagal Memuat Dashboard</h2>
-          <p>{error}</p>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-center text-xs text-slate-300">
+        <div className="max-w-lg rounded-xl border border-slate-500/20 bg-slate-800/70 p-5">
+          <h2 className="mb-2 text-sm font-bold text-slate-100">Gagal Memuat Dashboard</h2>
 
-          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
+          <p className="mb-4 text-[11px] text-slate-400">{error}</p>
+
+          <button type="button" className="rounded-lg border border-blue-400/35 bg-blue-400/10 px-3 py-2 text-[11px] font-semibold text-blue-200 transition hover:bg-blue-400/20" onClick={() => window.location.reload()}>
             Coba Lagi
           </button>
         </div>
@@ -1142,245 +972,337 @@ const BappDashboard: React.FC = () => {
   ========================================================= */
 
   return (
-    <div className="bapp-page">
-      <header className="bapp-header">
-        <div className="bapp-header-copy">
-          <div className="bapp-title-row">
-            <h1>Dashboard Detail BAPP</h1>
+    <div className="min-h-full rounded-2xl bg-[radial-gradient(circle_at_10%_0%,rgba(53,102,173,0.11),transparent_28%),radial-gradient(circle_at_90%_8%,rgba(48,190,132,0.06),transparent_24%),#0f1928] px-0 pb-5 pt-1 text-[#e9f0f7] max-[768px]:rounded-none max-[768px]:pt-0">
+      {/* HEADER */}
+      <header className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-lg font-extrabold tracking-tight text-slate-50 sm:text-xl">Dashboard Detail BAPP</h1>
+          <p className="mt-1 text-[11px] text-slate-400">Monitoring BAPP, nominal, status, dan revenue layanan.</p>
+        </div>
 
-            <span className="bapp-live-badge">
-              <span className="bapp-live-dot" />
-              Data Terhubung
-            </span>
-          </div>
-
-          <p>Monitoring BAPP, nominal, status, dan revenue layanan</p>
-
-          <span className="bapp-source">
-            Sumber data: <strong>master_bapp_bulanan</strong>
-            {" & "}
-            <strong>master_detail_bapp</strong>
+        <div className="flex w-fit shrink-0 items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
+          Data Terhubung
         </div>
       </header>
 
-      {/* =====================================================
-          FILTER
-      ====================================================== */}
+      {/* FILTER */}
 
-      <section className="bapp-filter-card">
-        <div className="bapp-filter-heading">
-          <div>
-            <span className="bapp-section-kicker">FILTER DATA</span>
+    <section className="relative z-20 mb-3 rounded-xl border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-gradient-to-br from-blue-400/15 to-indigo-500/10 text-blue-300">
+              <Filter size={15} />
+            </div>
 
-            <h2>Parameter Dashboard</h2>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-blue-300">
+                Filter Data
+              </p>
+              <h2 className="mt-0.5 text-xs font-bold text-slate-100">
+                Parameter Dashboard
+              </h2>
+            </div>
           </div>
 
-          <button type="button" className={`reset-filter ${hasFilter ? "is-active" : ""}`} onClick={resetFilters}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
-
-            <span>Reset Filter</span>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className={`inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-[9px] font-semibold transition hover:border-blue-400/50 hover:bg-blue-500/10 hover:text-blue-100 ${
+              hasFilter ? "border-blue-400/50 bg-blue-500/10 text-blue-100" : "border-slate-500/25 bg-white/[0.035] text-slate-400"
+            }`}
+          >
+            <RefreshCw size={11} />
+            Reset
           </button>
         </div>
 
-        <div className="bapp-filter-grid">
-          <div className="bapp-filter-item">
-            <label>Unit</label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="relative min-w-0">
+            <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Unit</label>
 
             <SearchableSelect value={selectedUnit} options={unitOptions} placeholder="Semua Unit" searchPlaceholder="Cari unit..." onChange={setSelectedUnit} />
           </div>
 
-          <div className="bapp-filter-item">
-            <label>Bulan</label>
+          <div className="relative min-w-0">
+            <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Bulan</label>
 
             <MultiSelect value={selectedMonths} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonths} />
           </div>
 
-          <div className="bapp-filter-item">
-            <label>Tahun</label>
+          <div className="relative min-w-0">
+            <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Tahun</label>
 
             <MultiSelect value={selectedYears} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setSelectedYears} />
           </div>
         </div>
+
+        {hasFilter && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-slate-300/[0.08] pt-2">
+            <span className="mr-1 text-[9px] text-slate-400">Filter aktif:</span>
+
+            {selectedUnit && <span className="rounded-md border border-blue-400/20 bg-blue-400/10 px-2 py-1 text-[9px] text-blue-200">Unit: {selectedUnit}</span>}
+
+            {selectedMonths.length > 0 && <span className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[9px] text-amber-200">{selectedMonths.length} bulan</span>}
+
+            {selectedYears.length > 0 && <span className="rounded-md border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[9px] text-amber-200">Tahun: {selectedYears.join(", ")}</span>}
+          </div>
+        )}
       </section>
 
-      {/* =====================================================
-          KPI
-      ====================================================== */}
+      {/* KPI CARDS */}
+      <section className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          {
+            title: "JUMLAH BAPP",
+            value: formatNumber(kpis.totalBapp),
+            detail: formatCompactRupiah(kpis.totalNominal),
+            icon: FileSpreadsheet,
+            theme: {
+              border: "border-t-blue-400",
+              icon: "bg-blue-400/10 text-blue-300",
+              value: "text-blue-100",
+              glow: "bg-blue-400/[0.06]",
+            },
+          },
+          {
+            title: "BAPP DONE",
+            value: formatNumber(kpis.doneCount),
+            detail: formatCompactRupiah(kpis.doneNominal),
+            percentage: kpis.donePercentage,
+            icon: Check,
+            theme: {
+              border: "border-t-emerald-400",
+              icon: "bg-emerald-400/10 text-emerald-300",
+              value: "text-emerald-100",
+              glow: "bg-emerald-400/[0.06]",
+            },
+          },
+          {
+            title: "BAPP ON PROSES",
+            value: formatNumber(kpis.onProcessCount),
+            detail: formatCompactRupiah(kpis.onProcessNominal),
+            percentage: kpis.onProcessPercentage,
+            icon: Activity,
+            theme: {
+              border: "border-t-amber-400",
+              icon: "bg-amber-400/10 text-amber-300",
+              value: "text-amber-100",
+              glow: "bg-amber-400/[0.06]",
+            },
+          },
+          {
+            title: "BAPP NO PROSES",
+            value: formatNumber(kpis.noProcessCount),
+            detail: formatCompactRupiah(kpis.noProcessNominal),
+            percentage: kpis.noProcessPercentage,
+            icon: X,
+            theme: {
+              border: "border-t-rose-400",
+              icon: "bg-rose-400/10 text-rose-300",
+              value: "text-rose-100",
+              glow: "bg-rose-400/[0.06]",
+            },
+          },
+        ].map((item) => {
+          const Icon = item.icon;
 
-      <section className="bapp-kpi-grid">
-        <article className="bapp-kpi-card kpi-blue">
-          <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">Jumlah BAPP</span>
-            <span className="bapp-kpi-icon">▦</span>
-          </div>
+          return (
+            <article
+              key={item.title}
+              className={`relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 ${item.theme.border} bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)]`}
+            >
+              {/* Decorative glow */}
+              <div className={`pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full blur-2xl ${item.theme.glow}`} />
 
-          <strong>{formatNumber(kpis.totalBapp)}</strong>
+              {/* Card header */}
+              <div className="relative flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">{item.title}</span>
 
-          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.totalNominal)}</span>
-        </article>
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.theme.icon}`}>
+                  <Icon size={16} />
+                </span>
+              </div>
 
-        <article className="bapp-kpi-card kpi-green">
-          <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">BAPP Done</span>
-            <span className="bapp-kpi-icon">✓</span>
-          </div>
+              {/* Main value */}
+              <div className="relative mt-2 min-w-0">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1">
+                  <strong className={`break-words text-lg font-extrabold leading-tight tracking-tight sm:text-xl ${item.theme.value}`}>{item.value}</strong>
+                  {typeof item.percentage === "number" && <span className="text-[9px] font-semibold text-slate-400">{item.percentage.toFixed(2)}%</span>}
+                </div>
 
-          <strong>
-            {formatNumber(kpis.doneCount)} <small>({kpis.donePercentage.toFixed(2)}%)</small>
-          </strong>
-
-          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.doneNominal)}</span>
-        </article>
-
-        <article className="bapp-kpi-card kpi-amber">
-          <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">BAPP On Proses</span>
-
-            <span className="bapp-kpi-icon">◷</span>
-          </div>
-
-          <strong>
-            {formatNumber(kpis.onProcessCount)} <small>({kpis.onProcessPercentage.toFixed(2)}%)</small>
-          </strong>
-
-          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.onProcessNominal)}</span>
-        </article>
-
-        <article className="bapp-kpi-card kpi-red">
-          <div className="bapp-kpi-top">
-            <span className="bapp-kpi-label">BAPP No Proses</span>
-
-            <span className="bapp-kpi-icon">!</span>
-          </div>
-
-          <strong>
-            {formatNumber(kpis.noProcessCount)} <small>({kpis.noProcessPercentage.toFixed(2)}%)</small>
-          </strong>
-
-          <span className="bapp-kpi-sub">{formatCompactRupiah(kpis.noProcessNominal)}</span>
-        </article>
+                <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{item.detail}</p>
+              </div>
+            </article>
+          );
+        })}
       </section>
+      {/* CHART CONFIGS: title, subtitle, icon, theme, option, and empty state are managed centrally */}
+      {(() => {
+        const chartConfigs: ChartConfig[] = [
+          {
+            id: "nominal-status",
+            title: "Nominal BAPP per Status per Bulan",
+            subtitle: hasFilter ? "Akumulasi nominal BAPP berdasarkan status pada periode yang dipilih" : "Akumulasi nominal BAPP berdasarkan status dalam 8 bulan terbaru",
+            icon: <BarChart3 size={15} />,
+            theme: "green",
+            option: nominalStatusChartOption,
+            empty: "Tidak ada data BAPP untuk filter yang dipilih.",
+            hasData: nominalStatusByMonth.length > 0,
+            layout: "top",
+          },
+          {
+            id: "bapp-unit",
+            title: "Jumlah BAPP per Unit",
+            subtitle: "Distribusi jumlah BAPP dan proporsi setiap unit",
+            icon: <PieChart size={15} />,
+            theme: "blue",
+            option: bappUnitChartOption,
+            empty: "Tidak ada data BAPP per unit untuk filter yang dipilih.",
+            hasData: bappByUnit.length > 0,
+            layout: "top",
+          },
+          {
+            id: "revenue-layanan",
+            title: "Revenue BAPP per Layanan",
+            subtitle: "Akumulasi revenue berdasarkan layanan",
+            icon: <TrendingUp size={15} />,
+            theme: "cyan",
+            option: revenueChartOption,
+            empty: "Tidak ada data revenue untuk filter yang dipilih.",
+            hasData: revenueByLayanan.length > 0,
+            layout: "full",
+            showTotalRevenue: true,
+          },
+        ];
 
-      {/* =====================================================
-          CHARTS
-      ====================================================== */}
+        const themeClasses = {
+          green: {
+            icon: "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
+          },
+          blue: {
+            icon: "border-blue-400/20 bg-blue-400/10 text-blue-300",
+          },
+          cyan: {
+            icon: "border-cyan-400/20 bg-cyan-400/10 text-cyan-300",
+          },
+        };
 
-      <section className="bapp-chart-grid">
-        <article className="bapp-chart-card">
-          <div className="bapp-chart-header">
+        const renderChart = (chart: ChartConfig) => (
+          <article key={chart.id} className={`min-w-0 overflow-hidden rounded-xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_8px_20px_rgba(0,0,0,0.12)] ${chart.layout === "full" ? "mb-3" : ""}`}>
+            <div className={`flex min-h-[58px] items-center justify-between gap-3 border-b border-slate-500/10 px-3 py-2 ${chart.showTotalRevenue ? "max-[600px]:items-start" : ""}`}>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${themeClasses[chart.theme].icon}`}>{chart.icon}</div>
+
+                <div className="min-w-0">
+                  <h3 className="m-0 text-xs font-bold leading-tight text-slate-100">{chart.title}</h3>
+
+                  <p className="mt-1 text-[10px] leading-snug text-slate-400">{chart.subtitle}</p>
+                </div>
+              </div>
+
+              {chart.showTotalRevenue && (
+                <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+                  <span className="text-[9px] text-slate-400">Total Revenue:</span>
+
+                  <strong className="text-[11px] font-bold text-cyan-300">{formatRupiah(kpis.totalRevenue)}</strong>
+                </div>
+              )}
+            </div>
+
+            <div className={`${chart.layout === "full" ? "h-[300px] p-[7px_10px_0] max-[768px]:h-[280px]" : "h-[285px] p-[5px_8px_5px] max-[768px]:h-[265px]"}`}>
+              {chart.hasData ? <ResponsiveEChart option={chart.option} /> : <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11px] text-slate-500">{chart.empty}</div>}
+            </div>
+          </article>
+        );
+
+        return (
+          <>
+            <section className="mb-3 grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 max-[1100px]:grid-cols-1">{chartConfigs.filter((chart) => chart.layout === "top").map(renderChart)}</section>
+            {chartConfigs.filter((chart) => chart.layout === "full").map(renderChart)}
+          </>
+        );
+      })()}
+
+      {/* DETAIL TABLE */}
+
+      <section className="mb-3 min-w-0 overflow-hidden rounded-xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
+        <div className="flex min-h-[48px] items-center justify-between gap-3 border-b border-slate-500/10 px-3 py-2 max-[600px]:items-start">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-400/20 bg-violet-400/10 text-violet-300">
+              <Building2 size={16} />
+            </div>
+
             <div>
-              <span className="bapp-chart-kicker">BAPP MONITORING</span>
+              <span className="mb-0.5 block text-[8px] font-extrabold tracking-[1px] text-slate-500">DETAIL DATA</span>
 
-              <h3>Nominal BAPP per Status per Bulan</h3>
+              <h3 className="m-0 text-xs font-bold leading-tight text-slate-100">Detail BAPP</h3>
             </div>
           </div>
 
-          <div className="bapp-chart-body bapp-chart-large">
-            {nominalStatusByMonth.length > 0 ? (
-              <ReactECharts option={nominalStatusChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate />
-            ) : (
-              <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>
-            )}
-          </div>
-        </article>
-
-        <article className="bapp-chart-card">
-          <div className="bapp-chart-header">
-            <div>
-              <span className="bapp-chart-kicker">DISTRIBUSI</span>
-
-              <h3>Jumlah BAPP per Unit</h3>
-            </div>
-          </div>
-
-          <div className="bapp-chart-body bapp-chart-large">
-            {bappByUnit.length > 0 ? <ReactECharts option={bappUnitChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate /> : <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
-          </div>
-        </article>
-      </section>
-
-      <article className="bapp-chart-card bapp-revenue-card">
-        <div className="bapp-chart-header">
-          <div>
-            <span className="bapp-chart-kicker">REVENUE ANALYSIS</span>
-
-            <h3>Revenue BAPP per Layanan</h3>
-          </div>
-
-          <span className="bapp-chart-total">
-            Total Revenue: <strong>{formatCompactRupiah(kpis.totalRevenue)}</strong>
+          <span className="text-right text-[9px] text-slate-400">
+            {formatNumber(startRow)}–{formatNumber(endRow)} dari {formatNumber(sortedTableRows.length)} data
           </span>
         </div>
 
-        <div className="bapp-chart-body bapp-revenue-chart">
-          {revenueByLayanan.length > 0 ? <ReactECharts option={revenueChartOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate /> : <div className="bapp-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
-        </div>
-      </article>
-
-      {/* =====================================================
-          TABLE
-      ====================================================== */}
-
-      <section className="bapp-table-card">
-        <div className="bapp-table-header">
-          <div>
-            <span className="bapp-chart-kicker">DETAIL DATA</span>
-
-            <h3>Detail BAPP</h3>
-          </div>
-
-          <span className="bapp-table-count">
-            Menampilkan {formatNumber(startRow)}–{formatNumber(endRow)} dari {formatNumber(sortedTableRows.length)} data
-          </span>
-        </div>
-
-        <div className="bapp-table-wrapper">
-          <table className="bapp-table">
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+          {" "}
+          <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-[10px] text-slate-300">
             <thead>
-              <tr>
-                <th>No</th>
-                <th>Bulan</th>
-                <th>Divisi</th>
-                <th>Departemen</th>
-                <th>Layanan</th>
-                <th>Status</th>
-                <th>Unit</th>
-                <th>Revenue</th>
+              <tr className="bg-[#233247] text-[9px] font-bold uppercase tracking-wide text-slate-300">
+                {["No.", "Bulan", "Divisi", "Departemen", "Unit", "Layanan", "Status", "Keterangan", "Revenue"].map((heading) => (
+                  <th key={heading} className={`sticky top-0 z-10 whitespace-nowrap border-b border-r border-slate-300/[0.06] px-3 py-2.5 last:border-r-0 ${heading === "Revenue" ? "text-right" : "text-left"}`}>
+                    {heading}
+                  </th>
+                ))}
               </tr>
             </thead>
 
             <tbody>
               {tableRows.length > 0 ? (
                 tableRows.map((row, index) => (
-                  <tr key={`${row.id}-${index}`}>
-                    <td>{startIndex + index + 1}</td>
+                  <tr key={`${row.id}-${index}`} className="transition-colors hover:bg-[#26364a]">
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 tabular-nums text-center text-slate-500">{startIndex + index + 1}.</td>
 
-                    <td>{formatMonth(row.periode_bulan)}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatMonth(row.periode_bulan)}</td>
 
-                    <td title={row.divisi}>{row.divisi || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.divisi || "-"}</td>
 
-                    <td title={row.departemen}>{row.departemen || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.departemen || "-"}</td>
 
-                    <td title={row.layanan}>{row.layanan || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.unit || "-"}</td>
 
-                    <td>
-                      <span className={`bapp-status-pill ${isDone(row.status) ? "done" : isOnProcess(row.status) ? "process" : "no-process"}`}>{row.status || "-"}</span>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.layanan || "-"}</td>
+
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5">
+                      <span
+                        className={`inline-flex min-w-[62px] items-center justify-center rounded-full border px-2 py-1 text-[9px] font-bold ${
+                          isDone(row.status)
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                            : isOnProcess(row.status)
+                              ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                              : isNoProcess(row.status)
+                                ? "border-rose-400/20 bg-rose-400/10 text-rose-300"
+                                : "border-slate-400/20 bg-slate-400/10 text-slate-300"
+                        }`}
+                      >
+                        {row.status || "-"}
+                      </span>
                     </td>
 
-                    <td>{row.unit || "-"}</td>
+                    <td title={row.keterangan || "-"} className="max-w-[230px] truncate border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">
+                      {row.keterangan || "-"}
+                    </td>
 
-                    <td className="bapp-money-cell">{formatRupiah(parseNumber(row.revenue))}</td>
+                    <td className="whitespace-nowrap border-b border-slate-300/[0.05] px-3 py-2.5 text-right font-semibold tabular-nums text-blue-300">{formatRupiah(parseNumber(row.revenue))}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="bapp-table-empty">
+                  <td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-500">
                     Tidak ada data yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -1389,26 +1311,40 @@ const BappDashboard: React.FC = () => {
           </table>
         </div>
 
-        {/* PAGINATION GLOBAL DARI App.css */}
+        {/* PAGINATION */}
 
         {sortedTableRows.length > 0 && (
-          <div className="table-pagination">
-            <button type="button" className="pagination-button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
-              ← Sebelumnya
-            </button>
-
-            <span className="pagination-info">
-              Halaman {currentPage} dari {totalPages}
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-500/15 px-[18px] py-3">
+            <span className="text-[10px] text-slate-400">
+              Halaman <span className="font-semibold text-slate-200">{currentPage}</span> dari <span className="font-semibold text-slate-200">{totalPages}</span>
             </span>
 
-            <button type="button" className="pagination-button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
-              Berikutnya →
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-400/15 bg-slate-300/[0.03] px-2.5 text-[9px] font-semibold text-slate-300 transition hover:border-blue-400/30 hover:bg-blue-400/10 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <ChevronLeft size={12} />
+                Sebelumnya
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-blue-400/25 bg-gradient-to-r from-blue-500/15 to-indigo-500/15 px-2.5 text-[9px] font-semibold text-blue-200 transition hover:border-blue-400/45 hover:from-blue-500/25 hover:to-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Berikutnya
+                <ChevronRight size={12} />
+              </button>
+            </div>
           </div>
         )}
       </section>
     </div>
   );
-};;
+};
 
 export default BappDashboard;

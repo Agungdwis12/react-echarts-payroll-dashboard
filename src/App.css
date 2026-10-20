@@ -1525,3 +1525,17 @@
 .multi-select.is-open .multi-select-arrow {
   transform: translateY(-30%) rotate(225deg);
 }
+
+/* Standar tinggi chart untuk seluruh dashboard */
+.dashboard-chart-body {
+  height: 360px;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+/* Card chart tidak memaksakan tinggi berlebih */
+.dashboard-chart-card {
+  height: auto;
+  min-height: 0;
+  align-self: start;
+}

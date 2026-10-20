@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { getGpm, getTarget, getDetailCost } from "../services/dashboardService";
-import "./CostDashboard.css";
+import MultiSelect from "../components/dashboard/MultiSelect";
+import { Target, TrendingUp, Gauge, Wallet, ChartNoAxesCombined, PieChart, ReceiptText, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+
 
 type GpmRow = {
   id?: number;
@@ -143,7 +145,6 @@ const formatCompactRupiah = (value: number): string => {
   return `Rp ${value.toLocaleString("id-ID")}`;
 };
 
-
 const formatChartValue = (value: number): string => {
   const absolute = Math.abs(value);
 
@@ -171,116 +172,6 @@ const chartAxisLine = "rgba(194, 210, 228, 0.12)";
 const chartSplitLine = "rgba(194, 210, 228, 0.07)";
 
 /* =========================================================
-   GLOBAL MULTI SELECT
-========================================================= */
-
-interface MultiSelectProps {
-  value: string[];
-  options: string[];
-  placeholder?: string;
-  searchPlaceholder?: string;
-  onChange: (value: string[]) => void;
-}
-
-const MultiSelect: React.FC<MultiSelectProps> = ({ value, options, placeholder = "Semua", searchPlaceholder = "Cari...", onChange }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const filteredOptions = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    if (!keyword) return options;
-
-    return options.filter((option) => option.toLowerCase().includes(keyword));
-  }, [options, search]);
-
-  const toggleOption = (option: string) => {
-    if (value.includes(option)) {
-      onChange(value.filter((item) => item !== option));
-    } else {
-      onChange([...value, option]);
-    }
-  };
-
-  const displayValue = () => {
-    if (value.length === 0) return placeholder;
-    if (value.length === 1) return value[0];
-
-    return `${value.length} dipilih`;
-  };
-
-  return (
-    <div ref={wrapperRef} className={`multi-select ${open ? "is-open" : ""}`}>
-      <button type="button" className={`multi-select-trigger ${open ? "multi-select-trigger-open" : ""}`} onClick={() => setOpen((previous) => !previous)}>
-        <span className={`multi-select-value ${value.length === 0 ? "multi-select-placeholder" : ""}`}>{displayValue()}</span>
-
-        <span className="multi-select-arrow" />
-      </button>
-
-      {open && (
-        <div className="multi-select-dropdown">
-          <div className="multi-select-search">
-            <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} autoFocus />
-          </div>
-
-          <div className="multi-select-actions">
-            <button type="button" onClick={() => onChange([...options])}>
-              Pilih Semua
-            </button>
-
-            <button type="button" onClick={() => onChange([])}>
-              Hapus Semua
-            </button>
-          </div>
-
-          <div className="multi-select-options">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const checked = value.includes(option);
-
-                return (
-                  <label key={option} className={`multi-select-option ${checked ? "is-selected" : ""}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
-
-                    <span className="multi-select-checkbox">
-                      {checked && (
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m5 12 4 4L19 6" />
-                        </svg>
-                      )}
-                    </span>
-
-                    <span className="multi-select-label">{option}</span>
-                  </label>
-                );
-              })
-            ) : (
-              <div className="multi-select-empty">Tidak ada data</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* =========================================================
    COMPONENT
 ========================================================= */
 
@@ -295,6 +186,8 @@ const CostDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   /* =========================================================
      FETCH DATA
@@ -506,6 +399,32 @@ const CostDashboard: React.FC = () => {
   }, [filteredTarget, filteredGpm]);
 
   /* =========================================================
+     TARGET PERFORMANCE: TARGET VS REALISASI
+  ========================================================= */
+
+  const targetProgress = useMemo(() => {
+    if (filteredTarget.length === 0) return null;
+
+    const targetSustain = filteredTarget.reduce((sum, row) => sum + parseNumber(row.nominal_target_sustain), 0);
+    const realisasiSustain = filteredTarget.reduce((sum, row) => sum + parseNumber(row.realisasi_sustain), 0);
+    const targetScaling = filteredTarget.reduce((sum, row) => sum + parseNumber(row.nominal_target_scaling), 0);
+    const realisasiScaling = filteredTarget.reduce((sum, row) => sum + parseNumber(row.realisasi_scaling), 0);
+
+    return {
+      sustain: {
+        target: targetSustain,
+        realisasi: realisasiSustain,
+        percentage: targetSustain > 0 ? (realisasiSustain / targetSustain) * 100 : 0,
+      },
+      scaling: {
+        target: targetScaling,
+        realisasi: realisasiScaling,
+        percentage: targetScaling > 0 ? (realisasiScaling / targetScaling) * 100 : 0,
+      },
+    };
+  }, [filteredTarget]);
+
+  /* =========================================================
      COST SUMMARY: BREAKDOWN PER KATEGORI
   ========================================================= */
 
@@ -636,7 +555,7 @@ const CostDashboard: React.FC = () => {
           fontSize: 9,
         },
         itemWidth: 12,
-        itemHeight: 8,
+        itemHeight: 7,
         itemGap: 14,
       },
 
@@ -719,7 +638,7 @@ const CostDashboard: React.FC = () => {
           type: "bar",
           yAxisIndex: 0,
           barMaxWidth: 24,
-          barGap: "25%",
+          barGap: "0%",
           barCategoryGap: "40%",
           itemStyle: {
             borderRadius: [4, 4, 0, 0],
@@ -769,7 +688,7 @@ const CostDashboard: React.FC = () => {
           type: "line",
           yAxisIndex: 1,
           z: 10,
-          smooth: 0.3,
+          smooth: false,
           connectNulls: false,
           showSymbol: true,
           symbol: "circle",
@@ -870,7 +789,7 @@ const CostDashboard: React.FC = () => {
           fontSize: 9,
         },
         itemWidth: 12,
-        itemHeight: 8,
+        itemHeight: 7,
         itemGap: 14,
       },
 
@@ -950,7 +869,7 @@ const CostDashboard: React.FC = () => {
           type: "bar",
           yAxisIndex: 0,
           barMaxWidth: 22,
-          barGap: "20%",
+          barGap: "0%",
           barCategoryGap: "35%",
           itemStyle: {
             borderRadius: [4, 4, 0, 0],
@@ -1000,7 +919,7 @@ const CostDashboard: React.FC = () => {
           type: "line",
           yAxisIndex: 1,
           z: 10,
-          smooth: 0.3,
+          smooth: false,
           connectNulls: false,
           showSymbol: true,
           symbol: "circle",
@@ -1039,171 +958,6 @@ const CostDashboard: React.FC = () => {
   }, [monthlyData]);
 
   /* =========================================================
-     CHART: TOTAL COST PER BULAN
-     Sumber: detail_cost.total
-  ========================================================= */
-
-  const totalCostMonthlyOption = useMemo(() => {
-    const monthMap = new Map<
-      string,
-      {
-        key: string;
-        label: string;
-        total: number;
-      }
-    >();
-
-    filteredDetailCost.forEach((row) => {
-      const date = parseDate(row.periode_bulan);
-
-      if (!date) return;
-
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-      const current = monthMap.get(key) ?? {
-        key,
-        label: `${MONTH_NAMES[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`,
-        total: 0,
-      };
-
-      // Gunakan kolom total agar nominal kategori tidak dihitung dua kali.
-      current.total += parseNumber(row.total);
-
-      monthMap.set(key, current);
-    });
-
-    const rows = Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
-
-    return {
-      backgroundColor: "transparent",
-
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "#182638",
-        borderColor: "rgba(194, 210, 228, 0.14)",
-        textStyle: {
-          color: "#e8eef5",
-          fontSize: 10,
-        },
-        formatter: (params: any[]) => {
-          const item = params?.[0];
-
-          if (!item) return "";
-
-          return `<b>${item.axisValue}</b><br/>${item.marker} Total Cost: <b>${formatRupiah(Number(item.value) || 0)}</b>`;
-        },
-      },
-
-      grid: {
-        left: 65,
-        right: 24,
-        top: 22,
-        bottom: 38,
-        containLabel: true,
-      },
-
-      xAxis: {
-        type: "category",
-        boundaryGap: false,
-        data: rows.map((item) => item.label),
-        axisLine: {
-          lineStyle: {
-            color: chartAxisLine,
-          },
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          interval: "auto",
-          hideOverlap: true,
-          margin: 12,
-        },
-      },
-
-      yAxis: {
-        type: "value",
-        min: 0,
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          formatter: (value: number) => formatChartValue(value),
-        },
-        splitLine: {
-          lineStyle: {
-            color: chartSplitLine,
-          },
-        },
-      },
-
-      series: [
-        {
-          name: "Total Cost",
-          type: "line",
-          smooth: 0.3,
-          connectNulls: false,
-          showSymbol: true,
-          symbol: "circle",
-          symbolSize: 7,
-          lineStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: "#93C5FD" },
-                { offset: 0.5, color: "#60A5FA" },
-                { offset: 1, color: "#3B82F6" },
-              ],
-            },
-            width: 3,
-            cap: "round",
-          },
-          itemStyle: {
-            color: "#60A5FA",
-            borderColor: "#FFFFFF",
-            borderWidth: 1.5,
-          },
-          areaStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                {
-                  offset: 0,
-                  color: "rgba(96, 165, 250, 0.25)",
-                },
-                {
-                  offset: 1,
-                  color: "rgba(96, 165, 250, 0.02)",
-                },
-              ],
-            },
-          },
-          emphasis: {
-            focus: "series",
-            scale: 1.2,
-          },
-          data: rows.map((item) => item.total),
-        },
-      ],
-    };
-  }, [filteredDetailCost]);
-
-  /* =========================================================
      CHART: BIAYA PER KATEGORI
   ========================================================= */
 
@@ -1238,10 +992,10 @@ const CostDashboard: React.FC = () => {
       },
 
       grid: {
-        left: 10,
-        right: 65,
-        top: 20,
-        bottom: 25,
+        left: 8,
+        right: 42,
+        top: 12,
+        bottom: 22,
         containLabel: true,
       },
 
@@ -1257,6 +1011,8 @@ const CostDashboard: React.FC = () => {
         axisLabel: {
           color: chartBaseTextColor,
           fontSize: 9,
+          margin: 8,
+          hideOverlap: true,
           formatter: (value: number) => formatChartValue(value),
         },
         splitLine: {
@@ -1279,8 +1035,9 @@ const CostDashboard: React.FC = () => {
         axisLabel: {
           color: "#b8c6d8",
           fontSize: 10,
-          width: 155,
+          width: 145,
           overflow: "truncate",
+          margin: 10,
         },
       },
 
@@ -1288,7 +1045,7 @@ const CostDashboard: React.FC = () => {
         {
           name: "Biaya",
           type: "bar",
-          barMaxWidth: 25,
+          barMaxWidth: 22,
 
           itemStyle: {
             borderRadius: [0, 6, 6, 0],
@@ -1299,27 +1056,29 @@ const CostDashboard: React.FC = () => {
               x2: 1,
               y2: 0,
               colorStops: [
-                { offset: 0, color: "#93C5FD" },
-                { offset: 0.5, color: "#60A5FA" },
-                { offset: 1, color: "#818CF8" },
+                { offset: 0, color: "#FDE68A" }, // Kuning lembut
+                { offset: 0.5, color: "#FBBF24" }, // Amber
+                { offset: 1, color: "#F59E0B" }, // Oranye
               ],
             },
           },
 
           emphasis: {
             itemStyle: {
-              color: "#A5B4FC",
+              color: "#FCD34D",
+              shadowColor: "rgba(245, 158, 11, 0.25)",
+              shadowBlur: 8,
             },
           },
 
           label: {
             show: true,
             position: "right",
-            color: "#A5B4FC",
+            color: "#FCD34D",
             fontSize: 10,
+            distance: 5,
             formatter: (params: any) => {
               const source = items[params.dataIndex];
-
               return source ? `${source.percentage.toFixed(1)}%` : "";
             },
           },
@@ -1330,6 +1089,20 @@ const CostDashboard: React.FC = () => {
     };
   }, [costSummary]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredDetailCost.length / pageSize));
+  const paginatedDetailCost = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredDetailCost.slice(startIndex, startIndex + pageSize);
+  }, [filteredDetailCost, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   /* =========================================================
      RESET FILTER
   ========================================================= */
@@ -1337,6 +1110,7 @@ const CostDashboard: React.FC = () => {
   const resetFilters = () => {
     setSelectedMonth([]);
     setSelectedYear([]);
+    setCurrentPage(1);
   };
 
   /* =========================================================
@@ -1345,8 +1119,8 @@ const CostDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="app-state app-state-loading">
-        <div className="app-spinner" />
+      <div className="flex min-h-[320px] items-center justify-center text-slate-300 flex-col gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-600 border-t-blue-400" />
         <span>Memuat data Cost Payroll...</span>
       </div>
     );
@@ -1358,12 +1132,12 @@ const CostDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="app-state app-state-error">
-        <div className="app-state-content">
+      <div className="flex min-h-[320px] items-center justify-center text-slate-300 text-center">
+        <div className="rounded-xl border border-rose-400/20 bg-slate-800/40 p-6 text-center [&_h2]:text-lg [&_h2]:font-bold [&_p]:mt-2 [&_p]:text-sm">
           <h2>Gagal Memuat Dashboard Cost Payroll</h2>
           <p>{error}</p>
 
-          <button type="button" className="app-retry-button" onClick={() => window.location.reload()}>
+          <button type="button" className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500" onClick={() => window.location.reload()}>
             Coba Lagi
           </button>
         </div>
@@ -1376,36 +1150,49 @@ const CostDashboard: React.FC = () => {
   ========================================================= */
 
   return (
-    <div className="cost-page">
-      <header className="bapp-header">
-        <div className="bapp-header-copy">
-          <div className="bapp-title-row">
-            <h1>Dashboard Target &amp; Cost</h1>
+    <div className="min-w-0 w-full space-y-3 pb-6 text-slate-200">
+      {/* HEADER */}
+      <header className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-lg font-extrabold tracking-tight text-slate-50 sm:text-xl">Dashboard Target &amp; Cost</h1>
+          <p className="mt-1 text-[11px] text-slate-400">Monitoring target, revenue, dan cost payroll.</p>
+          <p className="mt-1.5 text-[10px] text-slate-500">
+            Sumber data: <strong className="font-semibold text-slate-400">gpm</strong>, <strong className="font-semibold text-slate-400">target</strong>, dan <strong className="font-semibold text-slate-400">detail_cost</strong>
+          </p>
+        </div>
 
-            <span className="bapp-live-badge">
-              <span className="bapp-live-dot" />
-              Data Terhubung
-            </span>
-          </div>
-
-          <p>Monitoring target, revenue, dan cost payroll</p>
-
-          <span className="bapp-source">
-            Sumber data: <strong>gpm</strong> &amp; <strong>target</strong> &amp; <strong>detail_cost</strong>
+        <div className="flex w-fit shrink-0 items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
+          Data Terhubung
         </div>
       </header>
-
+    
       {/* FILTER */}
-
-      <section className="bapp-filter-card cost-bapp-filter-card">
-        <div className="bapp-filter-heading">
-          <div>
-            <span className="bapp-section-kicker">FILTER DATA</span>
-            <h2>Parameter Dashboard</h2>
+     <section className="relative z-30 mb-4 rounded-[15px] border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.16)] sm:p-[17px_18px_18px]">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-gradient-to-br from-blue-400/15 to-indigo-500/10 text-blue-300">
+            <Filter size={15} />
           </div>
 
-          <button type="button" className="reset-filter" onClick={resetFilters}>
+          <div>
+            <span className="mb-1 block text-[8px] font-extrabold tracking-[1.1px] text-blue-300">
+              FILTER DATA
+            </span>
+            <h2 className="text-xs font-bold text-slate-100">
+              Parameter Dashboard
+            </h2>
+          </div>
+        </div>
+
+          <button
+            type="button"
+            className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-lg border border-slate-500/25 bg-white/[0.035] px-3 text-[10px] font-semibold text-slate-400 transition hover:border-blue-400/50 hover:bg-blue-500/10 hover:text-blue-100 sm:self-auto"
+            onClick={resetFilters}
+          >
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
               <path d="M21 3v5h-5" />
@@ -1417,15 +1204,15 @@ const CostDashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="bapp-filter-grid cost-filter-grid">
-          <div className="bapp-filter-item">
-            <label>Bulan</label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="relative min-w-0">
+            <label className="mb-1 block text-[10px] font-bold text-slate-300/80">Bulan</label>
 
             <MultiSelect value={selectedMonth} options={MONTH_NAMES} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonth} />
           </div>
 
-          <div className="bapp-filter-item">
-            <label>Tahun</label>
+          <div className="relative min-w-0">
+            <label className="mb-1 block text-[10px] font-bold text-slate-300/80">Tahun</label>
 
             <MultiSelect value={selectedYear} options={years.map((year) => String(year))} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setSelectedYear} />
           </div>
@@ -1433,117 +1220,249 @@ const CostDashboard: React.FC = () => {
       </section>
 
       {/* KPI */}
-
-      <section className="cost-kpi-grid">
-        <article className="cost-kpi-card blue">
-          <div className="cost-kpi-label">Target Revenue</div>
-
-          <div className="cost-kpi-value">{formatCompactRupiah(kpi.targetRevenue)}</div>
-
-          <div className="cost-kpi-description">Target Sustain + Scaling</div>
+      <section className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-blue-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-blue-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Target Revenue</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/10 text-blue-300">
+              <Target size={16} />
+            </span>
+          </div>
+          <div className="relative mt-2 min-w-0">
+            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg" title={formatCompactRupiah(kpi.targetRevenue)}>
+              {formatCompactRupiah(kpi.targetRevenue)}
+            </strong>
+            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Target Sustain + Scaling</p>
+          </div>
         </article>
 
-        <article className="cost-kpi-card green">
-          <div className="cost-kpi-label">Realisasi Revenue</div>
-
-          <div className="cost-kpi-value">{formatCompactRupiah(kpi.realisasiRevenue)}</div>
-
-          <div className="cost-kpi-description">Realisasi Sustain + Scaling</div>
+        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-emerald-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-emerald-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Realisasi Revenue</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
+              <TrendingUp size={16} />
+            </span>
+          </div>
+          <div className="relative mt-2 min-w-0">
+            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg" title={formatCompactRupiah(kpi.realisasiRevenue)}>
+              {formatCompactRupiah(kpi.realisasiRevenue)}
+            </strong>
+            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Realisasi Sustain + Scaling</p>
+          </div>
         </article>
 
-        <article className="cost-kpi-card cyan">
-          <div className="cost-kpi-label">Revenue Achievement</div>
-
-          <div className="cost-kpi-value">{kpi.achievement.toFixed(1)}%</div>
-
-          <div className="cost-kpi-description">Realisasi Revenue / Target Revenue</div>
+        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-cyan-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-cyan-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Revenue Achievement</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+              <Gauge size={16} />
+            </span>
+          </div>
+          <div className="relative mt-2 min-w-0">
+            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg">{kpi.achievement.toFixed(1)}%</strong>
+            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Realisasi Revenue / Target Revenue</p>
+          </div>
         </article>
 
-        <article className="cost-kpi-card orange">
-          <div className="cost-kpi-label">GPM</div>
-
-          <div className="cost-kpi-value">{kpi.gpm.toFixed(1)}%</div>
-
-          <div className="cost-kpi-description">Revenue Payroll BAPP - Cost Payroll</div>
+        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-amber-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-amber-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">GPM</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300">
+              <Wallet size={16} />
+            </span>
+          </div>
+          <div className="relative mt-2 min-w-0">
+            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg">{kpi.gpm.toFixed(1)}%</strong>
+            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Revenue Payroll BAPP - Cost Payroll</p>
+          </div>
         </article>
       </section>
 
       {/* CHART TARGET VS REALISASI */}
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+        <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3.5 sm:px-[18px]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10 text-blue-300">
+            <ChartNoAxesCombined size={17} />
+          </div>
 
-      <section className="cost-chart-card chart-blue">
-        <div className="cost-chart-header">
-          <div>
-            <h3>Target vs Realisasi Revenue</h3>
-            <span>Perbandingan target dan realisasi revenue per bulan</span>
+          <div className="min-w-0">
+            <h3 className="m-0 text-[13px] font-bold text-slate-100">Tren Target dan Realisasi Revenue Bulanan</h3>
+            <p className="mt-1 text-[10px] leading-snug text-slate-400">Perbandingan target, realisasi, dan pencapaian revenue setiap bulan</p>
           </div>
         </div>
 
-        <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueTargetOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
+        <div className="min-w-0 px-2 py-3 sm:px-4">
+          {monthlyData.length ? (
+            <ReactECharts option={revenueTargetOption} style={{ width: "100%", height: 270 }} notMerge lazyUpdate />
+          ) : (
+            <div className="flex min-h-[260px] items-center justify-center text-[11px] text-slate-500">Tidak ada data</div>
+          )}
+        </div>
       </section>
 
       {/* CHART REVENUE VS COST & GPM */}
-
-      <div className="cost-chart-grid">
-        <section className="cost-chart-card chart-cyan">
-          <div className="cost-chart-header">
-            <div>
-              <h3>Revenue vs Cost Payroll &amp; GPM</h3>
-              <span>Perbandingan Revenue Payroll BAPP, Cost Payroll, dan Gross Profit Margin</span>
+      <div className="grid grid-cols-1 gap-4">
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+          <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3.5 sm:px-[18px]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+              <TrendingUp size={17} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="m-0 text-[13px] font-bold text-slate-100">Revenue vs Cost Payroll &amp; GPM</h3>
+              <p className="mt-1 text-[10px] leading-snug text-slate-400">Tren revenue, biaya payroll, dan Gross Profit Margin per bulan</p>
             </div>
           </div>
 
-          <div className="cost-chart-body">{monthlyData.length ? <ReactECharts option={revenueCostOption} style={{ width: "100%", height: 320 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data</div>}</div>
+          <div className="min-w-0 px-2 py-3 sm:px-4">
+            {monthlyData.length ? (
+              <ReactECharts option={revenueCostOption} style={{ width: "100%", height: 270 }} notMerge lazyUpdate />
+            ) : (
+              <div className="flex min-h-[260px] items-center justify-center text-[11px] text-slate-500">Tidak ada data</div>
+            )}
+          </div>
         </section>
       </div>
 
-      {/* CHART TOTAL COST & BIAYA PER KATEGORI */}
+      {/* TARGET REVENUE & BIAYA PER KATEGORI */}
+      <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-5">
+        {/* KIRI: TARGET PERFORMANCE — 40% */}
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] xl:col-span-2">
+          {/* HEADER */}
+          <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10 text-blue-300">
+              <Target size={17} />
+            </div>
 
-      <div className="cost-breakdown-grid">
-        {/* KIRI: TOTAL COST PER BULAN */}
-        <section className="cost-chart-card chart-cyan">
-          <div className="cost-chart-header">
-            <div>
-              <h3>Total Cost per Bulan</h3>
-              <span>Tren total biaya bulanan</span>
+            <div className="min-w-0">
+              <h3 className="m-0 text-[13px] font-bold text-slate-100">Pencapaian Target Revenue per Kategori</h3>
+              <p className="mt-1 text-[10px] leading-snug text-slate-400">Pencapaian target revenue Sustain dan Scaling</p>
             </div>
           </div>
 
-          <div className="cost-chart-body">
-            {filteredDetailCost.length > 0 ? <ReactECharts option={totalCostMonthlyOption} style={{ width: "100%", height: 340 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
-          </div>
+          {/* CONTENT */}
+          {targetProgress ? (
+            <div className="flex flex-1 flex-col justify-center gap-5 px-4 py-4">
+              {/* SUSTAIN */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <strong className="text-xs font-bold text-slate-100">Sustain</strong>
+
+                  <span className="text-right text-[10px] text-slate-400">
+                    <span className="!mt-0 !inline !text-[10px] !text-emerald-300">{formatRupiah(targetProgress.sustain.realisasi)}</span>
+                    {" dari "}
+                    <span className="!mt-0 !inline !text-[10px] !text-slate-300">{formatRupiah(targetProgress.sustain.target)}</span>
+                  </span>
+                </div>
+
+                <div className="h-2 overflow-hidden rounded-full bg-slate-700/70">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-500"
+                    style={{
+                      width: `${Math.min(Math.max(targetProgress.sustain.percentage, 0), 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-500">Realisasi target Sustain</span>
+
+                  <strong className="text-[10px] font-bold text-emerald-300">
+                    {targetProgress.sustain.percentage.toLocaleString("id-ID", {
+                      maximumFractionDigits: 2,
+                    })}
+                    % tercapai
+                  </strong>
+                </div>
+              </div>
+
+              {/* SCALING */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <strong className="text-xs font-bold text-slate-100">Scaling</strong>
+
+                  <span className="text-right text-[10px] text-slate-400">
+                    <span className="!mt-0 !inline !text-[10px] !text-blue-300">{formatRupiah(targetProgress.scaling.realisasi)}</span>
+                    {" dari "}
+                    <span className="!mt-0 !inline !text-[10px] !text-slate-300">{formatRupiah(targetProgress.scaling.target)}</span>
+                  </span>
+                </div>
+
+                <div className="h-2 overflow-hidden rounded-full bg-slate-700/70">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-300 transition-all duration-500"
+                    style={{
+                      width: `${Math.min(Math.max(targetProgress.scaling.percentage, 0), 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-500">Realisasi target Scaling</span>
+
+                  <strong className="text-[10px] font-bold text-blue-300">
+                    {targetProgress.scaling.percentage.toLocaleString("id-ID", {
+                      maximumFractionDigits: 2,
+                    })}
+                    % tercapai
+                  </strong>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-[220px] flex-1 items-center justify-center px-4 text-center text-[11px] text-slate-500">Tidak ada data target untuk filter yang dipilih.</div>
+          )}
         </section>
 
-        {/* KANAN: BIAYA PER KATEGORI */}
-        <section className="cost-chart-card chart-blue">
-          <div className="cost-chart-header">
-            <div>
-              <h3>Biaya per Kategori</h3>
-              <span>Nominal dan persentase tiap komponen biaya</span>
+        {/* KANAN: BIAYA PER KATEGORI — 60% */}
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] xl:col-span-3">
+          {/* HEADER */}
+          <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
+              <PieChart size={17} />
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="m-0 text-[13px] font-bold text-slate-100">Biaya per Kategori</h3>
+              <p className="mt-1 text-[10px] leading-snug text-slate-400">Rincian nominal dan proporsi setiap komponen biaya</p>
             </div>
           </div>
 
-          <div className="cost-chart-body">
-            {costSummary.components.length > 0 ? <ReactECharts option={costByCategoryOption} style={{ width: "100%", height: 340 }} notMerge lazyUpdate /> : <div className="cost-empty-chart">Tidak ada data untuk filter yang dipilih.</div>}
+          {/* CHART */}
+          <div className="flex min-w-0 flex-1 items-center px-2 py-1 sm:px-3">
+            {costSummary.components.length > 0 ? (
+              <ReactECharts option={costByCategoryOption} style={{ width: "100%", height: 200 }} notMerge lazyUpdate />
+            ) : (
+              <div className="flex min-h-[220px] flex-1 items-center justify-center text-center text-[11px] text-slate-500">Tidak ada data untuk filter yang dipilih.</div>
+            )}
           </div>
         </section>
       </div>
 
       {/* DETAIL COST TABLE */}
-
-      <section className="cost-table-card">
-        <div className="cost-table-title">
-          <div>
-            <h3>Detail Cost</h3>
-            <span>Rincian komponen cost berdasarkan periode</span>
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-400/10 px-4 py-3.5 sm:px-[18px]">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-400/20 bg-violet-400/10 text-violet-300">
+              <ReceiptText size={17} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="m-0 text-[13px] font-bold text-slate-100">Detail Cost</h3>
+              <p className="mt-1 text-[10px] leading-snug text-slate-400">Rincian komponen biaya payroll berdasarkan periode</p>
+            </div>
           </div>
-
-          <div className="cost-table-source">
-            Source: <strong>detail_cost</strong>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-slate-400">Total Cost:</span>
+            <strong className="font-bold text-amber-300">{formatRupiah(costSummary.total)}</strong>
           </div>
         </div>
 
-        <div className="cost-table-wrapper">
-          <table className="cost-table">
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+          {" "}
+          <table className="w-full min-w-[1150px] border-separate border-spacing-0 text-[10px] [&_thead_th]:whitespace-nowrap [&_thead_th]:border-b [&_thead_th]:border-r [&_thead_th]:border-slate-500/20 [&_thead_th]:bg-[linear-gradient(180deg,#273c58,#22344d)] [&_thead_th]:px-3 [&_thead_th]:py-3 [&_thead_th]:text-left [&_thead_th]:text-[9px] [&_thead_th]:font-bold [&_thead_th]:text-slate-300 [&_tbody_td]:whitespace-nowrap [&_tbody_td]:border-b [&_tbody_td]:border-r [&_tbody_td]:border-slate-500/10 [&_tbody_td]:px-3 [&_tbody_td]:py-2.5 [&_tbody_td]:text-slate-400 [&_tbody_tr]:bg-slate-950/20 [&_tbody_tr:nth-child(even)]:bg-slate-800/40 [&_tbody_tr:hover]:bg-blue-400/10 [&_thead_th:last-child]:border-r-0 [&_tbody_td:last-child]:border-r-0">
             <thead>
               <tr>
                 <th>No.</th>
@@ -1559,12 +1478,12 @@ const CostDashboard: React.FC = () => {
             </thead>
 
             <tbody>
-              {filteredDetailCost.length > 0 ? (
-                filteredDetailCost.map((row, index) => (
+              {paginatedDetailCost.length > 0 ? (
+                paginatedDetailCost.map((row, index) => (
                   <tr key={`${row.periode_bulan}-${index}`}>
-                    <td className="cost-number-cell">{index + 1}</td>
+                    <td className="text-center text-slate-500">{(currentPage - 1) * pageSize + index + 1}</td>
 
-                    <td className="cost-month-cell">{getMonthYearLabel(row.periode_bulan)}</td>
+                    <td className="font-medium text-slate-200">{getMonthYearLabel(row.periode_bulan)}</td>
 
                     <td>{formatRupiah(parseNumber(row.beban_jarkom))}</td>
 
@@ -1578,12 +1497,12 @@ const CostDashboard: React.FC = () => {
 
                     <td>{formatRupiah(parseNumber(row.depresiasi))}</td>
 
-                    <td className="cost-total-cell">{formatRupiah(parseNumber(row.total))}</td>
+                    <td className="font-bold text-blue-200">{formatRupiah(parseNumber(row.total))}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="cost-empty-table">
+                  <td colSpan={9} className="!p-9 !text-center !text-slate-500">
                     Tidak ada data untuk filter yang dipilih.
                   </td>
                 </tr>
@@ -1591,6 +1510,39 @@ const CostDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredDetailCost.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-slate-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-[18px]">
+            <p className="text-[10px] text-slate-400">
+              Menampilkan{" "}
+              <span className="font-semibold text-slate-200">
+                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredDetailCost.length)}
+              </span>{" "}
+              dari <span className="font-semibold text-slate-200">{filteredDetailCost.length}</span> data
+            </p>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-500/25 bg-white/[0.035] px-3 text-[10px] font-semibold text-slate-300 transition hover:border-blue-400/40 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <ChevronLeft size={14} /> Sebelumnya
+              </button>
+              <span className="min-w-[68px] text-center text-[10px] text-slate-400">
+                Halaman <strong className="text-slate-200">{currentPage}</strong> / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-500/25 bg-white/[0.035] px-3 text-[10px] font-semibold text-slate-300 transition hover:border-blue-400/40 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Berikutnya <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

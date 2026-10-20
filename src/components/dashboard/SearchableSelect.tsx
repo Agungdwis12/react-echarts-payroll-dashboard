@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Search, Check } from "lucide-react";
+import FilterDropdown from "./FilterDropdown";
 
 interface SearchableSelectProps {
   value: string;
@@ -16,10 +18,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ value, options, pla
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* =========================================================
-     CLOSE WHEN CLICK OUTSIDE
-  ========================================================= */
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -35,154 +33,104 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ value, options, pla
     };
   }, []);
 
-  /* =========================================================
-     AUTO FOCUS SEARCH
-  ========================================================= */
-
   useEffect(() => {
     if (open) {
-      window.setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
+      inputRef.current?.focus();
     }
   }, [open]);
-
-  /* =========================================================
-     FILTER OPTIONS
-  ========================================================= */
 
   const filteredOptions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
-    if (!keyword) {
-      return options;
-    }
+    if (!keyword) return options;
 
     return options.filter((option) => option.toLowerCase().includes(keyword));
   }, [options, search]);
 
-  /* =========================================================
-     SELECT
-  ========================================================= */
-
   const handleSelect = (option: string) => {
     onChange(option);
-
     setOpen(false);
     setSearch("");
   };
 
-  /* =========================================================
-     TOGGLE
-  ========================================================= */
-
   const handleToggle = () => {
-    if (disabled) {
-      return;
-    }
+    if (disabled) return;
 
-    if (open) {
-      setOpen(false);
-      setSearch("");
-    } else {
-      setOpen(true);
-    }
-  };
-
-  /* =========================================================
-     KEYBOARD
-  ========================================================= */
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (disabled) {
-      return;
-    }
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleToggle();
-    }
-
-    if (event.key === "Escape") {
-      setOpen(false);
-      setSearch("");
-    }
+    setOpen((previous) => !previous);
+    setSearch("");
   };
 
   return (
-    <div ref={containerRef} className={`searchable-select ${open ? "is-open" : ""} ${disabled ? "is-disabled" : ""}`}>
-      {/* =====================================================
-          TRIGGER
-      ===================================================== */}
+    <div ref={containerRef} className="w-full min-w-0">
+      <FilterDropdown open={open} disabled={disabled} onClick={handleToggle} placeholder={placeholder} displayValue={value || placeholder} hasValue={Boolean(value)}>
+        <div className="border-b border-[#2B3D52] p-2">
+          <div className="flex items-center gap-2 rounded-lg border border-[#2B3D52] bg-[#0d192b] px-2">
+            <Search size={15} className="shrink-0 text-slate-400" />
 
-      <button type="button" className="searchable-select-trigger" onClick={handleToggle} onKeyDown={handleKeyDown} disabled={disabled} title={value || placeholder} aria-haspopup="listbox" aria-expanded={open}>
-        <span className="searchable-select-value">{value || placeholder}</span>
-
-        <span className="searchable-arrow" />
-      </button>
-
-      {/* =====================================================
-          DROPDOWN
-      ===================================================== */}
-
-      {open && !disabled && (
-        <div className="searchable-dropdown" role="listbox">
-          {/* =================================================
-              SEARCH
-          ================================================= */}
-
-          <div className="searchable-search">
-            <span className="search-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20 20-3.5-3.5" />
-              </svg>
-            </span>
-
-            <input ref={inputRef} type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false);
+                  setSearch("");
+                }
+              }}
+              placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
+              className="h-9 min-w-0 flex-1 bg-transparent text-xs text-[#D5DEE9] outline-none placeholder:text-slate-500"
+            />
 
             {search && (
-              <button type="button" className="clear-search" onClick={() => setSearch("")} aria-label="Clear search">
+              <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-lg text-slate-400 hover:bg-slate-700 hover:text-white">
                 ×
               </button>
             )}
           </div>
-
-          {/* =================================================
-              OPTIONS
-          ================================================= */}
-
-          <div className="searchable-options">
-            {/* ALL */}
-
-            <button type="button" className={`searchable-option ${value === "" ? "active" : ""}`} onClick={() => handleSelect("")}>
-              <span className="option-text">{placeholder}</span>
-
-              {value === "" && <span className="option-check">✓</span>}
-            </button>
-
-            {/* OPTIONS */}
-
-            {filteredOptions.map((option) => (
-              <button type="button" key={option} className={`searchable-option ${value === option ? "active" : ""}`} onClick={() => handleSelect(option)} title={option}>
-                <span className="option-text">{option}</span>
-
-                {value === option && <span className="option-check">✓</span>}
-              </button>
-            ))}
-
-            {/* NO RESULT */}
-
-            {filteredOptions.length === 0 && (
-              <div className="no-result">
-                <span>Tidak ada hasil</span>
-
-                <strong>"{search}"</strong>
-              </div>
-            )}
-          </div>
         </div>
-      )}
+
+        <div role="listbox" aria-label={placeholder} className="max-h-60 overflow-y-auto p-1">
+          <button
+            type="button"
+            role="option"
+            aria-selected={value === ""}
+            onClick={() => handleSelect("")}
+            className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${value === "" ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"}`}
+          >
+            <span className="truncate">{placeholder}</span>
+
+            {value === "" && <Check size={16} strokeWidth={2} className="shrink-0 text-blue-400" />}
+          </button>
+
+          {filteredOptions.map((option) => {
+            const selected = value === option;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                title={option}
+                onClick={() => handleSelect(option)}
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${selected ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"}`}
+              >
+                <span className="truncate">{option}</span>
+
+                {selected && <Check size={16} strokeWidth={2} className="shrink-0 text-blue-400" />}
+              </button>
+            );
+          })}
+
+          {filteredOptions.length === 0 && (
+            <div className="px-3 py-5 text-center text-xs text-slate-400">
+              Tidak ada hasil untuk <span className="font-medium text-[#D5DEE9]">"{search}"</span>
+            </div>
+          )}
+        </div>
+      </FilterDropdown>
     </div>
   );
 };
