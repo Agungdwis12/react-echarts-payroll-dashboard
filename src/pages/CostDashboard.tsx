@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { getGpm, getTarget, getDetailCost } from "../services/dashboardService";
 import MultiSelect from "../components/dashboard/MultiSelect";
-import { Target, TrendingUp, Gauge, Wallet, ChartNoAxesCombined, PieChart, ReceiptText, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Target, TrendingUp, Gauge, Wallet, ChartNoAxesCombined, PieChart, ReceiptText, ChevronLeft, ChevronRight, RefreshCw, XCircle } from "lucide-react";
 
 
 type GpmRow = {
@@ -1117,33 +1117,49 @@ const CostDashboard: React.FC = () => {
      LOADING
   ========================================================= */
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[320px] items-center justify-center text-slate-300 flex-col gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-600 border-t-blue-400" />
-        <span>Memuat data Cost Payroll...</span>
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
+       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
 
-  /* =========================================================
-     ERROR
-  ========================================================= */
+       <div>
+         <p className="text-sm font-semibold text-slate-200">Memuat Dashboard Cost & Target</p>
+         <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
+       </div>
+     </div>
+   );
+ }
 
-  if (error) {
-    return (
-      <div className="flex min-h-[320px] items-center justify-center text-slate-300 text-center">
-        <div className="rounded-xl border border-rose-400/20 bg-slate-800/40 p-6 text-center [&_h2]:text-lg [&_h2]:font-bold [&_p]:mt-2 [&_p]:text-sm">
-          <h2>Gagal Memuat Dashboard Cost Payroll</h2>
-          <p>{error}</p>
+ if (error) {
+   return (
+     <div className="flex min-h-[60vh] w-full items-center justify-center px-4 py-8">
+       <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#1d2a3b] to-[#172538] p-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+         {/* Error icon */}
+         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10">
+           <XCircle size={22} className="text-rose-400" />
+         </div>
 
-          <button type="button" className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500" onClick={() => window.location.reload()}>
-            Coba Lagi
-          </button>
-        </div>
-      </div>
-    );
-  }
+         <h2 className="text-base font-bold text-slate-100">Dashboard Cost & Target Gagal Dimuat</h2>
+
+         <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-400">Data dashboard belum berhasil diambil. Periksa koneksi internet atau coba muat ulang halaman.</p>
+
+         <div className="mt-4 rounded-lg border border-rose-400/10 bg-rose-400/[0.05] p-3 text-left">
+           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-300">Detail Error</p>
+           <p className="break-words text-[11px] leading-relaxed text-slate-300">{error}</p>
+         </div>
+
+         <button
+           type="button"
+           onClick={() => window.location.reload()}
+           className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/25"
+         >
+           <RefreshCw size={13} />
+           Coba Muat Ulang
+         </button>
+       </div>
+     </div>
+   );
+ }
 
   /* =========================================================
      MAIN UI
@@ -1169,24 +1185,16 @@ const CostDashboard: React.FC = () => {
           Data Terhubung
         </div>
       </header>
-    
-      {/* FILTER */}
-     <section className="relative z-30 mb-4 rounded-[15px] border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.16)] sm:p-[17px_18px_18px]">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-gradient-to-br from-blue-400/15 to-indigo-500/10 text-blue-300">
-            <Filter size={15} />
-          </div>
 
-          <div>
-            <span className="mb-1 block text-[8px] font-extrabold tracking-[1.1px] text-blue-300">
-              FILTER DATA
-            </span>
-            <h2 className="text-xs font-bold text-slate-100">
-              Parameter Dashboard
-            </h2>
+      {/* FILTER */}
+      <section className="relative z-30 mb-4 rounded-[15px] border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_12px_28px_rgba(0,0,0,0.16)] sm:p-[17px_18px_18px]">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center">
+            <div>
+              <span className="mb-0.5 block text-[8px] font-extrabold tracking-[1px] text-blue-300">FILTER DATA</span>
+              <h2 className="text-xs font-bold leading-tight text-slate-100">Parameter Dashboard</h2>
+            </div>
           </div>
-        </div>
 
           <button
             type="button"
@@ -1204,13 +1212,12 @@ const CostDashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:max-w-[600px]">
           <div className="relative min-w-0">
             <label className="mb-1 block text-[10px] font-bold text-slate-300/80">Bulan</label>
 
             <MultiSelect value={selectedMonth} options={MONTH_NAMES} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonth} />
           </div>
-
           <div className="relative min-w-0">
             <label className="mb-1 block text-[10px] font-bold text-slate-300/80">Tahun</label>
 
@@ -1220,64 +1227,68 @@ const CostDashboard: React.FC = () => {
       </section>
 
       {/* KPI */}
-      <section className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-blue-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
-          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-blue-400/[0.08] blur-2xl" />
-          <div className="relative flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Target Revenue</span>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-400/10 text-blue-300">
-              <Target size={16} />
+      <section className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* TARGET REVENUE */}
+        <article className="group relative flex min-h-[88px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border border-slate-300/[0.12] border-t-2 border-t-blue-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-2 shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-blue-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-1.5">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400">Target Revenue</span>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-400/10 text-blue-300">
+              <Target size={13} />
             </span>
           </div>
-          <div className="relative mt-2 min-w-0">
-            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg" title={formatCompactRupiah(kpi.targetRevenue)}>
+          <div className="relative mt-1 min-w-0">
+            <strong className="block break-words text-base font-extrabold leading-tight tracking-tight text-slate-100" title={formatCompactRupiah(kpi.targetRevenue)}>
               {formatCompactRupiah(kpi.targetRevenue)}
             </strong>
-            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Target Sustain + Scaling</p>
+            <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">Target Sustain + Scaling</p>
           </div>
         </article>
 
-        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-emerald-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
-          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-emerald-400/[0.08] blur-2xl" />
-          <div className="relative flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Realisasi Revenue</span>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
-              <TrendingUp size={16} />
+        {/* REALISASI REVENUE */}
+        <article className="group relative flex min-h-[88px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border border-slate-300/[0.12] border-t-2 border-t-emerald-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-2 shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-emerald-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-1.5">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400">Realisasi Revenue</span>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-400/10 text-emerald-300">
+              <TrendingUp size={13} />
             </span>
           </div>
-          <div className="relative mt-2 min-w-0">
-            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg" title={formatCompactRupiah(kpi.realisasiRevenue)}>
+          <div className="relative mt-1 min-w-0">
+            <strong className="block break-words text-base font-extrabold leading-tight tracking-tight text-slate-100" title={formatCompactRupiah(kpi.realisasiRevenue)}>
               {formatCompactRupiah(kpi.realisasiRevenue)}
             </strong>
-            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Realisasi Sustain + Scaling</p>
+            <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">Realisasi Sustain + Scaling</p>
           </div>
         </article>
 
-        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-cyan-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
-          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-cyan-400/[0.08] blur-2xl" />
-          <div className="relative flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">Revenue Achievement</span>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
-              <Gauge size={16} />
+        {/* REVENUE ACHIEVEMENT */}
+        <article className="group relative flex min-h-[88px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border border-slate-300/[0.12] border-t-2 border-t-cyan-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-2 shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-cyan-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-1.5">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400">Revenue Achievement</span>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-400/10 text-cyan-300">
+              <Gauge size={13} />
             </span>
           </div>
-          <div className="relative mt-2 min-w-0">
-            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg">{kpi.achievement.toFixed(1)}%</strong>
-            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Realisasi Revenue / Target Revenue</p>
+          <div className="relative mt-1 min-w-0">
+            <strong className="block text-base font-extrabold leading-tight tracking-tight text-slate-100">{kpi.achievement.toFixed(1)}%</strong>
+            <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">Realisasi Revenue / Target Revenue</p>
           </div>
         </article>
 
-        <article className="group relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 border-t-amber-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)] transition duration-200 hover:-translate-y-0.5">
-          <div className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-amber-400/[0.08] blur-2xl" />
-          <div className="relative flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">GPM</span>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300">
-              <Wallet size={16} />
+        {/* GPM */}
+        <article className="group relative flex min-h-[88px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border border-slate-300/[0.12] border-t-2 border-t-amber-400 bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-2 shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition duration-200 hover:-translate-y-0.5">
+          <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-amber-400/[0.08] blur-2xl" />
+          <div className="relative flex items-center justify-between gap-1.5">
+            <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400">GPM</span>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-400/10 text-amber-300">
+              <Wallet size={13} />
             </span>
           </div>
-          <div className="relative mt-2 min-w-0">
-            <strong className="block break-words text-lg font-extrabold leading-tight tracking-tight text-slate-100 sm:text-lg">{kpi.gpm.toFixed(1)}%</strong>
-            <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Revenue Payroll BAPP - Cost Payroll</p>
+          <div className="relative mt-1 min-w-0">
+            <strong className="block text-base font-extrabold leading-tight tracking-tight text-slate-100">{kpi.gpm.toFixed(1)}%</strong>
+            <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">Revenue Payroll BAPP - Cost Payroll</p>
           </div>
         </article>
       </section>
@@ -1328,9 +1339,9 @@ const CostDashboard: React.FC = () => {
       </div>
 
       {/* TARGET REVENUE & BIAYA PER KATEGORI */}
-      <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-5">
         {/* KIRI: TARGET PERFORMANCE — 40% */}
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] xl:col-span-2">
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] lg:col-span-2">
           {/* HEADER */}
           <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10 text-blue-300">
@@ -1418,7 +1429,7 @@ const CostDashboard: React.FC = () => {
         </section>
 
         {/* KANAN: BIAYA PER KATEGORI — 60% */}
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] xl:col-span-3">
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-400/15 bg-[linear-gradient(145deg,#1c2d42,#172638)] shadow-[0_12px_28px_rgba(0,0,0,0.14)] lg:col-span-3">
           {/* HEADER */}
           <div className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300">

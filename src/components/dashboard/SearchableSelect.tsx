@@ -63,9 +63,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ value, options, pla
   return (
     <div ref={containerRef} className="w-full min-w-0">
       <FilterDropdown open={open} disabled={disabled} onClick={handleToggle} placeholder={placeholder} displayValue={value || placeholder} hasValue={Boolean(value)}>
-        <div className="border-b border-[#2B3D52] p-2">
-          <div className="flex items-center gap-2 rounded-lg border border-[#2B3D52] bg-[#0d192b] px-2">
-            <Search size={15} className="shrink-0 text-slate-400" />
+        {/* Search input */}
+        <div className="border-b border-[#2B3D52] p-1.5">
+          <div className="flex items-center gap-1.5 rounded-md border border-[#2B3D52] bg-[#0d192b] px-2">
+            <Search size={12} className="shrink-0 text-slate-400" />
 
             <input
               ref={inputRef}
@@ -80,30 +81,39 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ value, options, pla
               }}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
-              className="h-9 min-w-0 flex-1 bg-transparent text-xs text-[#D5DEE9] outline-none placeholder:text-slate-500"
+              className="h-6 min-w-0 flex-1 bg-transparent text-[10px] text-[#D5DEE9] outline-none placeholder:text-[10px] placeholder:text-slate-500"
             />
 
             {search && (
-              <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-lg text-slate-400 hover:bg-slate-700 hover:text-white">
+              <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian" className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-sm text-slate-400 hover:bg-slate-700 hover:text-white">
                 ×
               </button>
             )}
           </div>
         </div>
 
-        <div role="listbox" aria-label={placeholder} className="max-h-60 overflow-y-auto p-1">
+        {/* Options dengan scrollbar berwarna */}
+        <div
+          role="listbox"
+          aria-label={placeholder}
+          className="max-h-60 overflow-y-auto overscroll-contain p-1 [scrollbar-width:thin] [scrollbar-color:#526780_#142238] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#142238] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#526780] [&::-webkit-scrollbar-thumb:hover]:bg-[#7188a5]"
+        >
+          {/* Pilihan default */}
           <button
             type="button"
             role="option"
             aria-selected={value === ""}
             onClick={() => handleSelect("")}
-            className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${value === "" ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"}`}
+            className={`flex w-full items-start justify-between gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[10px] leading-4 transition-colors ${
+              value === "" ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"
+            }`}
           >
-            <span className="truncate">{placeholder}</span>
+            <span className="min-w-0 flex-1 whitespace-normal break-words">{placeholder}</span>
 
-            {value === "" && <Check size={16} strokeWidth={2} className="shrink-0 text-blue-400" />}
+            {value === "" && <Check size={12} strokeWidth={2} className="mt-0.5 shrink-0 text-blue-400" />}
           </button>
 
+          {/* Daftar layanan */}
           {filteredOptions.map((option) => {
             const selected = value === option;
 
@@ -115,17 +125,20 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ value, options, pla
                 aria-selected={selected}
                 title={option}
                 onClick={() => handleSelect(option)}
-                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${selected ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"}`}
+                className={`flex w-full items-start justify-between gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[10px] leading-4 transition-colors ${
+                  selected ? "bg-blue-500/10 font-medium text-blue-300" : "text-[#D5DEE9] hover:bg-slate-700/50"
+                }`}
               >
-                <span className="truncate">{option}</span>
+                <span className="min-w-0 flex-1 whitespace-normal break-words">{option}</span>
 
-                {selected && <Check size={16} strokeWidth={2} className="shrink-0 text-blue-400" />}
+                {selected && <Check size={12} strokeWidth={2} className="mt-0.5 shrink-0 text-blue-400" />}
               </button>
             );
           })}
 
+          {/* Hasil pencarian kosong */}
           {filteredOptions.length === 0 && (
-            <div className="px-3 py-5 text-center text-xs text-slate-400">
+            <div className="px-2 py-3 text-center text-[10px] text-slate-400">
               Tidak ada hasil untuk <span className="font-medium text-[#D5DEE9]">"{search}"</span>
             </div>
           )}

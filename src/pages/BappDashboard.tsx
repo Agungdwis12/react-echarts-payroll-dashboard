@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, TrendingUp, X, Building2, Filter } from "lucide-react";
+import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, TrendingUp, X, Building2, XCircle } from "lucide-react";
 import { getMasterBappBulanan, getMasterDetailBapp } from "../services/dashboardService";
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 import MultiSelect from "../components/dashboard/MultiSelect";
@@ -939,28 +939,47 @@ const BappDashboard: React.FC = () => {
   const hasFilter = Boolean(selectedUnit || selectedMonths.length > 0 || selectedYears.length > 0);
 
   /* =========================================================
-     LOADING & ERROR
-  ========================================================= */
+   LOADING & ERROR
+========================================================= */
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-xs text-slate-300">
-        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
-        <span>Memuat data BAPP...</span>
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
+       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
+
+       <div>
+         <p className="text-sm font-semibold text-slate-200">Memuat Dashboard BAPP</p>
+         <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
+       </div>
+     </div>
+   );
+ }
 
   if (error) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-center text-xs text-slate-300">
-        <div className="max-w-lg rounded-xl border border-slate-500/20 bg-slate-800/70 p-5">
-          <h2 className="mb-2 text-sm font-bold text-slate-100">Gagal Memuat Dashboard</h2>
+      <div className="flex min-h-[60vh] w-full items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#1d2a3b] to-[#172538] p-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+          {/* Error icon */}
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10">
+            <XCircle size={22} className="text-rose-400" />
+          </div>
 
-          <p className="mb-4 text-[11px] text-slate-400">{error}</p>
+          <h2 className="text-base font-bold text-slate-100">Dashboard BAPP Gagal Dimuat</h2>
 
-          <button type="button" className="rounded-lg border border-blue-400/35 bg-blue-400/10 px-3 py-2 text-[11px] font-semibold text-blue-200 transition hover:bg-blue-400/20" onClick={() => window.location.reload()}>
-            Coba Lagi
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-400">Data dashboard belum berhasil diambil. Periksa koneksi internet atau coba muat ulang halaman.</p>
+
+          <div className="mt-4 rounded-lg border border-rose-400/10 bg-rose-400/[0.05] p-3 text-left">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-300">Detail Error</p>
+            <p className="break-words text-[11px] leading-relaxed text-slate-300">{error}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/25"
+          >
+            <RefreshCw size={13} />
+            Coba Muat Ulang
           </button>
         </div>
       </div>
@@ -991,20 +1010,12 @@ const BappDashboard: React.FC = () => {
 
       {/* FILTER */}
 
-    <section className="relative z-20 mb-3 rounded-xl border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
+      <section className="relative z-20 mb-3 rounded-xl border border-slate-400/15 bg-[linear-gradient(145deg,#1b2b40,#172538)] p-3 shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-gradient-to-br from-blue-400/15 to-indigo-500/10 text-blue-300">
-              <Filter size={15} />
-            </div>
-
+          <div className="flex items-center">
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-blue-300">
-                Filter Data
-              </p>
-              <h2 className="mt-0.5 text-xs font-bold text-slate-100">
-                Parameter Dashboard
-              </h2>
+              <span className="mb-0.5 block text-[8px] font-extrabold tracking-[1px] text-blue-300">FILTER DATA</span>
+              <h2 className="text-xs font-bold leading-tight text-slate-100">Parameter Dashboard</h2>
             </div>
           </div>
 
@@ -1020,19 +1031,17 @@ const BappDashboard: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div className="relative min-w-0">
             <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Unit</label>
 
             <SearchableSelect value={selectedUnit} options={unitOptions} placeholder="Semua Unit" searchPlaceholder="Cari unit..." onChange={setSelectedUnit} />
           </div>
-
           <div className="relative min-w-0">
             <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Bulan</label>
 
             <MultiSelect value={selectedMonths} options={monthOptions} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setSelectedMonths} />
           </div>
-
           <div className="relative min-w-0">
             <label className="mb-1 block text-[10px] font-semibold text-slate-300/80">Tahun</label>
 
@@ -1113,33 +1122,37 @@ const BappDashboard: React.FC = () => {
           return (
             <article
               key={item.title}
-              className={`relative flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 ${item.theme.border} bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-3 shadow-[0_6px_20px_rgba(0,0,0,0.14)]`}
+              className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-300/[0.12] border-t-2 ${item.theme.border} bg-gradient-to-br from-[#1d2a3b] via-[#1b2839] to-[#192638] p-2 shadow-[0_6px_16px_rgba(0,0,0,0.12)]`}
             >
               {/* Decorative glow */}
-              <div className={`pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full blur-2xl ${item.theme.glow}`} />
+              <div className={`pointer-events-none absolute -right-3 -top-3 h-12 w-12 rounded-full blur-xl ${item.theme.glow}`} />
 
               {/* Card header */}
-              <div className="relative flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400 sm:text-[10px]">{item.title}</span>
+              <div className="relative flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-[9px] font-bold tracking-wide text-slate-400">{item.title}</span>
 
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.theme.icon}`}>
-                  <Icon size={16} />
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${item.theme.icon}`}>
+                  <Icon size={12} />
                 </span>
               </div>
 
               {/* Main value */}
-              <div className="relative mt-2 min-w-0">
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1">
-                  <strong className={`break-words text-lg font-extrabold leading-tight tracking-tight sm:text-xl ${item.theme.value}`}>{item.value}</strong>
-                  {typeof item.percentage === "number" && <span className="text-[9px] font-semibold text-slate-400">{item.percentage.toFixed(2)}%</span>}
+              <div className="relative mt-1.5 min-w-0">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                  <strong className="break-words text-lg font-extrabold leading-none tracking-tight text-white">{item.value}</strong>
+
+                  {typeof item.percentage === "number" && (
+                    <span className={`text-[9px] font-semibold leading-none ${item.title === "BAPP DONE" ? "text-emerald-300" : item.title === "BAPP ON PROSES" ? "text-amber-300" : "text-rose-300"}`}>{item.percentage.toFixed(2)}%</span>
+                  )}
                 </div>
 
-                <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{item.detail}</p>
+                <p className="mt-1 text-[10px] font-medium leading-tight text-slate-400">{item.detail}</p>
               </div>
             </article>
           );
         })}
       </section>
+
       {/* CHART CONFIGS: title, subtitle, icon, theme, option, and empty state are managed centrally */}
       {(() => {
         const chartConfigs: ChartConfig[] = [
@@ -1345,6 +1358,6 @@ const BappDashboard: React.FC = () => {
       </section>
     </div>
   );
-};
+};;
 
 export default BappDashboard;

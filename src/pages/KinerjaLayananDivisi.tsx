@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo,useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { Activity, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Filter, Layers3, RefreshCw, TrendingUp, Users } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Layers3, RefreshCw, TrendingUp, Users, XCircle } from "lucide-react";
 
 import SearchableSelect from "../components/dashboard/SearchableSelect";
 import MultiSelect from "../components/dashboard/MultiSelect";
@@ -1080,27 +1080,49 @@ const displayedMonthlyData = useMemo(() => {
     setCurrentPage(1);
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center gap-3 text-xs text-slate-400">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-blue-400" />
-        Memuat data kinerja layanan...
-      </div>
-    );
-  }
+ if (loading) {
+   return (
+     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
+       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
 
-  if (error) {
-    return (
-      <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-red-400/20 bg-gradient-to-br from-[#30252c] to-[#241f29] p-6 text-center">
-        <Activity size={28} className="mb-3 text-red-300" />
-        <h2 className="text-sm font-bold text-red-200">Gagal Memuat Dashboard</h2>
-        <p className="mt-2 text-xs text-red-200/70">{error}</p>
-        <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg border border-red-300/25 bg-red-400/10 px-4 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-400/20">
-          Coba Lagi
-        </button>
-      </div>
-    );
-  }
+       <div>
+         <p className="text-sm font-semibold text-slate-200">Memuat Dashboard Kinerja Layanan Divisi</p>
+         <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
+       </div>
+     </div>
+   );
+ }
+
+ if (error) {
+   return (
+     <div className="flex min-h-[60vh] w-full items-center justify-center px-4 py-8">
+       <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#1d2a3b] to-[#172538] p-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+         {/* Error icon */}
+         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10">
+           <XCircle size={22} className="text-rose-400" />
+         </div>
+
+         <h2 className="text-base font-bold text-slate-100">Dashboard Kinerja Layanan Divisi Gagal Dimuat</h2>
+
+         <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-400">Data dashboard belum berhasil diambil. Periksa koneksi internet atau coba muat ulang halaman.</p>
+
+         <div className="mt-4 rounded-lg border border-rose-400/10 bg-rose-400/[0.05] p-3 text-left">
+           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-300">Detail Error</p>
+           <p className="break-words text-[11px] leading-relaxed text-slate-300">{error}</p>
+         </div>
+
+         <button
+           type="button"
+           onClick={() => window.location.reload()}
+           className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/25"
+         >
+           <RefreshCw size={13} />
+           Coba Muat Ulang
+         </button>
+       </div>
+     </div>
+   );
+ }
 
   return (
     <div className="w-full min-w-0 space-y-3 font-sans text-slate-100">
@@ -1121,13 +1143,10 @@ const displayedMonthlyData = useMemo(() => {
 
       <section className={`${PANEL_CLASS} relative z-20 p-3`}>
         <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-400/20 bg-gradient-to-br from-blue-400/15 to-indigo-500/10 text-blue-300">
-              <Filter size={15} />
-            </div>
+          <div className="flex items-center">
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-blue-300">Filter Data</p>
-              <h2 className="mt-0.5 text-xs font-bold text-slate-100">Parameter Dashboard</h2>
+              <span className="mb-0.5 block text-[8px] font-extrabold tracking-[1px] text-blue-300">FILTER DATA</span>
+              <h2 className="text-xs font-bold leading-tight text-slate-100">Parameter Dashboard</h2>
             </div>
           </div>
 
@@ -1141,7 +1160,7 @@ const displayedMonthlyData = useMemo(() => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-2">
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Unit</label>
             <SearchableSelect
@@ -1157,7 +1176,6 @@ const displayedMonthlyData = useMemo(() => {
               }}
             />
           </div>
-
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Divisi</label>
             <SearchableSelect
@@ -1172,7 +1190,6 @@ const displayedMonthlyData = useMemo(() => {
               }}
             />
           </div>
-
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Departemen</label>
             <SearchableSelect
@@ -1186,17 +1203,14 @@ const displayedMonthlyData = useMemo(() => {
               }}
             />
           </div>
-
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Layanan</label>
             <SearchableSelect value={layanan} options={layananOptions} placeholder="Semua Layanan" searchPlaceholder="Cari layanan..." onChange={setLayanan} />
           </div>
-
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Bulan</label>
             <MultiSelect value={bulan} options={MONTHS} placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." onChange={setBulan} />
           </div>
-
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Tahun</label>
             <MultiSelect value={tahun} options={yearOptions} placeholder="Semua Tahun" searchPlaceholder="Cari tahun..." onChange={setTahun} />
@@ -1216,6 +1230,7 @@ const displayedMonthlyData = useMemo(() => {
           </div>
         )}
       </section>
+
       {/* KPI */}
       <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <KpiCard title="JUMLAH TRANSAKSI" value={formatNumber(totalTransaksi)} icon={<Activity size={17} />} theme="blue" />
