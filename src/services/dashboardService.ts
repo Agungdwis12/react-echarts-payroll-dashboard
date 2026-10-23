@@ -1,88 +1,40 @@
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-/* =====================================================
-   DASHBOARD PAYROLL
-===================================================== */
 
-export const getMasterDetailDivisi = async () => {
-  const response = await fetch(`${API_URL}/master-detail-divisi`);
+const fetchDashboardData = async (endpoint: string) => {
+  const response = await fetch(`${API_URL}/${endpoint}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "Cache-Control": "no-cache",
+    },
+  });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch payroll data");
+    throw new Error(`Failed to fetch ${endpoint}: ${response.status}`);
   }
 
   const result = await response.json();
 
-  return result.data;
-};
-
-/* =====================================================
-   DASHBOARD BAPP - MASTER BULANAN
-===================================================== */
-
-export const getMasterBappBulanan = async () => {
-  const response = await fetch(`${API_URL}/master-bapp-bulanan`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch master BAPP bulanan data");
+  if (result.success === false) {
+    throw new Error(result.message || `Failed to fetch ${endpoint}`);
   }
 
-  const result = await response.json();
-
   return result.data;
 };
 
-/* =====================================================
-   DASHBOARD BAPP - DETAIL
-===================================================== */
+/* DASHBOARD PAYROLL */
+export const getMasterDetailDivisi = () => fetchDashboardData("master-detail-divisi");
 
-export const getMasterDetailBapp = async () => {
-  const response = await fetch(`${API_URL}/master-detail-bapp`);
+/* DASHBOARD BAPP - MASTER BULANAN */
+export const getMasterBappBulanan = () => fetchDashboardData("master-bapp-bulanan");
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch master detail BAPP data");
-  }
+/* DASHBOARD BAPP - DETAIL */
+export const getMasterDetailBapp = () => fetchDashboardData("master-detail-bapp");
 
-  const result = await response.json();
+/* DASHBOARD TARGET & COST */
+export const getGpm = () => fetchDashboardData("gpm");
 
-  return result.data;
-};
+export const getTarget = () => fetchDashboardData("target");
 
-// =====================================================
-// DASHBOARD TARGET & COST
-// =====================================================
-
-export const getGpm = async () => {
-  const response = await fetch(`${API_URL}/gpm`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch GPM data");
-  }
-
-  const result = await response.json();
-
-  return result.data;
-};
-
-export const getTarget = async () => {
-  const response = await fetch(`${API_URL}/target`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch target data");
-  }
-
-  const result = await response.json();
-
-  return result.data;
-};
-
-export const getDetailCost = async () => {
-  const response = await fetch(`${API_URL}/detail-cost`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch detail cost data");
-  }
-
-  const result = await response.json();
-
-  return result.data;
-};
+export const getDetailCost = () => fetchDashboardData("detail-cost");

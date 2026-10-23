@@ -217,14 +217,12 @@ const ResponsiveEChart: React.FC<ResponsiveEChartProps> = ({ option, className =
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
-
       if (typeof width === "number") {
         setChartWidth(width);
       }
     });
 
     observer.observe(element);
-
     return () => observer.disconnect();
   }, []);
 
@@ -292,14 +290,17 @@ const BappDashboard: React.FC = () => {
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  /* FETCH */
-
+  /* FETCH DATA: initial load + refresh every 30 seconds */
   useEffect(() => {
     let mounted = true;
+    let isFetching = false;
 
-    const loadData = async () => {
+    const loadData = async (showLoading = false) => {
+      if (isFetching) return;
+      isFetching = true;
+
       try {
-        setLoading(true);
+        if (showLoading && mounted) setLoading(true);
         setError(null);
 
         const [monthlyData, detailData] = await Promise.all([getMasterBappBulanan(), getMasterDetailBapp()]);
@@ -310,19 +311,33 @@ const BappDashboard: React.FC = () => {
         setDetailRows(Array.isArray(detailData) ? detailData : []);
       } catch (err) {
         console.error("BAPP dashboard error:", err);
-
         if (mounted) {
           setError(err instanceof Error ? err.message : "Gagal memuat data dashboard BAPP.");
         }
       } finally {
-        if (mounted) setLoading(false);
+        isFetching = false;
+        if (mounted && showLoading) setLoading(false);
       }
     };
 
-    loadData();
+    void loadData(true);
+
+    const intervalId = window.setInterval(() => {
+      void loadData(false);
+    }, 30_000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadData(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       mounted = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -942,18 +957,18 @@ const BappDashboard: React.FC = () => {
    LOADING & ERROR
 ========================================================= */
 
- if (loading) {
-   return (
-     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
-       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
 
-       <div>
-         <p className="text-sm font-semibold text-slate-200">Memuat Dashboard BAPP</p>
-         <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
-       </div>
-     </div>
-   );
- }
+        <div>
+          <p className="text-sm font-semibold text-slate-200">Memuat Dashboard BAPP</p>
+          <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -1358,6 +1373,6 @@ const BappDashboard: React.FC = () => {
       </section>
     </div>
   );
-};;
+};
 
 export default BappDashboard;

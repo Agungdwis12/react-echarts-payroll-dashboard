@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo,useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { Activity, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Layers3, RefreshCw, TrendingUp, Users, XCircle } from "lucide-react";
 
@@ -52,7 +52,6 @@ interface ChartConfig {
   option: Record<string, unknown>;
   empty: string;
 }
-
 
 interface ResponsiveEChartProps {
   option: Record<string, unknown>;
@@ -184,7 +183,6 @@ const KPI_THEMES = {
   },
 } as const;
 
-
 const CHART_THEMES: Record<ChartTheme, { border: string; icon: string; label: string }> = {
   blue: {
     border: "border-t-blue-400",
@@ -227,7 +225,6 @@ const parseNumber = (value: unknown): number => {
     } else {
       text = text.replace(/,/g, "");
     }
-
   } else if (hasDot) {
     const parts = text.split(".");
 
@@ -720,10 +717,14 @@ const KinerjaLayananDivisi: React.FC = () => {
 
   useEffect(() => {
     let active = true;
+    let isFirstLoad = true;
 
     const loadData = async () => {
       try {
-        setLoading(true);
+        if (active && isFirstLoad) {
+          setLoading(true);
+        }
+
         setError("");
 
         const result = await getMasterDetailDivisi();
@@ -734,20 +735,38 @@ const KinerjaLayananDivisi: React.FC = () => {
       } catch (err) {
         console.error("Gagal memuat data kinerja layanan:", err);
 
-        if (active) {
+        if (active && isFirstLoad) {
           setError("Gagal mengambil data dashboard.");
         }
       } finally {
-        if (active) {
+        if (active && isFirstLoad) {
           setLoading(false);
+          isFirstLoad = false;
         }
       }
     };
 
+    // Ambil data saat dashboard pertama kali dibuka.
     void loadData();
+
+    // Perbarui data setiap 30 detik.
+    const intervalId = window.setInterval(() => {
+      void loadData();
+    }, 30_000);
+
+    // Refresh ketika pengguna kembali ke tab dashboard.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -819,6 +838,8 @@ const KinerjaLayananDivisi: React.FC = () => {
 
   const totalNominal = useMemo(() => filteredData.reduce((sum, item) => sum + parseNumber(item.total_thp), 0), [filteredData]);
 
+  // Agregasi chart utama: seluruh tanggal pada bulan dan tahun yang sama
+  // digabung menjadi satu titik bulanan. Tanggal asli di database tidak diubah.
   const monthlyData = useMemo<MonthlyPoint[]>(() => {
     const monthlyMap = new Map<
       string,
@@ -832,7 +853,11 @@ const KinerjaLayananDivisi: React.FC = () => {
     >();
 
     filteredData.forEach((item) => {
-      const key = item.periode_bulan;
+      const timestamp = getMonthTimestamp(item.periode_bulan);
+      if (!timestamp) return;
+
+      const date = new Date(timestamp);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
       if (!monthlyMap.has(key)) {
         monthlyMap.set(key, {
@@ -855,7 +880,7 @@ const KinerjaLayananDivisi: React.FC = () => {
     });
 
     return [...monthlyMap.entries()]
-      .sort(([a], [b]) => getMonthTimestamp(a) - getMonthTimestamp(b))
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, value]) => ({
         month,
         label: formatMonth(month),
@@ -870,20 +895,11 @@ const KinerjaLayananDivisi: React.FC = () => {
   const comparisonYears = useMemo(() => [...tahun].sort((a, b) => Number(a) - Number(b)), [tahun]);
   const comparisonLabels = MONTHS.map((month) => month.slice(0, 3));
 
+  // Agregasi per bulan kalender untuk setiap tahun pada mode perbandingan.
   const comparisonMonthlyData = useMemo<ComparisonMonthlyPoint[]>(() => {
     const result: ComparisonMonthlyPoint[] = MONTHS.map((month) => ({
       label: month.slice(0, 3),
-      values: Object.fromEntries(
-        comparisonYears.map((year) => [
-          year,
-          {
-            transaksi: null,
-            sdm: null,
-            nominal: null,
-            sla: null,
-          },
-        ]),
-      ) as ComparisonMonthlyPoint["values"],
+      values: Object.fromEntries(comparisonYears.map((year) => [year, { transaksi: null, sdm: null, nominal: null, sla: null }])) as ComparisonMonthlyPoint["values"],
     }));
 
     const aggregate = new Map<string, Map<number, { transaksi: number; sdm: number; nominal: number; slaTotal: number; slaCount: number }>>();
@@ -891,15 +907,27 @@ const KinerjaLayananDivisi: React.FC = () => {
     filteredData.forEach((item) => {
       const timestamp = getMonthTimestamp(item.periode_bulan);
       if (!timestamp) return;
+
       const date = new Date(timestamp);
       const year = String(date.getFullYear());
       const monthIndex = date.getMonth();
+
       if (!comparisonYears.includes(year)) return;
 
       if (!aggregate.has(year)) aggregate.set(year, new Map());
-      const yearMap = aggregate.get(year)!;
-      if (!yearMap.has(monthIndex)) yearMap.set(monthIndex, { transaksi: 0, sdm: 0, nominal: 0, slaTotal: 0, slaCount: 0 });
-      const current = yearMap.get(monthIndex)!;
+      const yearData = aggregate.get(year)!;
+
+      if (!yearData.has(monthIndex)) {
+        yearData.set(monthIndex, {
+          transaksi: 0,
+          sdm: 0,
+          nominal: 0,
+          slaTotal: 0,
+          slaCount: 0,
+        });
+      }
+
+      const current = yearData.get(monthIndex)!;
       current.transaksi += parseNumber(item.jumlah_transaksi);
       current.sdm += parseNumber(item.sdm_diproses);
       current.nominal += parseNumber(item.total_thp);
@@ -911,11 +939,12 @@ const KinerjaLayananDivisi: React.FC = () => {
       comparisonYears.forEach((year) => {
         const current = aggregate.get(year)?.get(monthIndex);
         if (!current) return;
+
         point.values[year] = {
           transaksi: current.transaksi,
           sdm: current.sdm,
           nominal: current.nominal,
-          sla: current.slaCount ? current.slaTotal / current.slaCount : null,
+          sla: current.slaCount > 0 ? current.slaTotal / current.slaCount : null,
         };
       });
     });
@@ -930,16 +959,16 @@ const KinerjaLayananDivisi: React.FC = () => {
 
   const startRow = filteredData.length === 0 ? 0 : startIndex + 1;
   const endRow = Math.min(startIndex + PAGE_SIZE, filteredData.length);
-const displayedMonthlyData = useMemo(() => {
-  // Jika user memilih tahun tertentu,
-  // tampilkan semua bulan yang tersedia untuk tahun tersebut.
-  if (tahun.length > 0) {
-    return monthlyData;
-  }
+  const displayedMonthlyData = useMemo(() => {
+    // Jika user memilih tahun tertentu,
+    // tampilkan semua bulan yang tersedia untuk tahun tersebut.
+    if (tahun.length > 0) {
+      return monthlyData;
+    }
 
-  // Default dashboard: tampilkan 8 bulan terakhir.
-  return monthlyData.slice(-8);
-}, [monthlyData, tahun]);
+    // Default dashboard: tampilkan 8 bulan terakhir.
+    return monthlyData.slice(-8);
+  }, [monthlyData, tahun]);
   const transactionChartOption = useMemo(
     () =>
       isYearComparison
@@ -1080,49 +1109,49 @@ const displayedMonthlyData = useMemo(() => {
     setCurrentPage(1);
   };
 
- if (loading) {
-   return (
-     <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
-       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-500/20 border-t-blue-400" />
 
-       <div>
-         <p className="text-sm font-semibold text-slate-200">Memuat Dashboard Kinerja Layanan Divisi</p>
-         <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
-       </div>
-     </div>
-   );
- }
+        <div>
+          <p className="text-sm font-semibold text-slate-200">Memuat Dashboard Kinerja Layanan Divisi</p>
+          <p className="mt-1 text-[11px] text-slate-400">Sedang mengambil dan menyiapkan data...</p>
+        </div>
+      </div>
+    );
+  }
 
- if (error) {
-   return (
-     <div className="flex min-h-[60vh] w-full items-center justify-center px-4 py-8">
-       <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#1d2a3b] to-[#172538] p-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
-         {/* Error icon */}
-         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10">
-           <XCircle size={22} className="text-rose-400" />
-         </div>
+  if (error) {
+    return (
+      <div className="flex min-h-[60vh] w-full items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#1d2a3b] to-[#172538] p-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+          {/* Error icon */}
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10">
+            <XCircle size={22} className="text-rose-400" />
+          </div>
 
-         <h2 className="text-base font-bold text-slate-100">Dashboard Kinerja Layanan Divisi Gagal Dimuat</h2>
+          <h2 className="text-base font-bold text-slate-100">Dashboard Kinerja Layanan Divisi Gagal Dimuat</h2>
 
-         <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-400">Data dashboard belum berhasil diambil. Periksa koneksi internet atau coba muat ulang halaman.</p>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-400">Data dashboard belum berhasil diambil. Periksa koneksi internet atau coba muat ulang halaman.</p>
 
-         <div className="mt-4 rounded-lg border border-rose-400/10 bg-rose-400/[0.05] p-3 text-left">
-           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-300">Detail Error</p>
-           <p className="break-words text-[11px] leading-relaxed text-slate-300">{error}</p>
-         </div>
+          <div className="mt-4 rounded-lg border border-rose-400/10 bg-rose-400/[0.05] p-3 text-left">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-300">Detail Error</p>
+            <p className="break-words text-[11px] leading-relaxed text-slate-300">{error}</p>
+          </div>
 
-         <button
-           type="button"
-           onClick={() => window.location.reload()}
-           className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/25"
-         >
-           <RefreshCw size={13} />
-           Coba Muat Ulang
-         </button>
-       </div>
-     </div>
-   );
- }
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2.5 text-xs font-semibold text-blue-200 transition hover:border-blue-400/50 hover:bg-blue-500/25"
+          >
+            <RefreshCw size={13} />
+            Coba Muat Ulang
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-w-0 space-y-3 font-sans text-slate-100">
