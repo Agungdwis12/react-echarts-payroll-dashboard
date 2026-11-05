@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileBarChart, Wallet, ChartNoAxesCombined } from "lucide-react";
+import { LayoutDashboard, FileBarChart, Wallet, ChartNoAxesCombined, Database } from "lucide-react";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -10,31 +10,37 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
 const menus = [
-    {
-      to: "/dashboard/kinerja-layanan",
-      label: "Kinerja Layanan Divisi",
-      title: "Kinerja Layanan Dashboard",
-      Icon: LayoutDashboard,
-    },
-    {
-      to: "/dashboard/bapp",
-      label: "BAPP & Revenue",
-      title: "BAPP & Revenue",
-      Icon: FileBarChart,
-    },
-    {
-      to: "/dashboard/cost",
-      label: "Target & Cost",
-      title: "Target & Cost",
-      Icon: Wallet,
-    },
-    {
-      to: "/dashboard/team-performance",
-      label: "Team Performance",
-      title: "Team Performance Dashboard",
-      Icon: ChartNoAxesCombined,
-    },
-  ];
+  {
+    to: "/dashboard/kinerja-layanan",
+    label: "Kinerja Layanan Divisi",
+    title: "Kinerja Layanan Dashboard",
+    Icon: LayoutDashboard,
+  },
+  {
+    to: "/dashboard/bapp",
+    label: "BAPP & Revenue",
+    title: "BAPP & Revenue",
+    Icon: FileBarChart,
+  },
+  {
+    to: "/dashboard/cost",
+    label: "Target & Cost",
+    title: "Target & Cost",
+    Icon: Wallet,
+  },
+  {
+    to: "/dashboard/team-performance",
+    label: "Team Performance",
+    title: "Team Performance Dashboard",
+    Icon: ChartNoAxesCombined,
+  },
+  {
+    to: "/dashboard/dms",
+    label: "DMS",
+    title: "Data Management System",
+    Icon: Database,
+  },
+];
 
   return (
     <aside
