@@ -35,8 +35,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Query, Body
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import get_database_url
-from .config import TABLE_CONFIG
+from database import get_database_url
+from config import TABLE_CONFIG
 
 
 # =========================================================
@@ -2027,8 +2027,13 @@ def replace_tables_transactionally(engine, prepared):
                             except (TypeError, ValueError, OverflowError):
                                 return float("nan")
 
+                       
                         text_value = str(value).strip().replace("\u00a0", "")
                         text_value = re.sub(r"\s+", "", text_value)
+
+                        # Hilangkan simbol mata uang Rupiah atau IDR.
+                        text_value = re.sub(r"(?i)^(rp|idr)", "", text_value)
+
                         if not text_value:
                             return float("nan")
 
@@ -2072,9 +2077,11 @@ def replace_tables_transactionally(engine, prepared):
 
                 elif data_type in ("numeric", "decimal", "float", "real", "doubleprecision"):
                     def parse_numeric_cell(value):
-                        """Membaca angka desimal dengan format Indonesia/US dan tanda persen."""
+                        """Membaca angka desimal Indonesia/US, Rupiah, persen, dan angka negatif."""
+
                         if is_empty_cell(value):
                             return float("nan")
+
                         if isinstance(value, Number) and not isinstance(value, bool):
                             try:
                                 return float(value)
@@ -2083,37 +2090,56 @@ def replace_tables_transactionally(engine, prepared):
 
                         text_value = str(value).strip().replace("\u00a0", "")
                         text_value = re.sub(r"\s+", "", text_value)
+
                         if not text_value:
                             return float("nan")
 
-                        # Persentase disimpan sebagai nilai persen (100,0% -> 100.0),
-                        # bukan rasio (1.0), agar konsisten dengan angka di file sumber.
+                        # Deteksi angka negatif dengan tanda kurung.
+                        # Contoh: (53.363.164) menjadi -53363164.
+                        is_negative = text_value.startswith("(") and text_value.endswith(")")
+
+                        if is_negative:
+                            text_value = text_value[1:-1]
+
+                        # Hilangkan awalan mata uang Rupiah/IDR.
+                        text_value = re.sub(r"(?i)^(?:rp\.?|idr)", "", text_value)
+
+                        # Hilangkan tanda persen.
                         text_value = text_value.replace("%", "")
+
                         if not text_value:
                             return float("nan")
 
-                        # Jika titik dan koma sama-sama ada, pemisah paling kanan
-                        # dianggap desimal: 1.234,56 -> 1234.56; 1,234.56 -> 1234.56.
+                        # Jika titik dan koma sama-sama ada.
                         if "." in text_value and "," in text_value:
                             if text_value.rfind(",") > text_value.rfind("."):
                                 text_value = text_value.replace(".", "").replace(",", ".")
                             else:
                                 text_value = text_value.replace(",", "")
+
                         elif "," in text_value:
-                            # Satu koma dengan tiga digit di belakang dapat berupa ribuan.
                             if re.fullmatch(r"[+-]?\d{1,3}(,\d{3})+", text_value):
                                 text_value = text_value.replace(",", "")
                             else:
                                 text_value = text_value.replace(",", ".")
+
                         elif "." in text_value:
-                            # Titik berkelompok tiga digit dianggap pemisah ribuan.
                             if re.fullmatch(r"[+-]?\d{1,3}(\.\d{3})+", text_value):
                                 text_value = text_value.replace(".", "")
 
                         try:
-                            return float(text_value)
+                            result = float(text_value)
+
+                            # Pertahankan nilai negatif dari tanda kurung.
+                            if is_negative:
+                                result = -abs(result)
+
+                            return result
+
                         except (TypeError, ValueError, OverflowError):
                             return float("nan")
+
+
 
                     parsed = original.map(parse_numeric_cell)
                     invalid = present & parsed.isna()

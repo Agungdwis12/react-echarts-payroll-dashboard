@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronDown, Database, FileSpreadsheet, LoaderCircle, ShieldAlert, UploadCloud, X, RefreshCw, Table2, FileCheck2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Database, FileSpreadsheet, LoaderCircle, ShieldAlert, UploadCloud, X, RotateCcw, Table2, ScanSearch, DatabaseZap, FileCheck2 } from "lucide-react";
 
 import { payrollApi, type DataManagementTable, type PayrollImportPreviewResponse, type PayrollImportResultResponse } from "../../services/api";
 
@@ -30,6 +30,7 @@ export default function ImportPayroll() {
   const [result, setResult] = useState<PayrollImportResultResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<"validate" | "confirm" | null>(null);
   const [loadingTables, setLoadingTables] = useState(true);
   const [connection, setConnection] = useState<"checking" | "connected" | "error">("checking");
   const [isDragging, setIsDragging] = useState(false);
@@ -85,6 +86,7 @@ export default function ImportPayroll() {
   }
 
   function reset(clearFile = true) {
+    if (loading) return;
     if (clearFile) setFile(null);
 
     setStage("idle");
@@ -97,7 +99,9 @@ export default function ImportPayroll() {
   }
 
   async function loadPreview(fileToUse: File, tableName: string) {
+    if (loading) return;
     setLoading(true);
+    setLoadingAction("validate");
     setError("");
     setStage("idle");
     setPreview(null);
@@ -112,20 +116,18 @@ export default function ImportPayroll() {
       setError(err instanceof Error ? err.message : "Validasi file gagal.");
     } finally {
       setLoading(false);
+      setLoadingAction(null);
     }
   }
 
-  async function changeTable(tableName: string) {
+  function changeTable(tableName: string) {
     setSelectedTable(tableName);
     setPreview(null);
     setResult(null);
     setStage("idle");
     setError("");
-
-    // File tetap tersimpan ketika tabel tujuan diganti.
-    if (file && tableName) {
-      await loadPreview(file, tableName);
-    }
+    setShowConfirmation(false);
+    // Validasi dan preview hanya dijalankan setelah tombol diklik.
   }
 
   function confirmImport() {
@@ -136,8 +138,8 @@ export default function ImportPayroll() {
   async function executeImport() {
     if (!file || !selectedTable) return;
 
-    setShowConfirmation(false);
     setLoading(true);
+    setLoadingAction("confirm");
     setError("");
 
     try {
@@ -145,10 +147,13 @@ export default function ImportPayroll() {
 
       setResult(response);
       setStage("done");
+      setShowConfirmation(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import gagal.");
+      setShowConfirmation(false);
     } finally {
       setLoading(false);
+      setLoadingAction(null);
     }
   }
 
@@ -158,6 +163,12 @@ export default function ImportPayroll() {
 
   return (
     <div className="mx-auto min-w-0 max-w-[1600px] space-y-2.5 text-[11px] text-slate-200">
+      <style>{`
+        @keyframes importFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       {/* HEADER */}
       <header className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
         <div className="space-y-0">
@@ -363,17 +374,17 @@ export default function ImportPayroll() {
             }}
             className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold shadow-sm transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${theme.button}`}
           >
-            {loading ? <LoaderCircle size={14} className="animate-spin" /> : <FileCheck2 size={14} />}
-            {loading ? "Memproses..." : "Validasi & Preview"}
+            {loading && loadingAction === "validate" ? <LoaderCircle size={14} className="animate-spin" /> : <ScanSearch size={14} />}
+            {loading && loadingAction === "validate" ? "Memvalidasi file..." : "Validasi & Preview"}
           </button>
 
           <button
             type="button"
             disabled={loading}
             onClick={() => reset(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#30415c] bg-[#172338] px-2.5 text-[11px] font-medium text-slate-300 transition-all hover:border-slate-500 hover:bg-[#202f46] hover:text-white disabled:opacity-40"
+            className="group inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#30415c] bg-[#172338] px-2.5 text-[11px] font-medium text-slate-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-200 active:translate-y-0 disabled:opacity-40"
           >
-            <RefreshCw size={13} />
+            <RotateCcw size={13} className="transition-transform duration-500 group-hover:-rotate-180" />
             Reset
           </button>
 
@@ -399,7 +410,7 @@ export default function ImportPayroll() {
 
       {/* PREVIEW */}
       {stage === "preview" && preview && (
-        <section className="space-y-3">
+        <section className="space-y-3" style={{ animation: "importFadeIn 260ms ease-out both" }}>
           <div className={`space-y-2.5 rounded-xl border p-3 ${theme.panel}`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
@@ -512,9 +523,9 @@ export default function ImportPayroll() {
             type="button"
             disabled={!canConfirm}
             onClick={confirmImport}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-500 px-3 text-[11px] font-semibold text-white shadow-sm transition-all hover:bg-blue-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="group inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500 px-3 text-[11px] font-semibold text-white shadow-sm shadow-emerald-950/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-400 hover:shadow-md hover:shadow-emerald-950/30 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <ShieldAlert size={14} />
+            <DatabaseZap size={14} className="transition-transform duration-200 group-hover:scale-110" />
             Konfirmasi Import
           </button>
         </section>
@@ -544,7 +555,7 @@ export default function ImportPayroll() {
             onClick={() => reset(false)}
             className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 text-xs font-semibold text-blue-300 transition-colors hover:border-blue-400/50 hover:bg-blue-500/20 hover:text-blue-200"
           >
-            <RefreshCw size={13} />
+            <RotateCcw size={13} />
             Pilih Tabel Lain dengan File yang Sama
           </button>
 
@@ -623,10 +634,10 @@ export default function ImportPayroll() {
                 type="button"
                 disabled={loading || !file || !selectedTable}
                 onClick={() => void executeImport()}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 text-[11px] font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 text-[11px] font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-400 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading && <LoaderCircle size={14} className="animate-spin" />}
-                Ya, Import Data
+                {loading && loadingAction === "confirm" ? <LoaderCircle size={14} className="animate-spin" /> : <DatabaseZap size={14} />}
+                {loading && loadingAction === "confirm" ? "Sedang mengimpor data..." : "Ya, Import Data"}
               </button>
             </div>
           </section>
