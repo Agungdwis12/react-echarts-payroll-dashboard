@@ -321,15 +321,29 @@ function TeamPerformance() {
         return;
       }
 
-      const results = await Promise.all(
-        periodsToFetch.map(async (period) => {
-          const [assessmentData, unitData] = await Promise.all([getPerformanceAssessment(period), getPerformanceUnit(period)]);
-          return {
-            assessments: Array.isArray(assessmentData) ? (assessmentData as PerformanceAssessment[]) : [],
-            units: Array.isArray(unitData) ? (unitData as PerformanceUnit[]) : [],
-          };
-        }),
-      );
+      const results: {
+        assessments: PerformanceAssessment[];
+        units: PerformanceUnit[];
+      }[] = [];
+
+      const batchSize = 2;
+
+      for (let i = 0; i < periodsToFetch.length; i += batchSize) {
+        const batch = periodsToFetch.slice(i, i + batchSize);
+
+        const batchResults = await Promise.all(
+          batch.map(async (period) => {
+            const [assessmentData, unitData] = await Promise.all([getPerformanceAssessment(period), getPerformanceUnit(period)]);
+
+            return {
+              assessments: Array.isArray(assessmentData) ? (assessmentData as PerformanceAssessment[]) : [],
+              units: Array.isArray(unitData) ? (unitData as PerformanceUnit[]) : [],
+            };
+          }),
+        );
+
+        results.push(...batchResults);
+      }
 
       const allAssessments = results.flatMap((result) => result.assessments);
 
