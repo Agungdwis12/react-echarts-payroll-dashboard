@@ -35,8 +35,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Query, Body
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import get_database_url
-from config import TABLE_CONFIG
+from backend.database import get_database_url
+from backend.config import TABLE_CONFIG
 
 
 # =========================================================

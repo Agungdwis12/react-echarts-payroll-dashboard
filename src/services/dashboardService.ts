@@ -38,3 +38,13 @@ export const getGpm = () => fetchDashboardData("gpm");
 export const getTarget = () => fetchDashboardData("target");
 
 export const getDetailCost = () => fetchDashboardData("detail-cost");
+
+/* DASHBOARD TEAM PERFORMANCE */
+export const getPerformanceAssessment = (period: string) =>
+  fetchDashboardData(`performance/assessment?period=${encodeURIComponent(period)}`);
+
+export const getPerformanceUnit = (period: string) =>
+  fetchDashboardData(`performance/unit?period=${encodeURIComponent(period)}`);
+
+export const getPerformancePeriod = () =>
+  fetchDashboardData("performance/period");

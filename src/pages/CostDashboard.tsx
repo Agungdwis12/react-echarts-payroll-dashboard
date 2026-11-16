@@ -73,36 +73,115 @@ const parseNumber = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const parseDate = (value: string): Date | null => {
+const MONTH_MAP: Record<string, number> = {
+  jan: 0,
+  januari: 0,
+  january: 0,
+  feb: 1,
+  februari: 1,
+  february: 1,
+  mar: 2,
+  maret: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  mei: 4,
+  may: 4,
+  jun: 5,
+  juni: 5,
+  june: 5,
+  jul: 6,
+  juli: 6,
+  july: 6,
+  agu: 7,
+  agt: 7,
+  agustus: 7,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  september: 8,
+  okt: 9,
+  oktober: 9,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  des: 11,
+  desember: 11,
+  dec: 11,
+  december: 11,
+};
+
+type SlashDateOrder = "DMY" | "MDY";
+
+const parseDate = (value: string | Date | null | undefined, slashDateOrder: SlashDateOrder = "DMY"): Date | null => {
   if (!value) return null;
 
-  const date = new Date(value);
-
-  if (!Number.isNaN(date.getTime())) {
-    return date;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return new Date(value.getFullYear(), value.getMonth(), 1);
   }
 
-  const match = value.match(/^(\d{4})[-/](\d{1,2})/);
+  const text = String(value).trim();
+  if (!text) return null;
 
-  if (match) {
-    const year = Number(match[1]);
-    const month = Number(match[2]);
+  // Format nama bulan: Jan-26, Feb-26, Januari 2026, dan sejenisnya.
+  const monthTextMatch = text.match(/^([A-Za-z]+)[\s-]+(\d{2,4})$/);
+  if (monthTextMatch) {
+    const month = MONTH_MAP[monthTextMatch[1].toLowerCase()];
+    let year = Number(monthTextMatch[2]);
 
-    if (year && month >= 1 && month <= 12) {
+    if (month !== undefined) {
+      if (year < 100) year += 2000;
+      return new Date(year, month, 1);
+    }
+  }
+
+  // Format tanggal dengan garis miring.
+  // TARGET dan DETAIL COST memakai MM/DD/YYYY dari sumber datanya,
+  // sedangkan GPM memakai DD/MM/YYYY.
+  const slashDateMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashDateMatch) {
+    const first = Number(slashDateMatch[1]);
+    const second = Number(slashDateMatch[2]);
+    const year = Number(slashDateMatch[3]);
+    const month = slashDateOrder === "MDY" ? first : second;
+    const day = slashDateOrder === "MDY" ? second : first;
+
+    if (month >= 1 && month <= 12 && day >= 1 && day <= new Date(year, month, 0).getDate()) {
       return new Date(year, month - 1, 1);
     }
+    return null;
+  }
+
+  // Format ISO YYYY-MM-DD atau YYYY-MM.
+  // Ambil tahun dan bulan langsung agar tidak terkena pergeseran timezone.
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?:[T\s].*)?$/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    if (month >= 1 && month <= 12) {
+      return new Date(year, month - 1, 1);
+    }
+    return null;
+  }
+
+  // Fallback untuk format tanggal lain yang valid.
+  const fallbackDate = new Date(text);
+  if (!Number.isNaN(fallbackDate.getTime())) {
+    return new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), 1);
   }
 
   return null;
 };
 
-const getMonthNumber = (value: string): number | null => {
-  const date = parseDate(value);
+const getMonthNumber = (value: string, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
+  const date = parseDate(value, slashDateOrder);
   return date ? date.getMonth() + 1 : null;
 };
 
-const getYear = (value: string): number | null => {
-  const date = parseDate(value);
+const getYear = (value: string, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
+  const date = parseDate(value, slashDateOrder);
   return date ? date.getFullYear() : null;
 };
 
@@ -261,12 +340,19 @@ const CostDashboard: React.FC = () => {
   const years = useMemo(() => {
     const yearSet = new Set<number>();
 
-    [...gpmData, ...targetData, ...detailCostData].forEach((row) => {
-      const year = getYear(row.periode_bulan);
+    gpmData.forEach((row) => {
+      const year = getYear(row.periode_bulan, "DMY");
+      if (year) yearSet.add(year);
+    });
 
-      if (year) {
-        yearSet.add(year);
-      }
+    targetData.forEach((row) => {
+      const year = getYear(row.periode_bulan, "MDY");
+      if (year) yearSet.add(year);
+    });
+
+    detailCostData.forEach((row) => {
+      const year = getYear(row.periode_bulan, "MDY");
+      if (year) yearSet.add(year);
     });
 
     return Array.from(yearSet).sort((a, b) => b - a);
@@ -278,8 +364,8 @@ const CostDashboard: React.FC = () => {
 
   const filteredGpm = useMemo(() => {
     return gpmData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan);
-      const year = getYear(row.periode_bulan);
+      const month = getMonthNumber(row.periode_bulan, "DMY");
+      const year = getYear(row.periode_bulan, "DMY");
 
       const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
@@ -295,8 +381,8 @@ const CostDashboard: React.FC = () => {
 
   const filteredTarget = useMemo(() => {
     return targetData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan);
-      const year = getYear(row.periode_bulan);
+      const month = getMonthNumber(row.periode_bulan, "MDY");
+      const year = getYear(row.periode_bulan, "MDY");
 
       const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
@@ -312,8 +398,8 @@ const CostDashboard: React.FC = () => {
 
   const filteredDetailCost = useMemo(() => {
     return detailCostData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan);
-      const year = getYear(row.periode_bulan);
+      const month = getMonthNumber(row.periode_bulan, "MDY");
+      const year = getYear(row.periode_bulan, "MDY");
 
       const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
 
@@ -340,7 +426,7 @@ const CostDashboard: React.FC = () => {
     >();
 
     targetData.forEach((row) => {
-      const date = parseDate(row.periode_bulan);
+      const date = parseDate(row.periode_bulan, "MDY");
 
       if (!date) return;
 
@@ -362,7 +448,7 @@ const CostDashboard: React.FC = () => {
     });
 
     gpmData.forEach((row) => {
-      const date = parseDate(row.periode_bulan);
+      const date = parseDate(row.periode_bulan, "DMY");
 
       if (!date) return;
 
@@ -396,7 +482,7 @@ const CostDashboard: React.FC = () => {
       .map(([key, row]) => ({
         key,
         periode_bulan: row.periode_bulan,
-        label: getMonthYearLabel(row.periode_bulan),
+        label: `${MONTH_NAMES[Number(key.split("-")[1]) - 1].slice(0, 3)} ${key.split("-")[0]}`,
         targetRevenue: row.targetRevenue,
         realisasiRevenue: row.realisasiRevenue,
         revenue: row.revenue,
@@ -1511,7 +1597,6 @@ const CostDashboard: React.FC = () => {
         </div>
 
         <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-          {" "}
           <table className="w-full min-w-[1150px] border-separate border-spacing-0 text-[10px] [&_thead_th]:whitespace-nowrap [&_thead_th]:border-b [&_thead_th]:border-r [&_thead_th]:border-slate-500/20 [&_thead_th]:bg-[linear-gradient(180deg,#273c58,#22344d)] [&_thead_th]:px-3 [&_thead_th]:py-3 [&_thead_th]:text-left [&_thead_th]:text-[9px] [&_thead_th]:font-bold [&_thead_th]:text-slate-300 [&_tbody_td]:whitespace-nowrap [&_tbody_td]:border-b [&_tbody_td]:border-r [&_tbody_td]:border-slate-500/10 [&_tbody_td]:px-3 [&_tbody_td]:py-2.5 [&_tbody_td]:text-slate-400 [&_tbody_tr]:bg-slate-950/20 [&_tbody_tr:nth-child(even)]:bg-slate-800/40 [&_tbody_tr:hover]:bg-blue-400/10 [&_thead_th:last-child]:border-r-0 [&_tbody_td:last-child]:border-r-0">
             <thead>
               <tr>
@@ -1564,10 +1649,10 @@ const CostDashboard: React.FC = () => {
         {filteredDetailCost.length > 0 && (
           <div className="flex flex-col gap-3 border-t border-slate-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-[18px]">
             <p className="text-[10px] text-slate-400">
-              Menampilkan{" "}
+              Menampilkan
               <span className="font-semibold text-slate-200">
                 {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredDetailCost.length)}
-              </span>{" "}
+              </span>
               dari <span className="font-semibold text-slate-200">{filteredDetailCost.length}</span> data
             </p>
             <div className="flex items-center gap-2 self-end sm:self-auto">

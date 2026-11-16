@@ -391,7 +391,33 @@ const formatMonth = (value: string): string => {
   });
 };
 
-const uniqueSorted = (values: Array<string | null | undefined>): string[] => [...new Set(values.filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "id"));
+const normalizeText = (value: string | null | undefined): string => (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+
+
+const formatDisplayText = (value: string | null | undefined): string => {
+  const text = (value ?? "").trim().replace(/\s+/g, " ");
+
+  if (!text) return "";
+
+  // Ubah seluruh teks menjadi Title Case.
+  return text.toLocaleLowerCase("id-ID").replace(/(^|[\s/-])([\p{L}\p{N}])/gu, (_, separator, character) => separator + character.toLocaleUpperCase("id-ID"));
+};
+
+const uniqueSorted = (values: Array<string | null | undefined>): string[] => {
+  const uniqueMap = new Map<string, string>();
+
+  values.forEach((value) => {
+    if (!value?.trim()) return;
+
+    const normalized = normalizeText(value);
+
+    if (!uniqueMap.has(normalized)) {
+      uniqueMap.set(normalized, formatDisplayText(value));
+    }
+  });
+
+  return [...uniqueMap.values()].sort((a, b) => a.localeCompare(b, "id"));
+};
 
 const gradient = (start: string, middle: string, end: string) => ({
   type: "linear",
@@ -772,12 +798,12 @@ const KinerjaLayananDivisi: React.FC = () => {
 
   const unitOptions = useMemo(() => uniqueSorted(data.map((item) => item.unit)), [data]);
 
-  const unitScopedData = useMemo(() => (unit ? data.filter((item) => item.unit === unit) : data), [data, unit]);
+  const unitScopedData = useMemo(() => (unit ? data.filter((item) => normalizeText(item.unit) === normalizeText(unit)) : data), [data, unit]);
 
   const divisiOptions = useMemo(() => uniqueSorted(unitScopedData.map((item) => item.divisi)), [unitScopedData]);
 
   const departemenOptions = useMemo(() => {
-    const source = divisi ? unitScopedData.filter((item) => item.divisi === divisi) : unitScopedData;
+    const source = divisi ? unitScopedData.filter((item) => normalizeText(item.divisi) === normalizeText(divisi)) : unitScopedData;
 
     return uniqueSorted(source.map((item) => item.departemen));
   }, [unitScopedData, divisi]);
@@ -786,11 +812,11 @@ const KinerjaLayananDivisi: React.FC = () => {
     let source = unitScopedData;
 
     if (divisi) {
-      source = source.filter((item) => item.divisi === divisi);
+      source = source.filter((item) => normalizeText(item.divisi) === normalizeText(divisi));
     }
 
     if (departemen) {
-      source = source.filter((item) => item.departemen === departemen);
+      source = source.filter((item) => normalizeText(item.departemen) === normalizeText(departemen));
     }
 
     return uniqueSorted(source.map((item) => item.layanan));
@@ -820,7 +846,14 @@ const KinerjaLayananDivisi: React.FC = () => {
 
           const yearMatch = tahun.length === 0 || tahun.includes(itemYear);
 
-          return (!unit || item.unit === unit) && (!divisi || item.divisi === divisi) && (!departemen || item.departemen === departemen) && (!layanan || item.layanan === layanan) && monthMatch && yearMatch;
+          return (
+            (!unit || normalizeText(item.unit) === normalizeText(unit)) &&
+            (!divisi || normalizeText(item.divisi) === normalizeText(divisi)) &&
+            (!departemen || normalizeText(item.departemen) === normalizeText(departemen)) &&
+            (!layanan || normalizeText(item.layanan) === normalizeText(layanan)) &&
+            monthMatch &&
+            yearMatch
+          );
         })
         .sort((a, b) => getMonthTimestamp(a.periode_bulan) - getMonthTimestamp(b.periode_bulan)),
     [data, unit, divisi, departemen, layanan, bulan, tahun],
@@ -832,7 +865,7 @@ const KinerjaLayananDivisi: React.FC = () => {
 
   const totalTransaksi = useMemo(() => filteredData.reduce((sum, item) => sum + parseNumber(item.jumlah_transaksi), 0), [filteredData]);
 
-  const totalLayanan = useMemo(() => new Set(filteredData.map((item) => item.layanan).filter(Boolean)).size, [filteredData]);
+  const totalLayanan = useMemo(() => new Set(filteredData.map((item) => normalizeText(item.layanan)).filter(Boolean)).size, [filteredData]);
 
   const totalSDM = useMemo(() => filteredData.reduce((sum, item) => sum + parseNumber(item.sdm_diproses), 0), [filteredData]);
 
@@ -1189,7 +1222,7 @@ const KinerjaLayananDivisi: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <div className="relative min-w-0">
             <label className={LABEL_CLASS}>Unit</label>
             <SearchableSelect
@@ -1322,7 +1355,6 @@ const KinerjaLayananDivisi: React.FC = () => {
         </div>
 
         <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-          {" "}
           <table className="w-full border-collapse text-left text-[10px]">
             <thead>
               <tr className="bg-[#233247] text-[9px] font-bold uppercase tracking-wide text-slate-300">
@@ -1346,9 +1378,9 @@ const KinerjaLayananDivisi: React.FC = () => {
                     <tr key={`${item.id}-${item.periode_bulan}-${rowNumber}`} className="transition-colors hover:bg-[#26364a]">
                       <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 tabular-nums text-slate-500">{rowNumber}.</td>
                       <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatMonth(item.periode_bulan)}</td>
-                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{item.divisi || "-"}</td>
-                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{item.departemen || "-"}</td>
-                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{item.layanan || "-"}</td>{" "}
+                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(item.divisi) || "-"}</td>
+                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(item.departemen) || "-"}</td>
+                      <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(item.layanan) || "-"}</td>
                       <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-right tabular-nums text-slate-300">{formatNumber(parseNumber(item.jumlah_transaksi))}</td>
                       <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-right tabular-nums text-slate-300">{formatNumber(parseNumber(item.sdm_diproses))}</td>
                       <td className="border-b border-r border-slate-300/[0.05] px-3 py-2.5">

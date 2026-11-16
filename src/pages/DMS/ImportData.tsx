@@ -254,7 +254,7 @@ export default function ImportPayroll() {
                   <span className="mt-1 text-[11px] text-slate-400">
                     {(file.size / 1024).toLocaleString("id-ID", {
                       maximumFractionDigits: 1,
-                    })}{" "}
+                    })}
                     KB · Klik untuk mengganti file
                   </span>
 

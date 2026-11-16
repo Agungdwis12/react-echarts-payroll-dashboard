@@ -584,7 +584,6 @@ export default function DataManagement() {
   "
           aria-busy={loadingData}
         >
-          {" "}
           {/* Saat data pertama kali dimuat, tampilkan skeleton agar tabel tidak terlihat kosong. */}
           {initialTableLoading || (loadingData && columns.length === 0) ? (
             <div className="min-w-160 animate-pulse p-3" role="status" aria-live="polite">

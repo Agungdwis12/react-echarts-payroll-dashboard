@@ -176,7 +176,43 @@ const monthSortValue = (value: string): number => {
   return date ? date.getFullYear() * 100 + date.getMonth() : 0;
 };
 
-const uniqueSorted = (values: string[]) => Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "id-ID"));
+const normalizeText = (value: string | null | undefined): string => (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
+
+const formatDisplayText = (value: string | null | undefined): string => {
+  const text = (value ?? "").trim().replace(/\s+/g, " ");
+
+  if (!text) return "";
+
+  const titleCase = text.toLocaleLowerCase("id-ID").replace(/(^|[\s/-])([\p{L}\p{N}])/gu, (_, separator, character) => separator + character.toLocaleUpperCase("id-ID"));
+
+  // Pertahankan penulisan singkatan yang umum digunakan.
+  const acronyms: Record<string, string> = {
+    bapp: "BAPP",
+    sdm: "SDM",
+    hr: "HR",
+    it: "IT",
+    ess: "ESS",
+    gpm: "GPM",
+  };
+
+  return titleCase.replace(/\b(bapp|sdm|hr|it|ess|gpm)\b/gi, (match) => acronyms[match.toLocaleLowerCase("id-ID")] ?? match);
+};
+
+const uniqueSorted = (values: string[]) => {
+  const uniqueMap = new Map<string, string>();
+
+  values.forEach((value) => {
+    if (!value?.trim()) return;
+
+    const normalized = normalizeText(value);
+
+    if (!uniqueMap.has(normalized)) {
+      uniqueMap.set(normalized, formatDisplayText(value));
+    }
+  });
+
+  return [...uniqueMap.values()].sort((a, b) => a.localeCompare(b, "id-ID"));
+};
 
 const statusKey = (value: string) => value.trim().toLowerCase();
 
@@ -371,7 +407,7 @@ const BappDashboard: React.FC = () => {
     [selectedMonths, selectedYears],
   );
 
-  const matchesUnit = useCallback((unit: string) => !selectedUnit || unit === selectedUnit, [selectedUnit]);
+  const matchesUnit = useCallback((unit: string) => !selectedUnit || normalizeText(unit) === normalizeText(selectedUnit), [selectedUnit]);
 
   const filteredMonthlyRows = useMemo(() => monthlyRows.filter((row) => matchesPeriod(row.periode_bulan) && matchesUnit(row.unit)), [monthlyRows, matchesPeriod, matchesUnit]);
 
@@ -644,17 +680,24 @@ const BappDashboard: React.FC = () => {
   ========================================================= */
 
   const bappByUnit = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { name: string; value: number }>();
 
     filteredMonthlyRows.forEach((row) => {
-      const unit = row.unit || "Tidak diketahui";
+      const rawUnit = row.unit || "Tidak diketahui";
+      const key = normalizeText(rawUnit);
+      const existing = map.get(key);
 
-      map.set(unit, (map.get(unit) ?? 0) + parseNumber(row.jumlah_bapp));
+      if (existing) {
+        existing.value += parseNumber(row.jumlah_bapp);
+      } else {
+        map.set(key, {
+          name: formatDisplayText(rawUnit),
+          value: parseNumber(row.jumlah_bapp),
+        });
+      }
     });
 
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
   }, [filteredMonthlyRows]);
 
   const bappUnitChartOption = useMemo(
@@ -765,17 +808,24 @@ const BappDashboard: React.FC = () => {
   ========================================================= */
 
   const revenueByLayanan = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { name: string; value: number }>();
 
     filteredDetailRows.forEach((row) => {
-      const layanan = row.layanan || "Tidak diketahui";
+      const rawLayanan = row.layanan || "Tidak diketahui";
+      const key = normalizeText(rawLayanan);
+      const existing = map.get(key);
 
-      map.set(layanan, (map.get(layanan) ?? 0) + parseNumber(row.revenue));
+      if (existing) {
+        existing.value += parseNumber(row.revenue);
+      } else {
+        map.set(key, {
+          name: formatDisplayText(rawLayanan),
+          value: parseNumber(row.revenue),
+        });
+      }
     });
 
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
   }, [filteredDetailRows]);
 
   const revenueChartOption = useMemo(
@@ -1277,7 +1327,6 @@ const BappDashboard: React.FC = () => {
         </div>
 
         <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-          {" "}
           <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-[10px] text-slate-300">
             <thead>
               <tr className="bg-[#233247] text-[9px] font-bold uppercase tracking-wide text-slate-300">
@@ -1297,13 +1346,13 @@ const BappDashboard: React.FC = () => {
 
                     <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatMonth(row.periode_bulan)}</td>
 
-                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.divisi || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(row.divisi) || "-"}</td>
 
-                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.departemen || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(row.departemen) || "-"}</td>
 
-                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.unit || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(row.unit) || "-"}</td>
 
-                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{row.layanan || "-"}</td>
+                    <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5 text-slate-300">{formatDisplayText(row.layanan) || "-"}</td>
 
                     <td className="whitespace-nowrap border-b border-r border-slate-300/[0.05] px-3 py-2.5">
                       <span
@@ -1317,7 +1366,7 @@ const BappDashboard: React.FC = () => {
                                 : "border-slate-400/20 bg-slate-400/10 text-slate-300"
                         }`}
                       >
-                        {row.status || "-"}
+                        {formatDisplayText(row.status) || "-"}
                       </span>
                     </td>
 
