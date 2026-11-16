@@ -391,7 +391,7 @@ app.get("/api/performance/unit", async (req, res) => {
 // PERFORMANCE PERIOD
 // =========================================================
 
-app.get("/api/performance/period", async (req, res) => {
+app.get("/api/performance/periode", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT *
