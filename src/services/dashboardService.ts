@@ -47,4 +47,4 @@ export const getPerformanceUnit = (period: string) =>
   fetchDashboardData(`performance/unit?period=${encodeURIComponent(period)}`);
 
 export const getPerformancePeriod = () =>
-  fetchDashboardData("performance/period");
+  fetchDashboardData("performance/periode");
