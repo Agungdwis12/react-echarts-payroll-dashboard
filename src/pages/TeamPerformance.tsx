@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TrendingUp, TrendingDown, Trophy, AlertTriangle, Target, RefreshCw, Search, Crown, Users, Clock3, Award, UserCheck, XCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, AlertTriangle, Target, RefreshCw, Search, Download,  Crown, Users, Clock3, Award, UserCheck, XCircle } from "lucide-react";
 
 import { getPerformanceAssessment, getPerformanceUnit, getPerformancePeriod } from "../services/dashboardService";
 
 import FilterDropdown from "../components/dashboard/FilterDropdown";
-// =========================================================
+
+import * as XLSX from "xlsx-js-style";// =========================================================
 // TYPES
 // =========================================================
 
@@ -670,6 +671,174 @@ function TeamPerformance() {
 
   const isFilterActive = selectedUnit !== "All Units" || selectedMonth !== "All" || selectedYear !== "All";
 
+
+const handleExportMatrix = () => {
+  if (!matrixAssessments.length) return;
+
+  const headers = ["PIC", "Jabatan", "Unit", ...PARAMETERS.flatMap((parameter) => [`${parameter.label} - Skor (%)`, `${parameter.label} - Data Aktual`]), "Nilai Akhir (%)", "Predikat"];
+
+  const rows = matrixAssessments.map((employee) => {
+    const row: (string | number)[] = [employee.employee_name, employee.position || "Payroll", employee.unit_name];
+
+    PARAMETERS.forEach((parameter) => {
+      row.push(formatPercent(employee[parameter.scoreKey]), formatRawValue(parameter.key, employee));
+    });
+
+    row.push(formatPercent(employee.final_score), employee.predicate);
+
+    return row;
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet([["MATRIKS KINERJA PIC PAYROLL"], [`Total PIC: ${matrixAssessments.length}`], [], headers, ...rows]);
+
+  const lastColumn = headers.length - 1;
+  const lastRow = rows.length + 3;
+
+  // Judul laporan
+  worksheet["A1"].s = {
+    font: {
+      bold: true,
+      sz: 16,
+      color: { rgb: "FFFFFF" },
+    },
+    fill: {
+      fgColor: { rgb: "14243D" },
+    },
+    alignment: {
+      vertical: "center",
+      horizontal: "left",
+    },
+  };
+
+  // Baris informasi
+  worksheet["A2"].s = {
+    font: {
+      italic: true,
+      sz: 10,
+      color: { rgb: "64748B" },
+    },
+  };
+
+  // Header tabel
+  for (let col = 0; col <= lastColumn; col++) {
+    const cellAddress = XLSX.utils.encode_cell({
+      r: 3,
+      c: col,
+    });
+
+    if (worksheet[cellAddress]) {
+      worksheet[cellAddress].s = {
+        font: {
+          bold: true,
+          color: { rgb: "FFFFFF" },
+          sz: 10,
+        },
+        fill: {
+          fgColor: { rgb: "1E3A5F" },
+        },
+        alignment: {
+          horizontal: "center",
+          vertical: "center",
+          wrapText: true,
+        },
+        border: {
+          top: { style: "thin", color: { rgb: "34445D" } },
+          bottom: { style: "medium", color: { rgb: "36B99A" } },
+          left: { style: "thin", color: { rgb: "D5DFEE" } },
+          right: { style: "thin", color: { rgb: "D5DFEE" } },
+        },
+      };
+    }
+  }
+
+  // Styling isi tabel
+  for (let row = 4; row <= lastRow; row++) {
+    for (let col = 0; col <= lastColumn; col++) {
+      const cellAddress = XLSX.utils.encode_cell({
+        r: row,
+        c: col,
+      });
+
+      if (!worksheet[cellAddress]) continue;
+
+      worksheet[cellAddress].s = {
+        font: {
+          name: "Arial",
+          sz: 10,
+          color: { rgb: "1E293B" },
+        },
+        fill: {
+          fgColor: {
+            rgb: row % 2 === 0 ? "F1F5F9" : "FFFFFF",
+          },
+        },
+        alignment: {
+          vertical: "center",
+          horizontal: col === 0 ? "left" : "center",
+          wrapText: true,
+        },
+        border: {
+          top: { style: "thin", color: { rgb: "E2E8F0" } },
+          bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+          left: { style: "thin", color: { rgb: "E2E8F0" } },
+          right: { style: "thin", color: { rgb: "E2E8F0" } },
+        },
+      };
+    }
+  }
+
+  // Highlight kolom nilai akhir dan predikat
+  for (let row = 4; row <= lastRow; row++) {
+    [lastColumn - 1, lastColumn].forEach((col) => {
+      const cellAddress = XLSX.utils.encode_cell({
+        r: row,
+        c: col,
+      });
+
+      if (worksheet[cellAddress]) {
+        worksheet[cellAddress].s = {
+          ...worksheet[cellAddress].s,
+          font: {
+            bold: true,
+            color: { rgb: "145B4D" },
+            sz: 10,
+          },
+          fill: {
+            fgColor: { rgb: "D1FAE5" },
+          },
+        };
+      }
+    });
+  }
+
+  // Lebar kolom
+  worksheet["!cols"] = [{ wch: 25 }, { wch: 18 }, { wch: 22 }, ...PARAMETERS.flatMap(() => [{ wch: 16 }, { wch: 22 }]), { wch: 18 }, { wch: 18 }];
+
+  // Tinggi baris
+  worksheet["!rows"] = [{ hpt: 30 }, { hpt: 20 }, { hpt: 8 }, { hpt: 35 }, ...rows.map(() => ({ hpt: 25 }))];
+
+  // Filter dan freeze header
+  worksheet["!autofilter"] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 3, c: 0 },
+      e: { r: lastRow, c: lastColumn },
+    }),
+  };
+
+  worksheet["!freeze"] = {
+    xSplit: 3,
+    ySplit: 4,
+  };
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Matriks Kinerja PIC");
+
+  XLSX.writeFile(workbook, "Matriks_Kinerja_PIC_Payroll.xlsx");
+};
+
+
+
   // =======================================================
   // RENDER
   // =======================================================
@@ -1060,22 +1229,36 @@ function TeamPerformance() {
               title="Parameter per PIC Payroll"
               description={`Matriks skor PIC · ${matrixAssessments.length} PIC unik · Skor rata-rata dan data aktual akumulatif`}
               action={
-                <div className="relative w-full sm:w-auto">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A9B8CE]" />
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  {/* SEARCH */}
+                  <div className="relative w-full sm:w-auto">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A9B8CE]" />
 
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Cari nama PIC..."
-                    className="h-9 w-full rounded-lg border border-[#34445D] bg-[#101D35] py-1.5 pl-7 pr-8 text-[10px] text-white outline-none placeholder:text-[#6F82A0] focus:border-[#36B99A] sm:h-8 sm:w-40"
-                  />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Cari nama PIC..."
+                      className="h-9 w-full rounded-lg border border-[#34445D] bg-[#101D35] py-1.5 pl-7 pr-8 text-[10px] text-white outline-none placeholder:text-[#6F82A0] focus:border-[#36B99A] sm:h-8 sm:w-40"
+                    />
 
-                  {search && (
-                    <button type="button" onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A9B8CE] hover:text-white" title="Hapus pencarian">
-                      ×
-                    </button>
-                  )}
+                    {search && (
+                      <button type="button" onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A9B8CE] hover:text-white" title="Hapus pencarian">
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* EXPORT EXCEL */}
+                  <button
+                    type="button"
+                    onClick={handleExportMatrix}
+                    disabled={!matrixAssessments.length}
+                    className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#237D69] bg-[#145B4D] px-3 text-[10px] font-semibold text-[#D1FAE5] transition-colors hover:bg-[#18745F] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-auto"
+                  >
+                    <Download size={13} />
+                    Export Excel
+                  </button>
                 </div>
               }
             />
@@ -1184,16 +1367,23 @@ function TeamPerformance() {
             </div>
 
             {/* LEGEND */}
-            <div className="mt-3 flex flex-wrap gap-3 border-t border-[#34445D] pt-3">
+
+            <div className="mt-3 flex flex-wrap gap-4 border-t border-[#34445D] pt-3">
               {[
-                { label: "Sangat Baik", color: "#DDF3EC" },
-                { label: "Baik", color: "#DCE8F8" },
-                { label: "Cukup", color: "#FFF0D6" },
-                { label: "Kurang", color: "#F9DEDE" },
+                { label: "Sangat Baik", color: "#34D399" },
+                { label: "Baik", color: "#60A5FA" },
+                { label: "Cukup", color: "#FBBF24" },
+                { label: "Kurang", color: "#F87171" },
               ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
-                  <span className="text-[11px] text-[#A9B8CE]">{item.label}</span>
+                <div key={item.label} className="flex items-center gap-2">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-sm shadow-sm"
+                    style={{
+                      backgroundColor: item.color,
+                      boxShadow: `0 0 7px ${item.color}55`,
+                    }}
+                  />
+                  <span className="text-[11px] font-medium text-[#D8E2F0]">{item.label}</span>
                 </div>
               ))}
             </div>

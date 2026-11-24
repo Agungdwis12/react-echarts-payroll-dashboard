@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import ReactApexChart from "react-apexcharts";
+import ApexCharts from "apexcharts";
+import type { ApexAxisChartSeries, ApexOptions } from "apexcharts";
 import { Activity, ChevronLeft, ChevronRight, CircleDollarSign, Database, FileSpreadsheet, Layers3, RefreshCw, TrendingUp, Users, XCircle } from "lucide-react";
 
 import SearchableSelect from "../components/dashboard/SearchableSelect";
@@ -49,15 +51,19 @@ interface ChartConfig {
   subtitle: string;
   icon: React.ReactNode;
   theme: ChartTheme;
-  option: Record<string, unknown>;
+  options: ApexOptions;
+  series: ApexAxisChartSeries;
   empty: string;
+  chartType?: "bar" | "line";
 }
 
-interface ResponsiveEChartProps {
-  option: Record<string, unknown>;
+interface ResponsiveApexChartProps {
+  options: ApexOptions;
+  series: ApexAxisChartSeries;
+  type?: "bar" | "line";
 }
 
-const ResponsiveEChart: React.FC<ResponsiveEChartProps> = ({ option }) => {
+const ResponsiveApexChart: React.FC<ResponsiveApexChartProps> = ({ options, series, type = "bar" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
 
@@ -67,53 +73,45 @@ const ResponsiveEChart: React.FC<ResponsiveEChartProps> = ({ option }) => {
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
-
-      if (width !== undefined) {
-        setChartWidth(width);
-      }
+      if (width !== undefined) setChartWidth(width);
     });
 
     observer.observe(element);
-
     return () => observer.disconnect();
   }, []);
 
-  const responsiveOption = useMemo(() => {
-    const xAxis = option.xAxis as
-      | {
-          data?: unknown[];
-          axisLabel?: Record<string, unknown>;
-        }
-      | undefined;
+  const labelCount = Array.isArray(options.xaxis?.categories) ? options.xaxis.categories.length : 0;
 
-    const labelCount = Array.isArray(xAxis?.data) ? xAxis.data.length : 0;
+  const spacePerLabel = labelCount > 0 ? chartWidth / labelCount : chartWidth;
 
-    const spacePerLabel = labelCount > 0 ? chartWidth / labelCount : chartWidth;
+  const rotateLabels = chartWidth === 0 || spacePerLabel < 58;
 
-    const rotate = chartWidth === 0 || spacePerLabel < 58 ? 30 : 0;
-
-    return {
-      ...option,
-      grid: {
-        ...(option.grid as Record<string, unknown>),
-        bottom: rotate > 0 ? 48 : 28,
-      },
-      xAxis: {
-        ...xAxis,
-        axisLabel: {
-          ...xAxis?.axisLabel,
-          interval: 0,
-          rotate,
-          hideOverlap: true,
-          margin: 10,
+  const responsiveOptions = useMemo<ApexOptions>(
+    () => ({
+      ...options,
+      xaxis: {
+        ...options.xaxis,
+        labels: {
+          ...options.xaxis?.labels,
+          rotate: rotateLabels ? -35 : 0,
+          rotateAlways: rotateLabels,
+          trim: false,
+          hideOverlappingLabels: true,
+          style: {
+            colors: "#b8c6d6",
+            fontSize: "9px",
+            fontWeight: 500,
+            ...(options.xaxis?.labels?.style || {}),
+          },
         },
       },
-    };
-  }, [option, chartWidth]);
+    }),
+    [options, rotateLabels],
+  );
 
   return (
     <div ref={containerRef} className="h-full w-full min-w-0">
-      <ReactECharts option={responsiveOption} style={{ width: "100%", height: "100%" }} notMerge lazyUpdate opts={{ renderer: "canvas" }} />
+      <ReactApexChart options={responsiveOptions} series={series} type={type} width="100%" height="100%" />
     </div>
   );
 };
@@ -393,7 +391,6 @@ const formatMonth = (value: string): string => {
 
 const normalizeText = (value: string | null | undefined): string => (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
-
 const formatDisplayText = (value: string | null | undefined): string => {
   const text = (value ?? "").trim().replace(/\s+/g, " ");
 
@@ -419,146 +416,190 @@ const uniqueSorted = (values: Array<string | null | undefined>): string[] => {
   return [...uniqueMap.values()].sort((a, b) => a.localeCompare(b, "id"));
 };
 
-const gradient = (start: string, middle: string, end: string) => ({
-  type: "linear",
-  x: 0,
-  y: 0,
-  x2: 0,
-  y2: 1,
-  colorStops: [
-    { offset: 0, color: start },
-    { offset: 0.48, color: middle },
-    { offset: 1, color: end },
-  ],
-});
+const getComparisonColors = (years: string[], comparisonData: ComparisonMonthlyPoint[], metric: "transaksi" | "sdm" | "nominal" | "sla", latestColor: string, olderColors: string[]): string[] => {
+  const yearsWithData = years.filter((year) => comparisonData.some((point) => point.values[year]?.[metric] != null));
+  const latestYear = [...yearsWithData].sort((a, b) => Number(b) - Number(a))[0] ?? "";
+  const olderYears = years.filter((year) => year !== latestYear);
 
-const TOOLTIP_STYLE = {
-  backgroundColor: "#202f42",
-  borderColor: "rgba(255,255,255,0.12)",
-  borderWidth: 1,
-  padding: [8, 10],
-  textStyle: {
-    color: "#eef4fa",
-    fontSize: 10,
+  return years.map((year) => {
+    if (year === latestYear) return latestColor;
+    const olderIndex = olderYears.indexOf(year);
+    return olderColors[Math.min(Math.max(olderIndex, 0), olderColors.length - 1)] ?? latestColor;
+  });
+};
+
+const getComboComparisonColors = (years: string[], comparisonData: ComparisonMonthlyPoint[]): string[] => {
+  const yearsWithData = years.filter((year) =>
+    comparisonData.some((point) => {
+      const value = point.values[year];
+      return value != null && (value.sdm != null || value.nominal != null);
+    }),
+  );
+  const latestYear = [...yearsWithData].sort((a, b) => Number(b) - Number(a))[0] ?? "";
+  const olderYears = years.filter((year) => year !== latestYear);
+  const sdmOlder = ["#CFFAFE", "#A5F3FC", "#67E8F9", "#22D3EE"];
+  // Semua garis nominal memakai satu warna hijau yang konsisten untuk setiap tahun.
+  const nominalColor = "#22C55E";
+
+  return years.flatMap((year) => {
+    if (year === latestYear) return ["#0891B2", nominalColor];
+    const index = Math.min(Math.max(olderYears.indexOf(year), 0), sdmOlder.length - 1);
+    return [sdmOlder[index], nominalColor];
+  });
+};
+
+const CHART_AXIS_COLOR = "#b8c6d6";
+const CHART_GRID_COLOR = "rgba(255,255,255,0.12)";
+
+const compactAxisValue = (value: number): string => {
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1_000_000_000_000) {
+    return `${(value / 1_000_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} triliun`;
+  }
+  if (absValue >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} miliar`;
+  }
+  if (absValue >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} juta`;
+  }
+  if (absValue >= 1_000) {
+    return `${(value / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} Ribu`;
+  }
+  return value.toLocaleString("id-ID");
+};
+
+const chartBaseOptions = (categories: string[], comparison = false, percent = false): ApexOptions => ({
+  chart: {
+    type: "bar",
+    height: "100%",
+    width: "100%",
+    background: "transparent",
+    foreColor: CHART_AXIS_COLOR,
+    toolbar: { show: false },
+    zoom: { enabled: false },
+    animations: {
+      enabled: true,
+      speed: 750,
+      easing: "easeout",
+      animateGradually: { enabled: true, delay: 80 },
+      dynamicAnimation: { enabled: true, speed: 350 },
+    },
+    parentHeightOffset: 0,
   },
-  extraCssText: "box-shadow: 0 12px 30px rgba(0,0,0,.35); border-radius: 10px;",
-};
-
-const CHART_AXIS_LABEL = {
-  color: "#b8c6d6",
-  fontSize: 9,
-  fontWeight: 500,
-};
-
-const CHART_GRID = {
-  left: 48,
-  right: 12,
-  top: 18,
-  bottom: 48,
-  containLabel: true,
-};
-
-const chartBase = (monthlyData: MonthlyPoint[]) => ({
-  animation: true,
-  animationDuration: 750,
-  animationEasing: "cubicOut" as const,
-  grid: CHART_GRID,
+  theme: { mode: "dark" },
+  colors: ["#2563EB", "#1d4f91"],
+  plotOptions: {
+    bar: {
+      horizontal: false,
+      columnWidth: comparison ? "62%" : categories.length > 8 ? "78%" : "58%",
+      borderRadius: 5,
+      borderRadiusApplication: "end",
+      borderRadiusWhenStacked: "last",
+      dataLabels: { position: "top" },
+    },
+  },
+  dataLabels: { enabled: false },
+  stroke: { show: false, width: 0 },
+  fill: {
+    type: "solid",
+    opacity: 1,
+  },
+  grid: {
+    show: true,
+    borderColor: CHART_GRID_COLOR,
+    strokeDashArray: 0,
+    padding: {
+      left: 8,
+      right: 8,
+      top: comparison ? 0 : 4,
+      bottom: 0,
+    },
+    xaxis: { lines: { show: false } },
+    yaxis: { lines: { show: true } },
+  },
+  xaxis: {
+    categories,
+    axisBorder: { show: true, color: "rgba(255,255,255,0.16)" },
+    axisTicks: { show: false },
+    labels: {
+      show: true,
+      rotate: -35,
+      rotateAlways: false,
+      trim: false,
+      hideOverlappingLabels: true,
+      offsetY: 2,
+      style: { colors: CHART_AXIS_COLOR, fontSize: "9px", fontWeight: 500 },
+    },
+    tooltip: { enabled: false },
+  },
+  yaxis: {
+    min: percent ? 0 : undefined,
+    max: percent ? 100 : undefined,
+    tickAmount: percent ? 5 : 5,
+    forceNiceScale: !percent,
+    labels: {
+      formatter: (value: number) => (percent ? `${Math.round(value)}%` : compactAxisValue(value)),
+      style: { colors: CHART_AXIS_COLOR, fontSize: "9px", fontWeight: 500 },
+      minWidth: 0,
+      maxWidth: 76,
+    },
+  },
+  legend: {
+    show: comparison,
+    position: "top",
+    horizontalAlign: "right",
+    fontSize: "9px",
+    labels: { colors: CHART_AXIS_COLOR },
+    markers: {
+      size: 4,
+      strokeWidth: 2,
+    },
+    itemMargin: { horizontal: 6, vertical: 0 },
+    offsetY: 16,
+  },
   tooltip: {
-    ...TOOLTIP_STYLE,
-    trigger: "axis",
-    axisPointer: { type: "shadow" },
+    theme: "dark",
+    style: {
+      fontSize: "11px",
+      fontFamily: "inherit",
+    },
+    shared: true,
+    intersect: false,
+    followCursor: true,
+    x: { show: true },
+    y: {
+      formatter: (value: number) => formatNumber(Number(value)),
+    },
+    marker: { show: true },
+    fillSeriesColor: false,
   },
-  xAxis: {
-    type: "category",
-    data: monthlyData.map((item) => item.label),
-    axisTick: { show: false },
-    axisLine: {
-      lineStyle: { color: "rgba(255,255,255,0.16)" },
-    },
-    axisLabel: {
-      ...CHART_AXIS_LABEL,
-      interval: 0,
-      rotate: 35,
-      margin: 10,
-    },
-    splitLine: { show: false },
+  states: {
+    hover: { filter: { type: "lighten", value: 0.08 } },
+    active: { filter: { type: "none", value: 0 } },
   },
-  yAxis: {
-    type: "value",
-    axisLine: { show: false },
-    axisTick: { show: false },
-    axisLabel: {
-      ...CHART_AXIS_LABEL,
-      formatter: (value: number) => {
-        const absValue = Math.abs(value);
-
-        if (absValue >= 1_000_000_000_000) {
-          return `${(value / 1_000_000_000_000).toLocaleString("id-ID", {
-            maximumFractionDigits: 1,
-          })} triliun`;
-        }
-
-        if (absValue >= 1_000_000_000) {
-          return `${(value / 1_000_000_000).toLocaleString("id-ID", {
-            maximumFractionDigits: 1,
-          })} miliar`;
-        }
-
-        if (absValue >= 1_000_000) {
-          return `${(value / 1_000_000).toLocaleString("id-ID", {
-            maximumFractionDigits: 1,
-          })} juta`;
-        }
-
-        if (absValue >= 1_000) {
-          return `${(value / 1_000).toLocaleString("id-ID", {
-            maximumFractionDigits: 1,
-          })} Ribu`;
-        }
-
-        return value.toLocaleString("id-ID");
-      },
-    },
-    splitLine: {
-      lineStyle: {
-        color: "rgba(255,255,255,0.075)",
-        width: 1,
-      },
-    },
+  noData: {
+    text: "Tidak ada data",
+    align: "center",
+    verticalAlign: "middle",
+    style: { color: "#64748b", fontSize: "10px" },
   },
 });
 
-const createBarChart = (monthlyData: MonthlyPoint[], name: string, values: number[], colors: [string, string, string], formatter?: (value: number) => string) => {
-  const base = chartBase(monthlyData);
-
+const createBarChart = (monthlyData: MonthlyPoint[], name: string, values: number[], color: string, formatter?: (value: number) => string): { options: ApexOptions; series: ApexAxisChartSeries } => {
+  const options = chartBaseOptions(monthlyData.map((item) => item.label));
   return {
-    ...base,
-    tooltip: {
-      ...base.tooltip,
-      valueFormatter: (value: number) => (formatter ? formatter(Number(value)) : formatNumber(Number(value))),
-    },
-    series: [
-      {
-        name,
-        type: "bar",
-        data: values,
-        barMaxWidth: 26,
-        barMinHeight: 3,
-        itemStyle: {
-          borderRadius: [5, 5, 1, 1],
-          color: gradient(colors[0], colors[1], colors[2]),
-          shadowBlur: 6,
-          shadowColor: `${colors[1]}30`,
-        },
-        emphasis: {
-          focus: "series",
-          itemStyle: {
-            shadowBlur: 12,
-            shadowColor: `${colors[0]}55`,
-          },
+    options: {
+      ...options,
+      colors: [color],
+      tooltip: {
+        ...options.tooltip,
+        y: {
+          formatter: (value: number) => (formatter ? formatter(Number(value)) : formatNumber(Number(value))),
         },
       },
-    ],
+    },
+    series: [{ name, data: values }],
   };
 };
 
@@ -568,133 +609,196 @@ const createComparisonBarChart = (
   comparisonData: ComparisonMonthlyPoint[],
   metric: "transaksi" | "sdm" | "nominal",
   name: string,
-  colors: Array<[string, string, string]>,
+  latestColor: string,
+  olderColors: string[],
   formatter?: (value: number) => string,
-) => {
-  const axisData: MonthlyPoint[] = labels.map((label, index) => ({
-    month: String(index + 1),
-    label,
-    transaksi: 0,
-    sdm: 0,
-    nominal: 0,
-    sla: 0,
-  }));
-  const base = chartBase(axisData);
-
+): { options: ApexOptions; series: ApexAxisChartSeries } => {
+  const options = chartBaseOptions(labels, true);
+  const seriesColors = getComparisonColors(years, comparisonData, metric, latestColor, olderColors);
   return {
-    ...base,
-    legend: {
-      show: true,
-      top: 0,
-      right: 4,
-      textStyle: { color: "#b8c6d6", fontSize: 9 },
-      itemWidth: 10,
-      itemHeight: 7,
-    },
-    grid: { ...CHART_GRID, top: 30, bottom: 38 },
-    tooltip: {
-      ...base.tooltip,
-      valueFormatter: (value: number) => (value == null ? "Tidak ada data" : formatter ? formatter(Number(value)) : formatNumber(Number(value))),
-    },
-    series: years.map((year, index) => ({
-      name: `${name} ${year}`,
-      type: "bar",
-      data: comparisonData.map((item) => item.values[year]?.[metric] ?? null),
-      barMaxWidth: 18,
-      barGap: "0%",
-      barCategoryGap: "35%",
-      itemStyle: {
-        borderRadius: [4, 4, 0, 0],
-        color: gradient(colors[index % colors.length][0], colors[index % colors.length][1], colors[index % colors.length][2]),
+    options: {
+      ...options,
+      colors: seriesColors,
+      plotOptions: {
+        ...options.plotOptions,
+        bar: {
+          ...options.plotOptions?.bar,
+          columnWidth: years.length <= 2 ? "58%" : years.length <= 4 ? "48%" : "38%",
+          borderRadius: 4,
+        },
       },
-      emphasis: { focus: "series" },
-      connectNulls: false,
+      tooltip: {
+        ...options.tooltip,
+        y: {
+          formatter: (value: number) => (value == null ? "Tidak ada data" : formatter ? formatter(Number(value)) : formatNumber(Number(value))),
+        },
+      },
+    },
+    series: years.map((year) => ({
+      name: `${name} ${year}`,
+      data: comparisonData.map((item) => item.values[year]?.[metric] ?? null),
     })),
   };
 };
 
-const createComparisonSlaChart = (labels: string[], years: string[], comparisonData: ComparisonMonthlyPoint[]) => {
-  const axisData: MonthlyPoint[] = labels.map((label, index) => ({
-    month: String(index + 1),
-    label,
-    transaksi: 0,
-    sdm: 0,
-    nominal: 0,
-    sla: 0,
-  }));
-
-  const base = chartBase(axisData);
-  const barColors = [
-    ["#f8d477", "#e8b94f", "#c9952e"],
-    ["#ffad70", "#fb923c", "#ea580c"],
-  ];
-
+const createComparisonSlaChart = (labels: string[], years: string[], comparisonData: ComparisonMonthlyPoint[]): { options: ApexOptions; series: ApexAxisChartSeries } => {
+  const options = chartBaseOptions(labels, true, true);
+  const seriesColors = getComparisonColors(years, comparisonData, "sla", "#F59E0B", ["#FDE68A", "#FCD34D", "#FBBF24", "#FCD34D"]);
   return {
-    ...base,
-
-    legend: {
-      show: true,
-      top: 0,
-      right: 4,
-      textStyle: {
-        color: "#b8c6d6",
-        fontSize: 9,
+    options: {
+      ...options,
+      colors: seriesColors,
+      plotOptions: {
+        ...options.plotOptions,
+        bar: { ...options.plotOptions?.bar, columnWidth: years.length <= 2 ? "58%" : years.length <= 4 ? "48%" : "38%", borderRadius: 4 },
       },
-      itemWidth: 10,
-      itemHeight: 7,
-    },
-
-    grid: {
-      ...CHART_GRID,
-      top: 30,
-      bottom: 38,
-    },
-
-    yAxis: {
-      ...base.yAxis,
-      min: 0,
-      max: 100,
-      interval: 20,
-      axisLabel: {
-        ...CHART_AXIS_LABEL,
-        formatter: (value: number) => `${value}%`,
+      tooltip: {
+        ...options.tooltip,
+        y: {
+          formatter: (value: number) => (value == null ? "Tidak ada data" : `${Math.round(Number(value))}%`),
+        },
       },
     },
-
-    tooltip: {
-      ...base.tooltip,
-      trigger: "axis",
-      axisPointer: {
-        type: "shadow",
-      },
-      valueFormatter: (value: number | null) => (value == null ? "Tidak ada data" : `${Math.round(Number(value))}%`),
-    },
-
-    series: years.map((year, index) => ({
+    series: years.map((year) => ({
       name: `SLA ${year}`,
-      type: "bar",
-
       data: comparisonData.map((item) => {
         const value = item.values[year]?.sla;
-
         return value == null ? null : Number(value.toFixed(2));
       }),
-
-      barMaxWidth: 22,
-      barGap: "0%",
-      barCategoryGap: "35%",
-
-      itemStyle: {
-        borderRadius: [4, 4, 0, 0],
-        color: gradient(barColors[index % barColors.length][0], barColors[index % barColors.length][1], barColors[index % barColors.length][2]),
-      },
-
-      emphasis: {
-        focus: "series",
-      },
-
-      connectNulls: false,
     })),
+  };
+};
+
+const createSdmNominalComboChart = (
+  displayedData: MonthlyPoint[],
+  comparisonLabels: string[],
+  comparisonYears: string[],
+  comparisonData: ComparisonMonthlyPoint[],
+  isYearComparison: boolean,
+): { options: ApexOptions; series: ApexAxisChartSeries } => {
+  const categories = isYearComparison ? comparisonLabels : displayedData.map((item) => item.label);
+  const years = isYearComparison ? comparisonYears : [""];
+
+  const sdmSeriesNames = years.map((year) => (year ? `SDM ${year}` : "SDM Diproses"));
+  const nominalSeriesNames = years.map((year) => (year ? `Nominal ${year}` : "Total Nominal"));
+
+  const series = years.flatMap((year) => {
+    const sdmValues = isYearComparison ? comparisonData.map((item) => item.values[year]?.sdm ?? null) : displayedData.map((item) => item.sdm);
+    const nominalValues = isYearComparison ? comparisonData.map((item) => item.values[year]?.nominal ?? null) : displayedData.map((item) => item.nominal);
+
+    return [
+      { name: year ? `SDM ${year}` : "SDM Diproses", type: "column", data: sdmValues },
+      { name: year ? `Nominal ${year}` : "Total Nominal", type: "line", data: nominalValues },
+    ];
+  }) as ApexAxisChartSeries;
+
+  const baseOptions = chartBaseOptions(categories, isYearComparison);
+  // Tahun terbaru yang benar-benar memiliki data memakai warna solid.
+  // Tahun sebelumnya memakai variasi warna lebih lembut, konsisten untuk SDM dan nominal.
+  const seriesColors = isYearComparison ? getComboComparisonColors(years, comparisonData) : ["#0891B2", "#22C55E"];
+
+  return {
+    options: {
+      ...baseOptions,
+      chart: {
+        ...baseOptions.chart,
+        type: "line",
+        width: "100%",
+        redrawOnParentResize: true,
+        redrawOnWindowResize: true,
+        // Chart hanya untuk melihat data: nonaktifkan zoom, pan, dan selection.
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        selection: { enabled: false },
+        animations: {
+          enabled: true,
+          speed: 650,
+          easing: "easeinout",
+          animateGradually: { enabled: true, delay: 45 },
+          dynamicAnimation: { enabled: true, speed: 400 },
+        },
+      },
+      colors: seriesColors,
+      plotOptions: {
+        ...baseOptions.plotOptions,
+        bar: {
+          ...baseOptions.plotOptions?.bar,
+          horizontal: false,
+          // Perlebar batang per kategori agar seri yang memiliki data tidak tampak terlalu renggang.
+          // Lebar bertambah bertahap mengikuti jumlah tahun yang dibandingkan.
+          columnWidth: !isYearComparison ? "52%" : years.length <= 2 ? "58%" : years.length <= 4 ? "68%" : "76%",
+          borderRadius: 4,
+          borderRadiusApplication: "end",
+          hideZeroBarsWhenGrouped: true,
+        },
+      },
+      stroke: {
+        curve: "straight",
+        width: years.flatMap(() => [0, 3]),
+        dashArray: years.flatMap(() => [0, 0]),
+        lineCap: "round",
+      },
+      markers: {
+        size: years.flatMap(() => [0, 5]),
+        strokeWidth: 2,
+        strokeColors: "#192638",
+        hover: { size: 7 },
+      },
+      fill: {
+        type: "solid",
+        opacity: years.flatMap(() => [1, 1]),
+      },
+      yaxis: [
+        {
+          seriesName: sdmSeriesNames,
+          title: {
+            text: "Jumlah SDM",
+            style: { color: CHART_AXIS_COLOR, fontSize: "10px", fontWeight: 500 },
+          },
+          min: 0,
+          forceNiceScale: true,
+          labels: {
+            formatter: (value: number) => formatNumber(value),
+            style: { colors: "#b8c6d6", fontSize: "9px" },
+          },
+        },
+        {
+          seriesName: nominalSeriesNames,
+          opposite: true,
+          title: {
+            text: "Total Nominal (Rp)",
+            style: { color: CHART_AXIS_COLOR, fontSize: "10px", fontWeight: 600 },
+          },
+          min: 0,
+          forceNiceScale: true,
+          labels: {
+            formatter: (value: number) => formatCompactRupiah(value),
+            style: { colors: "#b8c6d6", fontSize: "9px" },
+          },
+        },
+      ],
+      tooltip: {
+        ...baseOptions.tooltip,
+        shared: true,
+        intersect: false,
+        y: {
+          formatter: (value, opts) => {
+            const seriesIndex = opts?.seriesIndex ?? -1;
+            const seriesName = String((series[seriesIndex] as { name?: string })?.name ?? "");
+            return seriesName.startsWith("SDM") ? formatNumber(Number(value ?? 0)) : formatNominalTooltip(Number(value ?? 0));
+          },
+        },
+      },
+      legend: {
+        ...baseOptions.legend,
+        show: true,
+        position: "top",
+        horizontalAlign: "right",
+        fontSize: "10px",
+        itemMargin: { horizontal: 8, vertical: 3 },
+      },
+    },
+    series,
   };
 };
 
@@ -740,6 +844,7 @@ const KinerjaLayananDivisi: React.FC = () => {
   const [bulan, setBulan] = useState<string[]>([]);
   const [tahun, setTahun] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hiddenChartSeries, setHiddenChartSeries] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     let active = true;
@@ -924,14 +1029,46 @@ const KinerjaLayananDivisi: React.FC = () => {
       }));
   }, [filteredData]);
 
-  const isYearComparison = tahun.length === 2;
+  const isYearComparison = tahun.length > 1;
   const comparisonYears = useMemo(() => [...tahun].sort((a, b) => Number(a) - Number(b)), [tahun]);
-  const comparisonLabels = MONTHS.map((month) => month.slice(0, 3));
+
+  // Pilihan bulan yang eksplisit selalu menjadi acuan chart.
+  // Jika bulan tidak dipilih, gunakan 8 bulan terbaru dari tahun paling baru
+  // yang dipilih (atau tahun paling baru yang tersedia pada mode default).
+  const comparisonMonthIndexes = useMemo(() => {
+    // Jika bulan dipilih secara manual, ikuti pilihan bulan tersebut.
+    if (bulan.length > 0) {
+      return MONTHS.map((month, index) => (bulan.includes(month) ? index : -1)).filter((index) => index >= 0);
+    }
+
+    // Mode perbandingan: tampilkan semua bulan yang tersedia
+    // pada seluruh tahun yang dipilih (misalnya 2025 dan 2026).
+    if (comparisonYears.length > 1) {
+      const availableMonths = new Set<number>();
+
+      filteredData.forEach((item) => {
+        const timestamp = getMonthTimestamp(item.periode_bulan);
+        if (!timestamp) return;
+
+        const date = new Date(timestamp);
+        const itemYear = String(date.getFullYear());
+
+        if (comparisonYears.includes(itemYear)) {
+          availableMonths.add(date.getMonth());
+        }
+      });
+
+      return [...availableMonths].sort((a, b) => a - b);
+    }
+
+    return [];
+  }, [filteredData, comparisonYears, bulan]);
+  const comparisonLabels = useMemo(() => comparisonMonthIndexes.map((monthIndex) => MONTHS[monthIndex].slice(0, 3)), [comparisonMonthIndexes]);
 
   // Agregasi per bulan kalender untuk setiap tahun pada mode perbandingan.
   const comparisonMonthlyData = useMemo<ComparisonMonthlyPoint[]>(() => {
-    const result: ComparisonMonthlyPoint[] = MONTHS.map((month) => ({
-      label: month.slice(0, 3),
+    const result: ComparisonMonthlyPoint[] = comparisonMonthIndexes.map((monthIndex) => ({
+      label: MONTHS[monthIndex].slice(0, 3),
       values: Object.fromEntries(comparisonYears.map((year) => [year, { transaksi: null, sdm: null, nominal: null, sla: null }])) as ComparisonMonthlyPoint["values"],
     }));
 
@@ -968,7 +1105,8 @@ const KinerjaLayananDivisi: React.FC = () => {
       current.slaCount += 1;
     });
 
-    result.forEach((point, monthIndex) => {
+    result.forEach((point, resultIndex) => {
+      const monthIndex = comparisonMonthIndexes[resultIndex];
       comparisonYears.forEach((year) => {
         const current = aggregate.get(year)?.get(monthIndex);
         if (!current) return;
@@ -983,7 +1121,7 @@ const KinerjaLayananDivisi: React.FC = () => {
     });
 
     return result;
-  }, [filteredData, comparisonYears]);
+  }, [filteredData, comparisonYears, comparisonMonthIndexes]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
 
@@ -993,105 +1131,74 @@ const KinerjaLayananDivisi: React.FC = () => {
   const startRow = filteredData.length === 0 ? 0 : startIndex + 1;
   const endRow = Math.min(startIndex + PAGE_SIZE, filteredData.length);
   const displayedMonthlyData = useMemo(() => {
-    // Jika user memilih tahun tertentu,
-    // tampilkan semua bulan yang tersedia untuk tahun tersebut.
-    if (tahun.length > 0) {
-      return monthlyData;
+    const latestAvailableYear = monthlyData.length ? monthlyData[monthlyData.length - 1].month.slice(0, 4) : "";
+
+    const chartYear = tahun.length === 1 ? tahun[0] : latestAvailableYear;
+
+    let result = monthlyData.filter((item) => item.month.startsWith(`${chartYear}-`));
+
+    // Jika bulan dipilih, tampilkan hanya bulan yang dipilih.
+    if (bulan.length > 0) {
+      const selectedMonthIndexes = new Set(bulan.map((month) => MONTH_FILTER_MAP[month]));
+
+      result = result.filter((item) => {
+        const monthIndex = Number(item.month.slice(5, 7));
+        return selectedMonthIndexes.has(monthIndex);
+      });
+
+      return result;
     }
 
-    // Default dashboard: tampilkan 8 bulan terakhir.
-    return monthlyData.slice(-8);
-  }, [monthlyData, tahun]);
-  const transactionChartOption = useMemo(
+    // Jika satu tahun dipilih, tampilkan seluruh bulan pada tahun tersebut.
+    if (tahun.length === 1) {
+      return result;
+    }
+
+    // Default: tampilkan 8 bulan terbaru.
+    return result.slice(-8);
+  }, [monthlyData, tahun, bulan]);
+
+  const transactionChart = useMemo(
     () =>
       isYearComparison
-        ? createComparisonBarChart(comparisonLabels, comparisonYears, comparisonMonthlyData, "transaksi", "Transaksi", [
-            ["#9ac5ff", "#78adf8", "#4f8edc"],
-            ["#4f8edc", "#2868bd", "#1d4f91"],
-          ])
+        ? createComparisonBarChart(comparisonLabels, comparisonYears, comparisonMonthlyData, "transaksi", "Transaksi", "#2563EB", ["#BFDBFE", "#93C5FD", "#60A5FA", "#3B82F6"])
         : createBarChart(
             displayedMonthlyData,
             "Jumlah Transaksi",
             displayedMonthlyData.map((item) => item.transaksi),
-            ["#78adf8", "#4f8edc", "#2868bd"],
+            "#2563EB",
           ),
     [isYearComparison, comparisonLabels, comparisonYears, comparisonMonthlyData, displayedMonthlyData],
   );
 
-  const sdmChartOption = useMemo(
-    () =>
-      isYearComparison
-        ? createComparisonBarChart(comparisonLabels, comparisonYears, comparisonMonthlyData, "sdm", "SDM", [
-            ["#9be7eb", "#79d8df", "#55b8c4"],
-            ["#55b8c4", "#278d99", "#176b75"],
-          ])
-        : createBarChart(
-            displayedMonthlyData,
-            "SDM Diproses",
-            displayedMonthlyData.map((item) => item.sdm),
-            ["#79d8df", "#55b8c4", "#278d99"],
-          ),
-    [isYearComparison, comparisonLabels, comparisonYears, comparisonMonthlyData, displayedMonthlyData],
+  const sdmNominalChart = useMemo(
+    () => createSdmNominalComboChart(displayedMonthlyData, comparisonLabels, comparisonYears, comparisonMonthlyData, isYearComparison),
+    [displayedMonthlyData, comparisonLabels, comparisonYears, comparisonMonthlyData, isYearComparison],
   );
 
-  const nominalChartOption = useMemo(
-    () =>
-      isYearComparison
-        ? createComparisonBarChart(
-            comparisonLabels,
-            comparisonYears,
-            comparisonMonthlyData,
-            "nominal",
-            "Nominal",
-            [
-              ["#a8e8c5", "#83d6aa", "#55b985"],
-              ["#55b985", "#26835c", "#176343"],
-            ],
-            formatNominalTooltip,
-          )
-        : createBarChart(
-            displayedMonthlyData,
-            "Total Nominal",
-            displayedMonthlyData.map((item) => item.nominal),
-            ["#83d6aa", "#55b985", "#26835c"],
-            formatNominalTooltip,
-          ),
-    [isYearComparison, comparisonLabels, comparisonYears, comparisonMonthlyData, displayedMonthlyData],
-  );
-
-  const slaChartOption = useMemo(() => {
+  const slaChart = useMemo(() => {
     if (isYearComparison) {
       return createComparisonSlaChart(comparisonLabels, comparisonYears, comparisonMonthlyData);
     }
 
-    const base = chartBase(displayedMonthlyData);
+    const baseOptions = chartBaseOptions(
+      displayedMonthlyData.map((item) => item.label),
+      false,
+      true,
+    );
     return {
-      ...base,
-      yAxis: {
-        ...base.yAxis,
-        min: 0,
-        max: 100,
-        interval: 20,
-        axisLabel: { ...CHART_AXIS_LABEL, formatter: (value: number) => `${value}%` },
-      },
-      tooltip: {
-        ...base.tooltip,
-        valueFormatter: (value: number) => `${Math.round(Number(value))}%`,
+      options: {
+        ...baseOptions,
+        colors: ["#F59E0B"],
+        tooltip: {
+          ...baseOptions.tooltip,
+          y: { formatter: (value: number) => `${Math.round(Number(value))}%` },
+        },
       },
       series: [
         {
           name: "SLA Tercapai",
-          type: "bar",
           data: displayedMonthlyData.map((item) => Math.min(Math.max(Math.round(item.sla), 0), 100)),
-          barMaxWidth: 26,
-          barMinHeight: 3,
-          itemStyle: {
-            borderRadius: [5, 5, 1, 1],
-            color: gradient("#f1c66d", "#d9a441", "#a87925"),
-            shadowBlur: 6,
-            shadowColor: "rgba(217,164,65,0.2)",
-          },
-          emphasis: { focus: "series", itemStyle: { shadowBlur: 12, shadowColor: "rgba(217,164,65,0.35)" } },
         },
       ],
     };
@@ -1103,32 +1210,28 @@ const KinerjaLayananDivisi: React.FC = () => {
       subtitle: isYearComparison ? `Jumlah transaksi bulanan: ${comparisonYears.join(" vs ")}` : "Jumlah transaksi pada setiap bulan",
       icon: <TrendingUp size={15} />,
       theme: "blue",
-      option: transactionChartOption,
+      options: transactionChart.options,
+      series: transactionChart.series,
       empty: "Tidak ada data transaksi",
-    },
-    {
-      title: isYearComparison ? "Perbandingan SDM Diproses" : "Tren SDM Diproses per Bulan",
-      subtitle: isYearComparison ? `Jumlah SDM diproses: ${comparisonYears.join(" vs ")}` : "Jumlah SDM yang diproses setiap bulan",
-      icon: <Users size={15} />,
-      theme: "cyan",
-      option: sdmChartOption,
-      empty: "Tidak ada data SDM",
-    },
-    {
-      title: isYearComparison ? "Perbandingan Total Nominal" : "Total Nominal per Bulan",
-      subtitle: isYearComparison ? `Total nominal bulanan: ${comparisonYears.join(" vs ")}` : "Akumulasi nominal setiap bulan dalam rupiah",
-      icon: <CircleDollarSign size={15} />,
-      theme: "green",
-      option: nominalChartOption,
-      empty: "Tidak ada data nominal",
     },
     {
       title: isYearComparison ? "Perbandingan Pencapaian SLA" : "Pencapaian SLA per Bulan",
       subtitle: isYearComparison ? `Persentase SLA bulanan: ${comparisonYears.join(" vs ")}` : "Persentase pencapaian SLA setiap bulan",
       icon: <Activity size={15} />,
       theme: "orange",
-      option: slaChartOption,
+      options: slaChart.options,
+      series: slaChart.series,
       empty: "Tidak ada data SLA",
+    },
+    {
+      title: isYearComparison ? "Perbandingan SDM dan Nominal" : "Tren SDM Diproses dan Total Nominal",
+      subtitle: isYearComparison ? `Batang menunjukkan SDM dan garis menunjukkan nominal per tahun (${comparisonYears.join(" vs ")})` : "Batang menunjukkan jumlah SDM dan garis menunjukkan total nominal",
+      icon: <Users size={15} />,
+      theme: "cyan",
+      options: sdmNominalChart.options,
+      series: sdmNominalChart.series,
+      chartType: "line",
+      empty: "Tidak ada data SDM dan nominal",
     },
   ];
 
@@ -1140,6 +1243,23 @@ const KinerjaLayananDivisi: React.FC = () => {
     setBulan([]);
     setTahun([]);
     setCurrentPage(1);
+  };
+
+  const toggleChartSeries = (chartId: string, seriesName: string) => {
+    const hidden = hiddenChartSeries[chartId] ?? [];
+    const isCurrentlyHidden = hidden.includes(seriesName);
+
+    // Gunakan aksi eksplisit agar status legenda dan visibilitas seri selalu sinkron.
+    ApexCharts.exec(chartId, isCurrentlyHidden ? "showSeries" : "hideSeries", seriesName);
+
+    setHiddenChartSeries((current) => {
+      const currentHidden = current[chartId] ?? [];
+
+      return {
+        ...current,
+        [chartId]: isCurrentlyHidden ? currentHidden.filter((name) => name !== seriesName) : [...currentHidden, seriesName],
+      };
+    });
   };
 
   if (loading) {
@@ -1187,7 +1307,65 @@ const KinerjaLayananDivisi: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-3 font-sans text-slate-100">
+    <div className="kinerja-compact-tooltip w-full min-w-0 space-y-3 font-sans text-slate-100">
+      <style>{`
+  .kinerja-compact-tooltip .apexcharts-tooltip {
+    background: #000000 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28) !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+    max-width: 280px !important;
+    overflow: hidden !important;
+    font-family: inherit !important;
+  }
+
+  .kinerja-compact-tooltip .apexcharts-tooltip-title {
+    background: #000000 !important;
+    color: #f1f5f9 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
+    margin: 0 !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+  }
+
+  .kinerja-compact-tooltip .apexcharts-tooltip-series-group {
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    line-height: 1.1 !important;
+    align-items: center !important;
+    gap: 5px !important;
+  }
+
+  .kinerja-compact-tooltip .apexcharts-tooltip-marker {
+    width: 8px !important;
+    height: 8px !important;
+    margin-right: 5px !important;
+    flex: 0 0 8px !important;
+  }
+
+  .kinerja-compact-tooltip .apexcharts-tooltip-text,
+  .kinerja-compact-tooltip .apexcharts-tooltip-text-y-label,
+  .kinerja-compact-tooltip .apexcharts-tooltip-text-y-value,
+  .kinerja-compact-tooltip .apexcharts-tooltip-y-group {
+    color: #e2e8f0 !important;
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+  }
+
+  .kinerja-compact-tooltip .apexcharts-tooltip-text-y-value {
+    color: #f8fafc !important;
+    font-weight: 700 !important;
+  }
+`}</style>
       <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold tracking-tight text-slate-50 sm:text-xl">Dashboard Kinerja Layanan Divisi</h1>
@@ -1202,7 +1380,6 @@ const KinerjaLayananDivisi: React.FC = () => {
           Data Terhubung
         </div>
       </header>
-
       <section className={`${PANEL_CLASS} relative z-20 p-3`}>
         <div className="mb-3 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center">
@@ -1292,7 +1469,6 @@ const KinerjaLayananDivisi: React.FC = () => {
           </div>
         )}
       </section>
-
       {/* KPI */}
       <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <KpiCard title="JUMLAH TRANSAKSI" value={formatNumber(totalTransaksi)} icon={<Activity size={17} />} theme="blue" />
@@ -1303,23 +1479,70 @@ const KinerjaLayananDivisi: React.FC = () => {
 
       {/* Charts */}
       <section className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-2">
-        {chartConfigs.map((chart) => {
+        {chartConfigs.map((chart, index) => {
           const colors = CHART_THEMES[chart.theme];
+          const chartId = `kinerja-chart-${index}`;
+
+          const seriesColors = (chart.options.colors as string[] | undefined) ?? [];
+
+          const hiddenSeries = hiddenChartSeries[chartId] ?? [];
+
+          const chartOptions = {
+            ...chart.options,
+            chart: {
+              ...chart.options.chart,
+              id: chartId,
+            },
+            legend: {
+              ...chart.options.legend,
+              show: false,
+            },
+          };
 
           return (
-            <div key={chart.title} className={`${PANEL_CLASS} flex h-[350px] min-w-0 flex-col overflow-hidden border-t-2 ${colors.border}`}>
-              <div className="flex min-h-[52px] items-center gap-2 border-b border-slate-300/[0.08] bg-white/[0.01] px-3">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colors.icon}`}>{chart.icon}</div>
+            <div key={chart.title} className={`${PANEL_CLASS} flex h-[350px] min-w-0 flex-col overflow-hidden border-t-2 ${colors.border} ${chart.chartType === "line" ? "lg:col-span-2" : ""}`}>
+              <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-slate-300/[0.08] bg-white/[0.01] px-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colors.icon}`}>{chart.icon}</div>
 
-                <div className="min-w-0">
-                  <h3 className="text-[11px] font-bold text-slate-100">{chart.title}</h3>
-                  <p className="mt-0.5 text-[9px] text-slate-400">{chart.subtitle}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-[11px] font-bold text-slate-100">{chart.title}</h3>
+                    <p className="mt-0.5 text-[9px] text-slate-400">{chart.subtitle}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 p-1.5">
+              <div className="relative min-h-0 flex-1 p-1">
                 {monthlyData.length > 0 ? (
-                  <ResponsiveEChart option={chart.option} />
+                  <>
+                    <div className="pointer-events-auto absolute right-3 top-2 z-10 flex max-w-[75%] flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                      {chart.series.map((series, seriesIndex) => {
+                        const seriesName = String(series.name ?? `Series ${seriesIndex + 1}`);
+                        const isHidden = hiddenSeries.includes(seriesName);
+
+                        return (
+                          <button
+                            key={seriesName}
+                            type="button"
+                            onClick={() => toggleChartSeries(chartId, seriesName)}
+                            aria-pressed={!isHidden}
+                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${isHidden ? "opacity-40 line-through" : "opacity-100"}`}
+                            style={{ color: "#d3deeb" }}
+                          >
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: seriesColors[seriesIndex] ?? "#b8c6d6",
+                              }}
+                            />
+                            {seriesName}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <ResponsiveApexChart options={chartOptions} series={chart.series} type={chart.chartType ?? "bar"} />
+                  </>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-[10px] text-slate-500">
                     <Database size={21} className="opacity-50" />

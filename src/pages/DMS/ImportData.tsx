@@ -185,7 +185,7 @@ export default function ImportPayroll() {
         >
           <span className={`h-1.5 w-1.5 rounded-full ${connection === "connected" ? "bg-emerald-400" : connection === "error" ? "bg-red-400" : "animate-pulse bg-amber-400"}`} />
 
-          {connection === "connected" ? "Database terhubung" : connection === "error" ? "Database bermasalah" : "Memeriksa database"}
+          {connection === "connected" ? "Database terhubung" : connection === "error" ? "Database tidak terhubung" : "Memeriksa database"}
         </div>
       </header>
 

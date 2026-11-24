@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   try {
     const result = await pool.query(`
       SELECT
-        periode_bulan,
+        TO_CHAR(periode_bulan::date, 'YYYY-MM-DD') AS periode_bulan,
         beban_jarkom,
         beban_jasnaker,
         beban_kerjasama_pihak_ketiga,

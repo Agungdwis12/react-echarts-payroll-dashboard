@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import ReactApexChart from "react-apexcharts";
 import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, FileSpreadsheet, PieChart, RefreshCw, TrendingUp, X, Building2, XCircle } from "lucide-react";
 import { getMasterBappBulanan, getMasterDetailBapp } from "../services/dashboardService";
 import SearchableSelect from "../components/dashboard/SearchableSelect";
@@ -31,14 +31,6 @@ interface BappDetailRow {
   keterangan: string;
   text?: string;
   created_at?: string;
-}
-
-interface ChartMonth {
-  sort: number;
-  label: string;
-  done: number;
-  onProcess: number;
-  noProcess: number;
 }
 
 interface ChartConfig {
@@ -154,13 +146,6 @@ const getYear = (value: string): string => {
   return date ? String(date.getFullYear()) : "";
 };
 
-const getMonthKey = (value: string): string => {
-  const date = parseDate(value);
-  if (!date) return "";
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-};
-
 const formatMonth = (value: string): string => {
   const date = parseDate(value);
   if (!date) return value;
@@ -169,11 +154,6 @@ const formatMonth = (value: string): string => {
     month: "short",
     year: "numeric",
   });
-};
-
-const monthSortValue = (value: string): number => {
-  const date = parseDate(value);
-  return date ? date.getFullYear() * 100 + date.getMonth() : 0;
 };
 
 const normalizeText = (value: string | null | undefined): string => (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
@@ -235,78 +215,20 @@ const PAGE_SIZE = 10;
 const monthOptions = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 /* =========================================================
-   RESPONSIVE ECHART
+   RESPONSIVE APEXCHART
 ========================================================= */
 
-interface ResponsiveEChartProps {
+interface ResponsiveApexChartProps {
   option: Record<string, any>;
   className?: string;
 }
 
-const ResponsiveEChart: React.FC<ResponsiveEChartProps> = ({ option, className = "h-full w-full" }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [chartWidth, setChartWidth] = useState(0);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (typeof width === "number") {
-        setChartWidth(width);
-      }
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const responsiveOption = useMemo(() => {
-    const xAxis = option.xAxis;
-
-    if (!xAxis || Array.isArray(xAxis)) return option;
-
-    const labels: string[] = Array.isArray(xAxis.data) ? xAxis.data.map((value: unknown) => String(value ?? "")) : [];
-
-    const labelCount = labels.length;
-    const spacePerLabel = labelCount > 0 ? chartWidth / labelCount : chartWidth;
-
-    const maxLabelLength = labels.reduce((max, label) => Math.max(max, label.length), 0);
-
-    const requiredSpace = Math.max(58, Math.min(118, maxLabelLength * 5.8));
-
-    const rotate = chartWidth > 0 && labelCount > 1 && spacePerLabel < requiredSpace ? (maxLabelLength > 12 ? 40 : 30) : 0;
-
-    const oldAxisLabel = xAxis.axisLabel || {};
-    const oldGrid = option.grid || {};
-
-    return {
-      ...option,
-      grid: {
-        ...oldGrid,
-        bottom: rotate > 0 ? Math.max(Number(oldGrid.bottom) || 0, maxLabelLength > 12 ? 70 : 58) : 38,
-        containLabel: true,
-      },
-      xAxis: {
-        ...xAxis,
-        axisLabel: {
-          ...oldAxisLabel,
-          interval: 0,
-          rotate,
-          hideOverlap: false,
-          width: undefined,
-          overflow: "none",
-          margin: rotate > 0 ? 10 : 8,
-          align: rotate > 0 ? "right" : "center",
-        },
-      },
-    };
-  }, [option, chartWidth]);
+const ResponsiveApexChart: React.FC<ResponsiveApexChartProps> = ({ option, className = "h-full w-full" }) => {
+  const chartType = option.chart?.type ?? "bar";
 
   return (
-    <div ref={containerRef} className={className}>
-      <ReactECharts option={responsiveOption} style={{ height: "100%", width: "100%" }} notMerge lazyUpdate opts={{ renderer: "canvas" }} />
+    <div className={className}>
+      <ReactApexChart options={option} series={option.series ?? []} type={chartType} height="100%" width="100%" />
     </div>
   );
 };
@@ -458,16 +380,25 @@ const BappDashboard: React.FC = () => {
      Filter periode aktif: semua bulan yang sesuai.
   ========================================================= */
 
-  const nominalStatusByMonth = useMemo(() => {
-    const map = new Map<string, ChartMonth>();
+  const nominalStatusChartData = useMemo(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
+    type MonthlyStatusTotal = {
+      done: number;
+      onProcess: number;
+      noProcess: number;
+    };
+
+    const totalsByYearMonth = new Map<string, MonthlyStatusTotal>();
     filteredMonthlyRows.forEach((row) => {
-      const key = getMonthKey(row.periode_bulan);
-      if (!key) return;
+      const date = parseDate(row.periode_bulan);
+      if (!date) return;
 
-      const existing = map.get(key) ?? {
-        sort: monthSortValue(row.periode_bulan),
-        label: formatMonth(row.periode_bulan),
+      const year = String(date.getFullYear());
+      const month = date.getMonth();
+      const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+
+      const current = totalsByYearMonth.get(key) ?? {
         done: 0,
         onProcess: 0,
         noProcess: 0,
@@ -476,203 +407,261 @@ const BappDashboard: React.FC = () => {
       const nominal = parseNumber(row.nominal);
 
       if (isDone(row.status_bapp)) {
-        existing.done += nominal;
+        current.done += nominal;
       } else if (isOnProcess(row.status_bapp)) {
-        existing.onProcess += nominal;
+        current.onProcess += nominal;
       } else if (isNoProcess(row.status_bapp)) {
-        existing.noProcess += nominal;
+        current.noProcess += nominal;
       }
 
-      map.set(key, existing);
+      totalsByYearMonth.set(key, current);
     });
 
-    const sortedMonths = Array.from(map.values()).sort((a, b) => a.sort - b.sort);
+    const isYearComparison = selectedYears.length > 1;
+
+    // Saat lebih dari satu tahun dipilih, sumbu X menjadi Jan–Des.
+    // Setiap tahun memiliki satu grup bar sendiri; status tetap ditumpuk
+    // di dalam grup tahun tersebut agar perbandingan per bulan terlihat jelas.
+    if (isYearComparison) {
+      const years = [...selectedYears].sort((a, b) => Number(a) - Number(b));
+      const selectedMonthIndexes =
+        selectedMonths.length > 0
+          ? monthOptions.map((month, index) => (selectedMonths.some((selected) => selected.toLocaleLowerCase("id-ID") === month.toLocaleLowerCase("id-ID")) ? index : -1)).filter((index) => index >= 0)
+          : monthNames.map((_, index) => index);
+
+      const categories = selectedMonthIndexes.map((index) => monthNames[index]);
+
+      // Warna status dibuat konsisten untuk semua tahun agar perbandingan mudah dibaca.
+      const statusColors = ["#238b57", "#d89420", "#d94b59"];
+
+      const series = years.flatMap((year) => {
+        const statusSeries = [
+          { key: "done" as const, label: "Done" },
+          { key: "onProcess" as const, label: "On Proses" },
+          { key: "noProcess" as const, label: "No Proses" },
+        ];
+
+        return statusSeries.map((status) => ({
+          name: `${year} · ${status.label}`,
+          group: year,
+          data: selectedMonthIndexes.map((monthIndex) => {
+            const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+            return totalsByYearMonth.get(key)?.[status.key] ?? 0;
+          }),
+        }));
+      });
+
+      const hasData = years.some((year) =>
+        selectedMonthIndexes.some((monthIndex) => {
+          const key = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+          const value = totalsByYearMonth.get(key);
+          return Boolean(value && (value.done || value.onProcess || value.noProcess));
+        }),
+      );
+
+      return {
+        categories,
+        series,
+        colors: years.flatMap(() => statusColors),
+        hasData,
+        isYearComparison: true,
+      };
+    }
+
+    const sortedEntries = Array.from(totalsByYearMonth.entries())
+      .map(([key, value]) => {
+        const [year, month] = key.split("-");
+        const monthIndex = Number(month) - 1;
+        return {
+          key,
+          year,
+          monthIndex,
+          sort: Number(year) * 100 + Number(month),
+          value,
+        };
+      })
+      .sort((a, b) => a.sort - b.sort);
 
     const isPeriodFiltered = selectedMonths.length > 0 || selectedYears.length > 0;
+    const visibleEntries = isPeriodFiltered ? sortedEntries : sortedEntries.slice(-8);
 
-    return isPeriodFiltered ? sortedMonths : sortedMonths.slice(-8);
+    const categories = visibleEntries.map((item) => (selectedYears.length === 1 ? monthNames[item.monthIndex] : `${monthNames[item.monthIndex]} '${item.year.slice(-2)}`));
+
+    return {
+      categories,
+      series: [
+        { name: "Done", data: visibleEntries.map((item) => item.value.done) },
+        { name: "On Proses", data: visibleEntries.map((item) => item.value.onProcess) },
+        { name: "No Proses", data: visibleEntries.map((item) => item.value.noProcess) },
+      ],
+      colors: ["#38b978", "#efa938", "#e85b67"],
+      hasData: visibleEntries.length > 0,
+      isYearComparison: false,
+    };
   }, [filteredMonthlyRows, selectedMonths, selectedYears]);
 
   const nominalStatusChartOption = useMemo(
     () => ({
-      animation: true,
-      animationDuration: 700,
-      animationEasing: "cubicOut",
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-          shadowStyle: {
-            color: "rgba(120, 150, 190, 0.08)",
-          },
-        },
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-        borderWidth: 1,
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 10,
-        },
-        extraCssText: "box-shadow:0 10px 25px rgba(0,0,0,.28);border-radius:9px;",
-        formatter: (params: any[]) => {
-          if (!params?.length) return "";
-
-          let html = `
-            <div style="font-weight:700;color:#f2f6fb;margin-bottom:6px">
-              ${params[0].axisValue}
-            </div>
-          `;
-
-          params.forEach((item) => {
-            html += `
-              <div style="display:flex;justify-content:space-between;gap:16px;margin:4px 0">
-                <span style="color:#9fb0c3">${item.marker}${item.seriesName}</span>
-                <strong style="color:#f2f6fb">
-                  ${formatCompactRupiah(Number(item.value) || 0)}
-                </strong>
-              </div>
-            `;
-          });
-
-          return html;
+      chart: {
+        type: "bar",
+        stacked: true,
+        stackType: "normal",
+        toolbar: { show: false },
+        background: "transparent",
+        fontFamily: "inherit",
+        foreColor: "#aebed0",
+        animations: {
+          enabled: true,
+          easing: "easeinout",
+          speed: 650,
         },
       },
-      legend: {
-        top: 0,
-        left: 2,
-        itemWidth: 9,
-        itemHeight: 8,
-        itemGap: 12,
-        textStyle: {
-          color: "#aebed0",
-          fontSize: 9,
+      colors: nominalStatusChartData.colors,
+      plotOptions: {
+        bar: {
+          horizontal: false,
+          // Perlebar bar agar tidak tampak seperti lidi, tetap sisakan jarak
+          // antar kelompok tahun dalam satu bulan.
+          columnWidth: nominalStatusChartData.isYearComparison ? "68%" : "42%",
+          borderRadius: 5,
+          borderRadiusApplication: "end",
+          borderRadiusWhenStacked: "last",
         },
+      },
+      dataLabels: { enabled: false },
+      // Garis tepi tipis memberi pemisah visual antarbar yang warnanya sama.
+      stroke: {
+        show: nominalStatusChartData.isYearComparison,
+        width: nominalStatusChartData.isYearComparison ? 1.2 : 0,
+        colors: nominalStatusChartData.isYearComparison ? nominalStatusChartData.series.map((_, index) => (Math.floor(index / 3) % 2 === 0 ? "#172638" : "#31445b")) : ["transparent"],
       },
       grid: {
-        left: 22,
-        right: 10,
-        top: 27,
-        bottom: 42,
-        containLabel: true,
+        borderColor: "rgba(126, 150, 178, 0.12)",
+        strokeDashArray: 4,
+        padding: { left: 8, right: 8, top: 0, bottom: 0 },
       },
-      xAxis: {
-        type: "category",
-        data: nominalStatusByMonth.map((item) => item.label),
-        axisLine: {
-          lineStyle: {
-            color: "rgba(148, 163, 184, 0.25)",
-          },
-        },
-        axisTick: { show: false },
-        axisLabel: {
-          interval: 0,
-          fontSize: 9,
-          color: "#aebed0",
-          margin: 8,
-          hideOverlap: false,
+      xaxis: {
+        categories: nominalStatusChartData.categories,
+        axisBorder: { show: true, color: "rgba(148, 163, 184, 0.25)" },
+        axisTicks: { show: false },
+        labels: {
+          rotate: 0,
+          rotateAlways: false,
+          trim: false,
+          hideOverlappingLabels: false,
+          style: { colors: "#aebed0", fontSize: "9px" },
         },
       },
-      yAxis: {
-        type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: {
-          fontSize: 9,
-          color: "#9aacc0",
+      yaxis: {
+        labels: {
+          style: { colors: "#9aacc0", fontSize: "9px" },
           formatter: (value: number) => {
-            if (value >= 1_000_000_000_000) {
-              return `${(value / 1_000_000_000_000).toFixed(1)} T`;
-            }
-
-            if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(1)} M`;
-            }
-
-            if (value >= 1_000_000) {
-              return `${(value / 1_000_000).toFixed(0)} jt`;
-            }
-
+            if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} T`;
+            if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} M`;
+            if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)} jt`;
             return formatNumber(value);
           },
         },
-        splitLine: {
-          show: true,
-          lineStyle: {
-            color: "rgba(126, 150, 178, 0.12)",
-            type: "dashed",
-          },
-        },
       },
-      series: [
+      legend: {
+        // Saat membandingkan tahun, legend enam series diganti legend status
+        // tunggal di luar chart agar tidak tampil dobel per tahun.
+        show: !nominalStatusChartData.isYearComparison,
+        position: "top",
+        horizontalAlign: "right",
+        fontSize: "9px",
+        labels: { colors: "#aebed0" },
+        markers: { width: 8, height: 8, radius: 12, offsetX: -2 },
+        itemMargin: { horizontal: 8, vertical: 2 },
+        onItemClick: { toggleDataSeries: true },
+        onItemHover: { highlightDataSeries: true },
+      },
+      tooltip: {
+        theme: "dark",
+        shared: true,
+        intersect: false,
+        ...(nominalStatusChartData.isYearComparison
+          ? {
+              // Tooltip ringkas: judul hanya nama bulan, lalu nominal per status
+              // untuk masing-masing tahun. Tidak menampilkan total/jumlah.
+              custom: ({ series, dataPointIndex, w }: any) => {
+                const yearGroups: Array<{ year: string; values: number[] }> = [];
+                for (let index = 0; index < w.globals.seriesNames.length; index += 3) {
+                  const firstName = String(w.globals.seriesNames[index] ?? "");
+                  const year = firstName.split("·")[0].trim();
+                  const values = [0, 1, 2].map((offset) => Number(series[index + offset]?.[dataPointIndex] ?? 0));
+                  yearGroups.push({ year, values });
+                }
+
+                const statusLabels = ["Done", "On Proses", "No Proses"];
+                const statusColors = ["#238b57", "#d89420", "#d94b59"];
+                const month = String(w.globals.labels[dataPointIndex] ?? "");
+
+                const yearCards = yearGroups
+                  .map(({ year, values }) => {
+                    const rows = values
+                      .map(
+                        (_, index) => `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:9px;padding:5px 0;border-top:1px solid rgba(148,163,184,.10)">
+                      <span style="display:flex;align-items:center;gap:7px;color:#cbd5e1;font-size:10px">
+                        <span style="width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:${statusColors[index]};display:inline-block"></span>
+                        ${statusLabels[index]}
+                      </span>
+                      <strong style="color:#e8eef6;font-size:10px;white-space:nowrap">${formatCompactRupiah(values[index])}</strong>
+                    </div>
+                  `,
+                      )
+                      .join("");
+
+                    return `
+                    <section style="min-width:0;flex:1;background:rgba(15,25,40,.52);border:1px solid rgba(148,163,184,.14);border-radius:8px;padding:7px 8px">
+                      <strong style="display:block;color:#f1f5f9;font-size:11px;margin-bottom:5px">${year}</strong>
+                      ${rows}
+                    </section>
+                  `;
+                  })
+                  .join("");
+
+                return `
+                  <div style="width:264px;max-width:calc(100vw - 28px);padding:8px 9px;background:#101b2a;border:0;border-radius:8px;box-shadow:none">
+                    <div style="font-size:11px;font-weight:700;color:#f8fafc;margin-bottom:7px">${month}</div>
+                    <div style="display:flex;gap:6px;align-items:stretch">${yearCards}</div>
+                  </div>
+                `;
+              },
+            }
+          : {
+              y: {
+                formatter: (value: number) => formatCompactRupiah(Number(value) || 0),
+              },
+            }),
+      },
+      fill: { opacity: 1 },
+      series: nominalStatusChartData.series,
+      responsive: [
         {
-          name: "Done",
-          type: "bar",
-          stack: "total",
-          barMaxWidth: 30,
-          data: nominalStatusByMonth.map((item) => item.done),
-          itemStyle: {
-            borderRadius: [5, 5, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#72dfa6" },
-                { offset: 0.5, color: "#38b978" },
-                { offset: 1, color: "#19784f" },
-              ],
+          breakpoint: 600,
+          options: {
+            plotOptions: {
+              bar: {
+                columnWidth: nominalStatusChartData.isYearComparison ? "66%" : "58%",
+              },
             },
-          },
-        },
-        {
-          name: "On Proses",
-          type: "bar",
-          stack: "total",
-          barMaxWidth: 30,
-          data: nominalStatusByMonth.map((item) => item.onProcess),
-          itemStyle: {
-            borderRadius: [4, 4, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#ffd978" },
-                { offset: 0.5, color: "#efa938" },
-                { offset: 1, color: "#b86e16" },
-              ],
+            xaxis: {
+              labels: {
+                rotate: 0,
+                style: { fontSize: "8px" },
+              },
             },
-          },
-        },
-        {
-          name: "No Proses",
-          type: "bar",
-          stack: "total",
-          barMaxWidth: 30,
-          data: nominalStatusByMonth.map((item) => item.noProcess),
-          itemStyle: {
-            borderRadius: [3, 3, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#ff8f8f" },
-                { offset: 0.5, color: "#e85b67" },
-                { offset: 1, color: "#a83243" },
-              ],
+            legend: {
+              fontSize: "8px",
+              itemMargin: { horizontal: 5, vertical: 2 },
             },
           },
         },
       ],
     }),
-    [nominalStatusByMonth],
+    [nominalStatusChartData],
   );
 
   /* =========================================================
@@ -702,101 +691,95 @@ const BappDashboard: React.FC = () => {
 
   const bappUnitChartOption = useMemo(
     () => ({
-      animation: true,
-      animationDuration: 700,
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-        borderWidth: 1,
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 10,
+      chart: {
+        type: "donut",
+        background: "transparent",
+        fontFamily: "inherit",
+        foreColor: "#aebed0",
+        toolbar: { show: false },
+        animations: { enabled: true, speed: 650 },
+      },
+      colors: ["#4e86dc", "#e85b67", "#31b99b", "#8b69dd", "#efa938", "#299bd0", "#a3a3a3"],
+      labels: bappByUnit.map((item) => item.name),
+      stroke: {
+        show: true,
+        colors: ["#1a293b"],
+        width: 3,
+      },
+      dataLabels: {
+        enabled: true,
+        formatter: (value: number) => `${value.toFixed(1)}%`,
+        style: {
+          fontSize: "9px",
+          fontWeight: 600,
+          colors: ["#f2f6fb"],
         },
-        extraCssText: "border-radius:9px;",
-        formatter: (params: any) => `
-          <div style="font-weight:700;color:#f2f6fb;margin-bottom:5px">
-            ${params.name}
-          </div>
-          <div style="color:#9fb0c3">
-            Jumlah BAPP:
-            <strong style="color:#f2f6fb">
-              ${formatNumber(Number(params.value) || 0)}
-            </strong>
-          </div>
-          <div style="color:#9fb0c3;margin-top:3px">
-            Persentase:
-            <strong style="color:#f2f6fb">
-              ${Number(params.percent).toFixed(1)}%
-            </strong>
-          </div>
-        `,
+        dropShadow: { enabled: false },
+      },
+      plotOptions: {
+        pie: {
+          expandOnClick: true,
+          donut: {
+            size: "62%",
+            background: "transparent",
+            labels: {
+              show: true,
+              name: {
+                show: true,
+                color: "#9fb0c3",
+                fontSize: "10px",
+                offsetY: -4,
+              },
+              value: {
+                show: true,
+                color: "#f2f6fb",
+                fontSize: "17px",
+                fontWeight: 700,
+                offsetY: 4,
+                formatter: (value: string) => formatNumber(Number(value) || 0),
+              },
+              total: {
+                show: true,
+                showAlways: true,
+                label: "Total BAPP",
+                color: "#9fb0c3",
+                fontSize: "9px",
+                formatter: (w: any) => formatNumber(w.globals.seriesTotals.reduce((sum: number, value: number) => sum + value, 0)),
+              },
+            },
+          },
+        },
       },
       legend: {
-        type: "scroll",
-        bottom: 0,
-        left: "center",
-        itemWidth: 9,
-        itemHeight: 9,
-        itemGap: 12,
-        textStyle: {
-          color: "#aebed0",
-          fontSize: 9,
+        show: true,
+        position: "bottom",
+        horizontalAlign: "center",
+        fontSize: "9px",
+        labels: { colors: "#aebed0" },
+        markers: { width: 8, height: 8, radius: 12, offsetX: -2 },
+        itemMargin: { horizontal: 8, vertical: 3 },
+        onItemClick: { toggleDataSeries: true },
+        onItemHover: { highlightDataSeries: true },
+      },
+      tooltip: {
+        theme: "dark",
+        y: {
+          formatter: (value: number) => formatNumber(Number(value) || 0),
+          title: { formatter: (seriesName: string) => `${seriesName}:` },
         },
       },
-      series: [
+      fill: { opacity: 1 },
+      series: bappByUnit.map((item) => item.value),
+      responsive: [
         {
-          name: "Jumlah BAPP",
-          type: "pie",
-          radius: ["43%", "68%"],
-          center: ["50%", "46%"],
-          avoidLabelOverlap: true,
-          itemStyle: {
-            borderColor: "#1a293b",
-            borderWidth: 3,
-            borderRadius: 5,
+          breakpoint: 600,
+          options: {
+            legend: {
+              fontSize: "8px",
+              itemMargin: { horizontal: 5, vertical: 2 },
+            },
+            plotOptions: { pie: { donut: { size: "58%" } } },
           },
-          label: {
-            show: true,
-            color: "#d9e2ec",
-            fontSize: 9,
-            fontWeight: 600,
-            formatter: "{d}%",
-          },
-          labelLine: { show: false },
-          data: bappByUnit.map((item, index) => {
-            const palette = [
-              ["#8eb8ff", "#4e86dc", "#285aa7"],
-              ["#ff9999", "#e85b67", "#a83243"],
-              ["#8ee8cf", "#31b99b", "#167a68"],
-              ["#c4a7ff", "#8b69dd", "#5b3b9d"],
-              ["#ffd978", "#efa938", "#b86e16"],
-              ["#7dd3fc", "#299bd0", "#17618a"],
-            ];
-
-            const colors = palette[index % palette.length];
-
-            return {
-              ...item,
-              itemStyle: {
-                borderColor: "#1a293b",
-                borderWidth: 3,
-                borderRadius: 5,
-                color: {
-                  type: "linear",
-                  x: 0,
-                  y: 0,
-                  x2: 1,
-                  y2: 1,
-                  colorStops: [
-                    { offset: 0, color: colors[0] },
-                    { offset: 0.5, color: colors[1] },
-                    { offset: 1, color: colors[2] },
-                  ],
-                },
-              },
-            };
-          }),
         },
       ],
     }),
@@ -830,124 +813,72 @@ const BappDashboard: React.FC = () => {
 
   const revenueChartOption = useMemo(
     () => ({
-      animation: true,
-      animationDuration: 700,
-      animationEasing: "cubicOut",
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-          shadowStyle: {
-            color: "rgba(80, 150, 255, 0.07)",
-          },
-        },
-        backgroundColor: "#172436",
-        borderColor: "#344a63",
-        borderWidth: 1,
-        textStyle: {
-          color: "#e8eef6",
-          fontSize: 10,
-        },
-        extraCssText: "border-radius:9px;",
-        formatter: (params: any[]) => {
-          const item = params?.[0];
-          if (!item) return "";
-
-          return `
-            <div style="color:#9fb0c3;font-size:10px;margin-bottom:5px">
-              ${item.name}
-            </div>
-            <div style="color:#f2f6fb;font-size:13px;font-weight:700">
-              ${formatRupiah(Number(item.value) || 0)}
-            </div>
-          `;
+      chart: {
+        type: "bar",
+        background: "transparent",
+        toolbar: { show: false },
+        fontFamily: "inherit",
+        foreColor: "#aebed0",
+        animations: { enabled: true, easing: "easeinout", speed: 650 },
+      },
+      colors: ["#4d8fe8"],
+      plotOptions: {
+        bar: {
+          horizontal: false,
+          columnWidth: "48%",
+          borderRadius: 6,
+          borderRadiusApplication: "end",
         },
       },
+      dataLabels: { enabled: false },
+      stroke: { show: false, width: 0 },
       grid: {
-        left: 18,
-        right: 12,
-        top: 12,
-        bottom: 42,
-        containLabel: true,
+        borderColor: "rgba(126, 150, 178, 0.12)",
+        strokeDashArray: 4,
+        padding: { left: 8, right: 8, top: 0, bottom: 0 },
       },
-      xAxis: {
-        type: "category",
-        boundaryGap: true,
-        data: revenueByLayanan.map((item) => item.name),
-        axisLine: {
-          lineStyle: {
-            color: "rgba(148, 163, 184, 0.18)",
-          },
-        },
-        axisTick: { show: false },
-        axisLabel: {
-          interval: 0,
-          fontSize: 9,
-          color: "#9eafc2",
-          margin: 9,
-          align: "center",
-          hideOverlap: false,
-          formatter: (value: string) => value,
+      xaxis: {
+        categories: revenueByLayanan.map((item) => item.name),
+        axisBorder: { show: true, color: "rgba(148, 163, 184, 0.18)" },
+        axisTicks: { show: false },
+        labels: {
+          rotate: -30,
+          rotateAlways: false,
+          trim: false,
+          style: { colors: "#9eafc2", fontSize: "9px" },
         },
       },
-      yAxis: {
-        type: "value",
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: {
-          fontSize: 9,
-          color: "#9aacc0",
+      yaxis: {
+        labels: {
+          style: { colors: "#9aacc0", fontSize: "9px" },
           formatter: (value: number) => {
-            if (value >= 1_000_000_000_000) {
-              return `${(value / 1_000_000_000_000).toFixed(1)} T`;
-            }
-
-            if (value >= 1_000_000_000) {
-              return `${(value / 1_000_000_000).toFixed(1)} M`;
-            }
-
-            if (value >= 1_000_000) {
-              return `${(value / 1_000_000).toFixed(0)} jt`;
-            }
-
+            if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} T`;
+            if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} M`;
+            if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)} jt`;
             return formatNumber(value);
           },
         },
-        splitLine: {
-          show: true,
-          lineStyle: {
-            color: "rgba(126, 150, 178, .12)",
-            type: "dashed",
-          },
+      },
+      legend: { show: false },
+      tooltip: {
+        theme: "dark",
+        y: {
+          formatter: (value: number) => formatRupiah(Number(value) || 0),
+          title: { formatter: () => "Revenue:" },
         },
       },
-      series: [
+      fill: { opacity: 1 },
+      series: [{ name: "Revenue", data: revenueByLayanan.map((item) => item.value) }],
+      responsive: [
         {
-          name: "Revenue",
-          type: "bar",
-          data: revenueByLayanan.map((item) => item.value),
-          barMaxWidth: 28,
-          barMinHeight: 3,
-          itemStyle: {
-            borderRadius: [6, 6, 1, 1],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#82b5ff" },
-                { offset: 0.5, color: "#4d8fe8" },
-                { offset: 1, color: "#225da8" },
-              ],
-            },
-          },
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowBlur: 12,
-              shadowColor: "rgba(80, 155, 255, .3)",
+          breakpoint: 600,
+          options: {
+            plotOptions: { bar: { columnWidth: "62%" } },
+            xaxis: {
+              labels: {
+                rotate: -45,
+                style: { fontSize: "8px" },
+              },
             },
           },
         },
@@ -1224,12 +1155,16 @@ const BappDashboard: React.FC = () => {
           {
             id: "nominal-status",
             title: "Nominal BAPP per Status per Bulan",
-            subtitle: hasFilter ? "Akumulasi nominal BAPP berdasarkan status pada periode yang dipilih" : "Akumulasi nominal BAPP berdasarkan status dalam 8 bulan terbaru",
+            subtitle: nominalStatusChartData.isYearComparison
+              ? "Perbandingan nominal setiap bulan antar tahun yang dipilih"
+              : hasFilter
+                ? "Akumulasi nominal BAPP berdasarkan status pada periode yang dipilih"
+                : "Akumulasi nominal BAPP berdasarkan status dalam 8 bulan terbaru",
             icon: <BarChart3 size={15} />,
             theme: "green",
             option: nominalStatusChartOption,
             empty: "Tidak ada data BAPP untuk filter yang dipilih.",
-            hasData: nominalStatusByMonth.length > 0,
+            hasData: nominalStatusChartData.hasData,
             layout: "top",
           },
           {
@@ -1291,8 +1226,22 @@ const BappDashboard: React.FC = () => {
               )}
             </div>
 
+            {chart.id === "nominal-status" && nominalStatusChartData.isYearComparison && (
+              <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 px-3 pt-2">
+                {[
+                  { label: "Done", color: "#238b57" },
+                  { label: "On Proses", color: "#d89420" },
+                  { label: "No Proses", color: "#d94b59" },
+                ].map((item) => (
+                  <span key={item.label} className="inline-flex items-center gap-1.5 text-[10px] text-slate-300">
+                    <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: item.color }} />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className={`${chart.layout === "full" ? "h-[300px] p-[7px_10px_0] max-[768px]:h-[280px]" : "h-[285px] p-[5px_8px_5px] max-[768px]:h-[265px]"}`}>
-              {chart.hasData ? <ResponsiveEChart option={chart.option} /> : <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11px] text-slate-500">{chart.empty}</div>}
+              {chart.hasData ? <ResponsiveApexChart option={chart.option} /> : <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11px] text-slate-500">{chart.empty}</div>}
             </div>
           </article>
         );

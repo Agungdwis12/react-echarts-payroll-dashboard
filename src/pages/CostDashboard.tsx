@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import Chart from "react-apexcharts";
+import ApexCharts from "apexcharts";
+import type { ApexOptions } from "apexcharts";
 import { getGpm, getTarget, getDetailCost } from "../services/dashboardService";
 import MultiSelect from "../components/dashboard/MultiSelect";
 import { Target, TrendingUp, Gauge, Wallet, ChartNoAxesCombined, PieChart, ReceiptText, ChevronLeft, ChevronRight, RefreshCw, XCircle } from "lucide-react";
@@ -175,22 +177,75 @@ const parseDate = (value: string | Date | null | undefined, slashDateOrder: Slas
   return null;
 };
 
-const getMonthNumber = (value: string, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
-  const date = parseDate(value, slashDateOrder);
-  return date ? date.getMonth() + 1 : null;
+// Normalisasi periode dari PostgreSQL. Untuk DATE/TIMESTAMP ISO,
+// ambil YYYY-MM langsung dari string agar tidak bergeser karena timezone
+// atau terpengaruh aturan parsing tanggal slash dari endpoint lain.
+const parsePeriodDate = (value: string | Date | null | undefined, slashDateOrder: SlashDateOrder = "DMY"): Date | null => {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return new Date(value.getFullYear(), value.getMonth(), 1);
+  }
+
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+
+  // ISO timestamp berzona waktu dikonversi ke tanggal lokal browser.
+  // 2025-12-31T17:00:00.000Z = 1 Januari 2026 pukul 00:00 WIB.
+  const hasTimezone = /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+
+  if (hasTimezone) {
+    const timestamp = new Date(text);
+    if (Number.isNaN(timestamp.getTime())) return null;
+    return new Date(timestamp.getFullYear(), timestamp.getMonth(), 1);
+  }
+
+  // DATE PostgreSQL dalam bentuk YYYY-MM-DD dibaca langsung tanpa timezone.
+  const isoDateMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoDateMatch) {
+    const year = Number(isoDateMatch[1]);
+    const month = Number(isoDateMatch[2]);
+    const day = Number(isoDateMatch[3]);
+
+    if (month >= 1 && month <= 12 && day >= 1 && day <= new Date(year, month, 0).getDate()) {
+      return new Date(year, month - 1, 1);
+    }
+    return null;
+  }
+
+  // Periode tanpa hari: YYYY-MM.
+  const isoMonthMatch = text.match(/^(\d{4})-(\d{1,2})$/);
+  if (isoMonthMatch) {
+    const year = Number(isoMonthMatch[1]);
+    const month = Number(isoMonthMatch[2]);
+    if (month >= 1 && month <= 12) return new Date(year, month - 1, 1);
+    return null;
+  }
+
+  return parseDate(text, slashDateOrder);
 };
 
-const getYear = (value: string, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
-  const date = parseDate(value, slashDateOrder);
-  return date ? date.getFullYear() : null;
+// Kunci periode tunggal agar filter, label tabel, dan opsi tahun selalu
+// membaca bulan/tahun dari nilai periode yang sama.
+const getPeriodKey = (value: string | Date | null | undefined, slashDateOrder: SlashDateOrder = "DMY"): string | null => {
+  const date = parsePeriodDate(value, slashDateOrder);
+  if (!date) return null;
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+
+const getYear = (value: string | Date, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
+  const key = getPeriodKey(value, slashDateOrder);
+  return key ? Number(key.split("-")[0]) : null;
 };
 
 const getMonthYearLabel = (value: string): string => {
-  const date = parseDate(value);
+  const key = getPeriodKey(value, "DMY");
+  if (!key) return value;
 
-  if (!date) return value;
-
-  return `${MONTH_NAMES[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`;
+  const [year, month] = key.split("-");
+  return `${MONTH_NAMES[Number(month) - 1].slice(0, 3)} ${year}`;
 };
 
 const formatRupiah = (value: number): string => {
@@ -225,23 +280,26 @@ const formatCompactRupiah = (value: number): string => {
 
 const formatChartValue = (value: number): string => {
   const absolute = Math.abs(value);
+  const compact = (number: number, digits = 1) =>
+    number.toLocaleString("id-ID", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: digits,
+    });
 
+  // Gunakan singkatan yang konsisten dan pertahankan angka desimal
+  // agar label sumbu tidak kehilangan informasi nominal.
   if (absolute >= 1_000_000_000_000) {
-    return `Rp ${(value / 1_000_000_000_000).toFixed(0)} T`;
+    return `Rp ${compact(value / 1_000_000_000_000, 2)} T`;
   }
-
   if (absolute >= 1_000_000_000) {
-    return `Rp ${(value / 1_000_000_000).toFixed(0)} M`;
+    return `Rp ${compact(value / 1_000_000_000, 2)} M`;
   }
-
   if (absolute >= 1_000_000) {
-    return `Rp ${(value / 1_000_000).toFixed(0)} Jt`;
+    return `Rp ${compact(value / 1_000_000, 1)} jt`;
   }
-
   if (absolute >= 1_000) {
-    return `Rp ${(value / 1_000).toFixed(0)} Rb`;
+    return `Rp ${compact(value / 1_000, 1)} rb`;
   }
-
   return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
 };
 
@@ -254,6 +312,15 @@ const chartSplitLine = "rgba(194, 210, 228, 0.07)";
 ========================================================= */
 
 const CostDashboard: React.FC = () => {
+  const REVENUE_TARGET_CHART_ID = "cost-dashboard-revenue-target";
+  const REVENUE_COST_CHART_ID = "cost-dashboard-revenue-cost";
+  const [hiddenRevenueTargetSeries, setHiddenRevenueTargetSeries] = useState<string[]>([]);
+  const [hiddenRevenueCostSeries, setHiddenRevenueCostSeries] = useState<string[]>([]);
+
+  const toggleChartSeries = (chartId: string, seriesName: string, setHiddenSeries: React.Dispatch<React.SetStateAction<string[]>>) => {
+    ApexCharts.exec(chartId, "toggleSeries", seriesName);
+    setHiddenSeries((current) => (current.includes(seriesName) ? current.filter((name) => name !== seriesName) : [...current, seriesName]));
+  };
   const [gpmData, setGpmData] = useState<GpmRow[]>([]);
   const [targetData, setTargetData] = useState<TargetRow[]>([]);
   const [detailCostData, setDetailCostData] = useState<CostRow[]>([]);
@@ -292,7 +359,15 @@ const CostDashboard: React.FC = () => {
 
         setGpmData(Array.isArray(gpm) ? gpm : []);
         setTargetData(Array.isArray(target) ? target : []);
-        setDetailCostData(Array.isArray(detailCost) ? detailCost : []);
+        setDetailCostData(
+          Array.isArray(detailCost)
+            ? [...detailCost].sort((a, b) => {
+                const keyA = getPeriodKey(a.periode_bulan, "MDY") ?? "";
+                const keyB = getPeriodKey(b.periode_bulan, "MDY") ?? "";
+                return keyA.localeCompare(keyB);
+              })
+            : [],
+        );
       } catch (err) {
         console.error("Gagal refresh Dashboard Target & Cost:", err);
         if (isMounted) {
@@ -364,12 +439,14 @@ const CostDashboard: React.FC = () => {
 
   const filteredGpm = useMemo(() => {
     return gpmData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan, "DMY");
-      const year = getYear(row.periode_bulan, "DMY");
+      const periodKey = getPeriodKey(row.periode_bulan, "DMY");
+      if (!periodKey) return false;
 
-      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
+      const [yearText, monthText] = periodKey.split("-");
+      const monthName = MONTH_NAMES[Number(monthText) - 1];
 
-      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
+      const monthMatch = selectedMonth.length === 0 || selectedMonth.includes(monthName);
+      const yearMatch = selectedYear.length === 0 || selectedYear.includes(yearText);
 
       return monthMatch && yearMatch;
     });
@@ -381,12 +458,14 @@ const CostDashboard: React.FC = () => {
 
   const filteredTarget = useMemo(() => {
     return targetData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan, "MDY");
-      const year = getYear(row.periode_bulan, "MDY");
+      const periodKey = getPeriodKey(row.periode_bulan, "MDY");
+      if (!periodKey) return false;
 
-      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
+      const [yearText, monthText] = periodKey.split("-");
+      const monthName = MONTH_NAMES[Number(monthText) - 1];
 
-      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
+      const monthMatch = selectedMonth.length === 0 || selectedMonth.includes(monthName);
+      const yearMatch = selectedYear.length === 0 || selectedYear.includes(yearText);
 
       return monthMatch && yearMatch;
     });
@@ -398,12 +477,14 @@ const CostDashboard: React.FC = () => {
 
   const filteredDetailCost = useMemo(() => {
     return detailCostData.filter((row) => {
-      const month = getMonthNumber(row.periode_bulan, "MDY");
-      const year = getYear(row.periode_bulan, "MDY");
+      const periodKey = getPeriodKey(row.periode_bulan, "MDY");
+      if (!periodKey) return false;
 
-      const monthMatch = selectedMonth.length === 0 || (month !== null && selectedMonth.includes(MONTH_NAMES[month - 1]));
+      const [yearText, monthText] = periodKey.split("-");
+      const monthName = MONTH_NAMES[Number(monthText) - 1];
 
-      const yearMatch = selectedYear.length === 0 || (year !== null && selectedYear.includes(String(year)));
+      const monthMatch = selectedMonth.length === 0 || selectedMonth.includes(monthName);
+      const yearMatch = selectedYear.length === 0 || selectedYear.includes(yearText);
 
       return monthMatch && yearMatch;
     });
@@ -426,7 +507,7 @@ const CostDashboard: React.FC = () => {
     >();
 
     targetData.forEach((row) => {
-      const date = parseDate(row.periode_bulan, "MDY");
+      const date = parsePeriodDate(row.periode_bulan, "MDY");
 
       if (!date) return;
 
@@ -448,7 +529,7 @@ const CostDashboard: React.FC = () => {
     });
 
     gpmData.forEach((row) => {
-      const date = parseDate(row.periode_bulan, "DMY");
+      const date = parsePeriodDate(row.periode_bulan, "DMY");
 
       if (!date) return;
 
@@ -618,599 +699,469 @@ const CostDashboard: React.FC = () => {
   }, [filteredDetailCost]);
 
   /* =========================================================
-     CHART: TARGET VS REALISASI REVENUE
+     APEXCHARTS: TARGET VS REALISASI REVENUE
+     Tampilan chart diperbarui; ukuran container dashboard tetap.
   ========================================================= */
 
-  const revenueTargetOption = useMemo(() => {
-    const labels = monthlyData.map((item) => item.label);
+  const revenueTargetSeries = useMemo(
+    () => [
+      {
+        name: "Target Revenue",
+        type: "column" as const,
+        data: monthlyData.map((item) => item.targetRevenue),
+      },
+      {
+        name: "Realisasi Revenue",
+        type: "column" as const,
+        data: monthlyData.map((item) => item.realisasiRevenue),
+      },
+      {
+        name: "Achievement",
+        type: "line" as const,
+        data: monthlyData.map((item) => item.achievement),
+      },
+    ],
+    [monthlyData],
+  );
 
-    const achievementData = monthlyData.map((item) => (item.targetRevenue > 0 ? (item.realisasiRevenue / item.targetRevenue) * 100 : null));
+  const revenueTargetOptions = useMemo<ApexOptions>(() => {
+    // Skala nominal dibuat rapat dan konsisten: maksimum hanya sedikit
+    // di atas nilai tertinggi, bukan dikalikan 6 sehingga ruang kosong berlebihan.
+    const maxNominal = Math.max(0, ...monthlyData.flatMap((item) => [item.targetRevenue, item.realisasiRevenue]));
+    const safeMax = maxNominal > 0 ? maxNominal : 1;
+    const rawStep = safeMax / 5;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const normalizedStep = rawStep / magnitude;
+    const niceFactor = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 2.5 ? 2.5 : normalizedStep <= 5 ? 5 : 10;
+    const nominalStep = niceFactor * magnitude;
+    const nominalAxisMax = Math.ceil(safeMax / nominalStep) * nominalStep + nominalStep;
+    const nominalTickAmount = Math.round(nominalAxisMax / nominalStep);
 
     return {
-      backgroundColor: "transparent",
-
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-          shadowStyle: {
-            color: "rgba(255, 255, 255, 0.04)",
-          },
-        },
-        backgroundColor: "#182638",
-        borderColor: "rgba(194, 210, 228, 0.14)",
-        textStyle: {
-          color: "#e8eef5",
-          fontSize: 10,
-        },
-        formatter: (params: any[]) => {
-          if (!params?.length) return "";
-
-          const title = params[0]?.axisValue ?? "";
-
-          const rows = params
-            .map((item) => {
-              const rawValue = item.value;
-
-              const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null;
-
-              const formattedValue =
-                value === null
-                  ? "-"
-                  : item.seriesName === "Achievement (%)"
-                    ? `${value.toLocaleString("id-ID", {
-                        maximumFractionDigits: 2,
-                      })}%`
-                    : formatRupiah(value);
-
-              return `${item.marker} ${item.seriesName}: <b>${formattedValue}</b>`;
-            })
-            .join("<br/>");
-
-          return `<b>${title}</b><br/>${rows}`;
+      chart: {
+        id: "cost-dashboard-revenue-target",
+        type: "line",
+        height: 270,
+        background: "transparent",
+        foreColor: chartBaseTextColor,
+        fontFamily: "inherit",
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        parentHeightOffset: 0,
+        redrawOnParentResize: true,
+        redrawOnWindowResize: true,
+        animations: {
+          enabled: true,
+          speed: 700,
+          animateGradually: { enabled: true, delay: 80 },
+          dynamicAnimation: { enabled: true, speed: 350 },
         },
       },
-
-      legend: {
-        top: 8,
-        right: 10,
-        data: ["Target Revenue", "Realisasi Revenue", "Achievement (%)"],
-        textStyle: {
-          color: "#8292a6",
-          fontSize: 9,
-        },
-        itemWidth: 12,
-        itemHeight: 7,
-        itemGap: 14,
+      theme: { mode: "dark" },
+      colors: ["#3B82F6", "#00D3A7", "#FFB020"],
+      stroke: {
+        width: [0, 0, 3.5],
+        curve: ["straight", "straight", "smooth"],
+        lineCap: "round",
+        dashArray: [0, 0, 0],
       },
-
-      grid: {
-        left: 58,
-        right: 58,
-        top: 48,
-        bottom: 42,
-        containLabel: true,
+      fill: {
+        type: "solid",
+        opacity: 1,
       },
-
-      xAxis: {
-        type: "category",
-        data: labels,
-        axisLine: {
-          lineStyle: {
-            color: chartAxisLine,
-          },
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          margin: 10,
-          hideOverlap: true,
+      plotOptions: {
+        bar: {
+          columnWidth: "54%",
+          borderRadius: 6,
+          borderRadiusApplication: "end",
+          borderRadiusWhenStacked: "last",
         },
       },
-
-      yAxis: [
+      dataLabels: { enabled: false },
+      markers: {
+        size: [0, 0, 4],
+        strokeWidth: 2,
+        strokeColors: "#172638",
+        colors: ["#FFB020"],
+        hover: { size: 6 },
+      },
+      xaxis: {
+        categories: monthlyData.map((item) => item.label),
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+        labels: {
+          style: { colors: chartBaseTextColor, fontSize: "11px", fontWeight: 500 },
+          rotate: 0,
+          rotateAlways: false,
+          hideOverlappingLabels: false,
+          trim: false,
+        },
+        tooltip: { enabled: false },
+      },
+      yaxis: [
         {
-          type: "value",
           min: 0,
-          axisLabel: {
-            color: chartBaseTextColor,
-            fontSize: 9,
+          max: nominalAxisMax,
+          tickAmount: nominalTickAmount,
+          forceNiceScale: false,
+          // Kedua seri nominal harus berada pada sumbu kiri yang sama.
+          seriesName: ["Target Revenue", "Realisasi Revenue"],
+          labels: {
             formatter: (value: number) => formatChartValue(value),
+            minWidth: 66,
+            maxWidth: 74,
+            offsetX: -1,
+            style: { colors: chartBaseTextColor, fontSize: "10px" },
           },
-          axisLine: {
-            show: false,
-          },
-          axisTick: {
-            show: false,
-          },
-          splitLine: {
-            show: true,
-            lineStyle: {
-              color: chartSplitLine,
-              type: "solid",
-            },
+          title: {
+            text: "Nominal Revenue",
+            style: { color: chartBaseTextColor, fontSize: "10px", fontWeight: 500 },
           },
         },
         {
-          type: "value",
-          position: "right",
+          seriesName: "Achievement",
+          opposite: true,
           min: 0,
-          max: (value: { max: number }) => Math.max(100, Math.ceil(value.max / 20) * 20),
-          interval: 20,
-          axisLabel: {
-            color: chartBaseTextColor,
-            fontSize: 9,
+          max: Math.max(100, Math.ceil(Math.max(...monthlyData.map((item) => item.achievement ?? 0), 100) / 20) * 20),
+          tickAmount: 5,
+          labels: {
             formatter: (value: number) => `${value.toFixed(0)}%`,
+            style: { colors: "#FFC65C", fontSize: "10px" },
           },
-          axisLine: {
-            show: false,
-          },
-          axisTick: {
-            show: false,
-          },
-          splitLine: {
-            show: false,
+          title: {
+            text: "Achievement",
+            style: { color: "#FFB020", fontSize: "10px", fontWeight: 600 },
           },
         },
       ],
-
-      series: [
+      grid: {
+        borderColor: "rgba(148,163,184,0.13)",
+        strokeDashArray: 3,
+        padding: { left: 2, right: 4, top: 4, bottom: 0 },
+      },
+      legend: { show: false },
+      tooltip: {
+        theme: "dark",
+        shared: true,
+        intersect: false,
+        followCursor: true,
+        y: [
+          { formatter: (value: number) => (Number.isFinite(value) ? formatRupiah(value) : "-") },
+          { formatter: (value: number) => (Number.isFinite(value) ? formatRupiah(value) : "-") },
+          {
+            formatter: (value: number | null) => (value == null || !Number.isFinite(value) ? "-" : `${value.toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`),
+          },
+        ],
+      },
+      responsive: [
         {
-          name: "Target Revenue",
-          type: "bar",
-          yAxisIndex: 0,
-          barMaxWidth: 24,
-          barGap: "0%",
-          barCategoryGap: "40%",
-          itemStyle: {
-            borderRadius: [4, 4, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#6f96e8" },
-                { offset: 1, color: "#334f88" },
-              ],
+          breakpoint: 640,
+          options: {
+            chart: { height: 270 },
+            xaxis: {
+              labels: {
+                rotate: -35,
+                rotateAlways: true,
+                hideOverlappingLabels: false,
+                trim: false,
+                style: { fontSize: "9px" },
+              },
             },
+            yaxis: [{ labels: { style: { fontSize: "9px" } } }, { labels: { style: { fontSize: "9px" } } }],
+            grid: { padding: { left: 2, right: 2, top: 0, bottom: 0 } },
           },
-          emphasis: {
-            focus: "series",
-          },
-          data: monthlyData.map((item) => item.targetRevenue),
-        },
-        {
-          name: "Realisasi Revenue",
-          type: "bar",
-          yAxisIndex: 0,
-          barMaxWidth: 24,
-          itemStyle: {
-            borderRadius: [4, 4, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#61c8a0" },
-                { offset: 1, color: "#28775c" },
-              ],
-            },
-          },
-          emphasis: {
-            focus: "series",
-          },
-          data: monthlyData.map((item) => item.realisasiRevenue),
-        },
-        {
-          name: "Achievement (%)",
-          type: "line",
-          yAxisIndex: 1,
-          z: 10,
-          smooth: false,
-          connectNulls: false,
-          showSymbol: true,
-          symbol: "circle",
-          symbolSize: 7,
-          lineStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: "#F9D976" },
-                { offset: 0.5, color: "#F5B544" },
-                { offset: 1, color: "#F08A35" },
-              ],
-            },
-            width: 3,
-            cap: "round",
-            shadowColor: "rgba(245, 181, 68, 0.25)",
-            shadowBlur: 6,
-          },
-          itemStyle: {
-            color: "#F5B544",
-            borderColor: "#FFFFFF",
-            borderWidth: 1.5,
-          },
-          emphasis: {
-            focus: "series",
-            scale: 1.3,
-          },
-          data: achievementData,
         },
       ],
+      noData: {
+        text: "Tidak ada data",
+        style: { color: chartBaseTextColor, fontSize: "12px" },
+      },
     };
   }, [monthlyData]);
 
   /* =========================================================
-     CHART: REVENUE VS COST & GPM
+     APEXCHARTS: REVENUE VS COST PAYROLL & GPM
   ========================================================= */
 
-  const revenueCostOption = useMemo(() => {
-    const validData = monthlyData.filter((item) => Number(item.revenue) !== 0 || Number(item.cost) !== 0);
+  const revenueCostData = useMemo(() => monthlyData.filter((item) => item.revenue !== 0 || item.cost !== 0), [monthlyData]);
 
-    const labels = validData.map((item) => item.label);
+  const revenueCostSeries = useMemo(
+    () => [
+      {
+        name: "Revenue Payroll BAPP",
+        type: "column" as const,
+        data: revenueCostData.map((item) => item.revenue),
+      },
+      {
+        name: "Cost Payroll",
+        type: "column" as const,
+        data: revenueCostData.map((item) => item.cost),
+      },
+      {
+        name: "GPM",
+        type: "area" as const,
+        data: revenueCostData.map((item) => item.gpm),
+      },
+    ],
+    [revenueCostData],
+  );
 
-    const gpmSeriesData = validData.map((item) => (item.revenue > 0 ? ((item.revenue - item.cost) / item.revenue) * 100 : null));
+  const revenueCostGpmBounds = useMemo(() => {
+    const values = revenueCostData.map((item) => item.gpm).filter((value): value is number => value != null && Number.isFinite(value));
+    const dataMin = values.length ? Math.min(...values) : 0;
+    const dataMax = values.length ? Math.max(...values) : 100;
+    const min = Math.min(0, Math.floor(dataMin / 10) * 10);
+    const max = Math.max(100, Math.ceil(dataMax / 10) * 10);
+    return { min, max: max === min ? min + 10 : max };
+  }, [revenueCostData]);
 
-    return {
-      backgroundColor: "transparent",
-
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-          shadowStyle: {
-            color: "rgba(255, 255, 255, 0.04)",
-          },
-        },
-        backgroundColor: "#182638",
-        borderColor: "rgba(194, 210, 228, 0.14)",
-        textStyle: {
-          color: "#e8eef5",
-          fontSize: 10,
-        },
-        formatter: (params: any[]) => {
-          if (!params?.length) return "";
-
-          const title = params[0]?.axisValue ?? "";
-
-          const rows = params.map((item) => {
-            const rawValue = item.value;
-
-            const value = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null;
-
-            const formattedValue =
-              value === null
-                ? "-"
-                : item.seriesName === "GPM (%)"
-                  ? `${value.toLocaleString("id-ID", {
-                      maximumFractionDigits: 2,
-                    })}%`
-                  : formatRupiah(value);
-
-            return `${item.marker} ${item.seriesName}: <b>${formattedValue}</b>`;
-          });
-
-          return `<b>${title}</b><br/>${rows.join("<br/>")}`;
+  const revenueCostOptions = useMemo<ApexOptions>(
+    () => ({
+      chart: {
+        id: "cost-dashboard-revenue-cost",
+        type: "line",
+        height: 270,
+        background: "transparent",
+        foreColor: chartBaseTextColor,
+        fontFamily: "inherit",
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        parentHeightOffset: 0,
+        redrawOnParentResize: true,
+        redrawOnWindowResize: true,
+        animations: { enabled: true, speed: 700 },
+      },
+      theme: { mode: "dark" },
+      colors: ["#00D3A7", "#FF7058", "#A78BFA"],
+      stroke: {
+        width: [0, 0, 3.5],
+        curve: "smooth",
+        lineCap: "round",
+      },
+      fill: {
+        type: ["solid", "solid", "solid"],
+        opacity: [1, 1, 0.16],
+      },
+      plotOptions: {
+        bar: {
+          columnWidth: "46%",
+          borderRadius: 5,
+          borderRadiusApplication: "end",
         },
       },
-
-      legend: {
-        top: 8,
-        right: 10,
-        data: ["Revenue Payroll BAPP", "Cost Payroll", "GPM (%)"],
-        textStyle: {
-          color: "#8292a6",
-          fontSize: 9,
-        },
-        itemWidth: 12,
-        itemHeight: 7,
-        itemGap: 14,
+      dataLabels: { enabled: false },
+      markers: {
+        size: [0, 0, 4],
+        strokeWidth: 2,
+        strokeColors: "#172638",
+        hover: { size: 6 },
       },
-
-      grid: {
-        left: 58,
-        right: 58,
-        top: 48,
-        bottom: 42,
-        containLabel: true,
-      },
-
-      xAxis: {
-        type: "category",
-        data: labels,
-        axisLine: {
-          lineStyle: {
-            color: chartAxisLine,
-          },
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          hideOverlap: true,
+      xaxis: {
+        categories: revenueCostData.map((item) => item.label),
+        axisBorder: { color: chartAxisLine },
+        axisTicks: { show: false },
+        labels: {
+          style: { colors: chartBaseTextColor, fontSize: "10px", fontWeight: 500 },
+          rotate: -35,
+          rotateAlways: false,
+          hideOverlappingLabels: true,
         },
       },
-
-      yAxis: [
+      yaxis: [
         {
-          type: "value",
           min: 0,
-          axisLabel: {
-            color: chartBaseTextColor,
-            fontSize: 9,
+          // Revenue dan Cost menggunakan skala nominal yang identik.
+          seriesName: ["Revenue Payroll BAPP", "Cost Payroll"],
+          labels: {
             formatter: (value: number) => formatChartValue(value),
+            minWidth: 66,
+            maxWidth: 74,
+            offsetX: -1,
+            style: { colors: chartBaseTextColor, fontSize: "10px" },
           },
-          axisLine: {
-            show: false,
-          },
-          axisTick: {
-            show: false,
-          },
-          splitLine: {
-            show: true,
-            lineStyle: {
-              color: chartSplitLine,
-              type: "solid",
-            },
+          title: {
+            text: "Nominal",
+            style: { color: chartBaseTextColor, fontSize: "10px", fontWeight: 500 },
           },
         },
         {
-          type: "value",
-          position: "right",
-          scale: true,
-          axisLabel: {
-            color: chartBaseTextColor,
-            fontSize: 9,
+          seriesName: "GPM",
+          opposite: true,
+          min: revenueCostGpmBounds.min,
+          max: revenueCostGpmBounds.max,
+          tickAmount: 5,
+          labels: {
             formatter: (value: number) => `${value.toFixed(0)}%`,
+            style: { colors: "#C4B5FD", fontSize: "10px" },
           },
-          axisLine: {
-            show: false,
-          },
-          axisTick: {
-            show: false,
-          },
-          splitLine: {
-            show: false,
+          title: {
+            text: "GPM",
+            style: { color: "#A78BFA", fontSize: "10px", fontWeight: 600 },
           },
         },
       ],
-
-      series: [
+      grid: {
+        borderColor: chartSplitLine,
+        strokeDashArray: 4,
+        padding: { left: 2, right: 4, top: 4, bottom: 0 },
+      },
+      legend: { show: false },
+      tooltip: {
+        theme: "dark",
+        shared: true,
+        intersect: false,
+        followCursor: true,
+        y: [
+          { formatter: (value: number) => (Number.isFinite(value) ? formatRupiah(value) : "-") },
+          { formatter: (value: number) => (Number.isFinite(value) ? formatRupiah(value) : "-") },
+          {
+            formatter: (value: number | null) => (value == null || !Number.isFinite(value) ? "-" : `${value.toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`),
+          },
+        ],
+      },
+      responsive: [
         {
-          name: "Revenue Payroll BAPP",
-          type: "bar",
-          yAxisIndex: 0,
-          barMaxWidth: 22,
-          barGap: "0%",
-          barCategoryGap: "35%",
-          itemStyle: {
-            borderRadius: [4, 4, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#6EE7A0" },
-                { offset: 1, color: "#219663" },
-              ],
+          breakpoint: 640,
+          options: {
+            chart: { height: 270 },
+            xaxis: {
+              labels: {
+                rotate: -45,
+                rotateAlways: false,
+                style: { fontSize: "9px" },
+              },
             },
+            yaxis: [{ labels: { style: { fontSize: "9px" } } }, { labels: { style: { fontSize: "9px" } } }],
+            grid: { padding: { left: 2, right: 2, top: 0, bottom: 0 } },
           },
-          emphasis: {
-            focus: "series",
-          },
-          data: validData.map((item) => item.revenue),
-        },
-        {
-          name: "Cost Payroll",
-          type: "bar",
-          yAxisIndex: 0,
-          barMaxWidth: 22,
-          itemStyle: {
-            borderRadius: [4, 4, 0, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#F4B95F" },
-                { offset: 1, color: "#B87527" },
-              ],
-            },
-          },
-          emphasis: {
-            focus: "series",
-          },
-          data: validData.map((item) => item.cost),
-        },
-        {
-          name: "GPM (%)",
-          type: "line",
-          yAxisIndex: 1,
-          z: 10,
-          smooth: false,
-          connectNulls: false,
-          showSymbol: true,
-          symbol: "circle",
-          symbolSize: 7,
-          lineStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: "#93C5FD" },
-                { offset: 0.5, color: "#3B82F6" },
-                { offset: 1, color: "#2563EB" },
-              ],
-            },
-            width: 3,
-            cap: "round",
-          },
-          itemStyle: {
-            color: "#60A5FA",
-            borderColor: "#FFFFFF",
-            borderWidth: 1.5,
-            shadowColor: "rgba(59, 130, 246, 0.45)",
-            shadowBlur: 8,
-          },
-          emphasis: {
-            focus: "series",
-            scale: 1.3,
-          },
-          data: gpmSeriesData,
         },
       ],
-    };
-  }, [monthlyData]);
+      noData: {
+        text: "Tidak ada data",
+        style: { color: chartBaseTextColor, fontSize: "12px" },
+      },
+    }),
+    [revenueCostData, revenueCostGpmBounds],
+  );
 
   /* =========================================================
-     CHART: BIAYA PER KATEGORI
+     APEXCHARTS: BIAYA PER KATEGORI
   ========================================================= */
 
-  const costByCategoryOption = useMemo(() => {
-    const items = costSummary.components;
+  const costCategorySeries = useMemo(
+    () => [
+      {
+        name: "Nominal Biaya",
+        data: costSummary.components.map((item) => item.value),
+      },
+    ],
+    [costSummary],
+  );
+
+  const costCategoryOptions = useMemo<ApexOptions>(() => {
+    // Sisakan ruang di sisi kanan agar label persentase tampil di luar batang
+    // dan tidak terpotong oleh batas area plot.
+    const maxCategoryValue = Math.max(0, ...costSummary.components.map((item) => item.value));
+    const categoryAxisMax = maxCategoryValue > 0 ? maxCategoryValue * 1.28 : 1;
 
     return {
-      backgroundColor: "transparent",
-
-      tooltip: {
-        trigger: "axis",
-        axisPointer: {
-          type: "shadow",
-        },
-        backgroundColor: "#182638",
-        borderColor: "rgba(194, 210, 228, 0.14)",
-        textStyle: {
-          color: "#e8eef5",
-          fontSize: 10,
-        },
-        formatter: (params: any[]) => {
-          const item = params?.[0];
-
-          if (!item) return "";
-
-          const source = items[item.dataIndex];
-
-          if (!source) return "";
-
-          return `<b>${source.name}</b><br/>` + `${item.marker} ${formatRupiah(source.value)}<br/>` + `${source.percentage.toFixed(1)}% dari total`;
+      chart: {
+        type: "bar",
+        height: 200,
+        width: "100%",
+        background: "transparent",
+        foreColor: chartBaseTextColor,
+        fontFamily: "inherit",
+        toolbar: { show: false },
+        parentHeightOffset: 0,
+        redrawOnParentResize: true,
+        redrawOnWindowResize: true,
+        animations: { enabled: true, speed: 650 },
+      },
+      theme: { mode: "dark" },
+      colors: ["#FFB020"],
+      plotOptions: {
+        bar: {
+          horizontal: true,
+          barHeight: "58%",
+          borderRadius: 5,
+          borderRadiusApplication: "end",
+          distributed: true,
+          // Untuk horizontal bar, posisi top menempatkan data label di ujung kanan batang.
+          dataLabels: { position: "top" },
         },
       },
-
-      grid: {
-        left: 8,
-        right: 42,
-        top: 12,
-        bottom: 22,
-        containLabel: true,
+      fill: {
+        type: "solid",
+        opacity: 1,
       },
+      dataLabels: {
+        enabled: true,
+        // Mulai teks setelah ujung batang, bukan menumpuk di atas batang.
+        textAnchor: "start",
+        offsetX: 12,
+        background: { enabled: false },
+        style: {
+          colors: ["#ffffff"],
+          fontSize: "12px",
+          fontWeight: 700,
+        },
+        formatter: (_value: number, opts?: { dataPointIndex?: number }) => {
+          const index = opts?.dataPointIndex ?? -1;
+          const percentage = costSummary.components[index]?.percentage;
 
-      xAxis: {
-        type: "value",
+          return percentage == null ? "" : `${percentage.toFixed(1)}%`;
+        },
+      },
+      xaxis: {
         min: 0,
-        axisLine: {
-          show: false,
+        max: categoryAxisMax,
+        tickAmount: 5,
+        categories: costSummary.components.map((item) => item.name),
+        labels: {
+          formatter: (value: string) => {
+            const amount = Number(value);
+            if (!Number.isFinite(amount)) return "";
+            if (Math.abs(amount) >= 1_000_000) {
+              return `Rp ${Math.round(amount / 1_000_000).toLocaleString("id-ID")} jt`;
+            }
+            return `Rp ${Math.round(amount / 1_000).toLocaleString("id-ID")} rb`;
+          },
+          style: { colors: chartBaseTextColor, fontSize: "9px" },
         },
-        axisTick: {
-          show: false,
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: {
+        labels: {
+          style: { colors: "#d8e0eb", fontSize: "11px", fontWeight: 500 },
+          // Tambah ruang untuk label terpanjang tanpa mengunci minWidth,
+          // sehingga ApexCharts tetap bisa menyesuaikan area plot.
+          maxWidth: 245,
+          offsetX: 0,
         },
-        axisLabel: {
-          color: chartBaseTextColor,
-          fontSize: 9,
-          margin: 8,
-          hideOverlap: true,
-          formatter: (value: number) => formatChartValue(value),
-        },
-        splitLine: {
-          lineStyle: {
-            color: chartSplitLine,
+      },
+      grid: {
+        borderColor: chartSplitLine,
+        strokeDashArray: 4,
+        // Geser area batang ke kanan supaya label kategori punya ruang sendiri.
+        padding: { left: 28, right: 12, top: -6, bottom: -6 },
+      },
+      legend: { show: false },
+      tooltip: {
+        theme: "dark",
+        y: {
+          formatter: (value: number, opts?: { dataPointIndex?: number }) => {
+            const index = opts?.dataPointIndex ?? -1;
+            const percentage = costSummary.components[index]?.percentage ?? 0;
+            return `${formatRupiah(value)} (${percentage.toFixed(1)}%)`;
           },
         },
       },
-
-      yAxis: {
-        type: "category",
-        inverse: true,
-        data: items.map((item) => item.name),
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: "#b8c6d8",
-          fontSize: 10,
-          width: 145,
-          overflow: "truncate",
-          margin: 10,
-        },
+      noData: {
+        text: "Tidak ada data",
+        style: { color: chartBaseTextColor, fontSize: "12px" },
       },
-
-      series: [
-        {
-          name: "Biaya",
-          type: "bar",
-          barMaxWidth: 22,
-
-          itemStyle: {
-            borderRadius: [0, 6, 6, 0],
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: "#FDE68A" }, // Kuning lembut
-                { offset: 0.5, color: "#FBBF24" }, // Amber
-                { offset: 1, color: "#F59E0B" }, // Oranye
-              ],
-            },
-          },
-
-          emphasis: {
-            itemStyle: {
-              color: "#FCD34D",
-              shadowColor: "rgba(245, 158, 11, 0.25)",
-              shadowBlur: 8,
-            },
-          },
-
-          label: {
-            show: true,
-            position: "right",
-            color: "#FCD34D",
-            fontSize: 10,
-            distance: 5,
-            formatter: (params: any) => {
-              const source = items[params.dataIndex];
-              return source ? `${source.percentage.toFixed(1)}%` : "";
-            },
-          },
-
-          data: items.map((item) => item.value),
-        },
-      ],
     };
   }, [costSummary]);
 
@@ -1291,7 +1242,60 @@ const CostDashboard: React.FC = () => {
   ========================================================= */
 
   return (
-    <div className="min-w-0 w-full space-y-3 pb-6 text-slate-200">
+    <div className="cost-dashboard-compact-tooltip min-w-0 w-full space-y-3 pb-6 text-slate-200">
+      <style>{`
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip {
+          background: #000000 !important;
+          color: #e2e8f0 !important;
+          border: 1px solid rgba(148, 163, 184, 0.22) !important;
+          border-radius: 8px !important;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28) !important;
+          padding: 0 !important;
+          min-width: 0 !important;
+          max-width: 280px !important;
+          overflow: hidden !important;
+          font-family: inherit !important;
+        }
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-title {
+          background: #000000 !important;
+          color: #f1f5f9 !important;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
+          margin: 0 !important;
+          padding: 4px 8px !important;
+          font-size: 11px !important;
+          font-weight: 700 !important;
+          line-height: 1.1 !important;
+        }
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-series-group {
+          padding: 4px 8px !important;
+          margin: 0 !important;
+          min-height: 0 !important;
+          line-height: 1.1 !important;
+          align-items: center !important;
+          gap: 5px !important;
+        }
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-marker {
+          width: 8px !important;
+          height: 8px !important;
+          margin-right: 5px !important;
+          flex: 0 0 8px !important;
+        }
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-text,
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-text-y-label,
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-text-y-value,
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-y-group {
+          color: #e2e8f0 !important;
+          font-size: 11px !important;
+          line-height: 1.1 !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          margin: 0 !important;
+        }
+        .cost-dashboard-compact-tooltip .apexcharts-tooltip-text-y-value {
+          color: #f8fafc !important;
+          font-weight: 700 !important;
+        }
+      `}</style>
       {/* HEADER */}
       <header className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0">
@@ -1431,9 +1435,33 @@ const CostDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="min-w-0 px-2 py-3 sm:px-4">
+        <div className="relative min-w-0 px-0 py-1.5">
           {monthlyData.length ? (
-            <ReactECharts option={revenueTargetOption} style={{ width: "100%", height: 270 }} notMerge lazyUpdate />
+            <>
+              <div className="pointer-events-auto absolute right-3 top-2 z-10 flex flex-nowrap items-center justify-end gap-4 whitespace-nowrap">
+                {[
+                  { name: "Realisasi Revenue", color: "#00D3A7" },
+                  { name: "Target Revenue", color: "#3B82F6" },
+                  { name: "Achievement", color: "#FFB020" },
+                ].map((item) => {
+                  const isHidden = hiddenRevenueTargetSeries.includes(item.name);
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => toggleChartSeries(REVENUE_TARGET_CHART_ID, item.name, setHiddenRevenueTargetSeries)}
+                      aria-pressed={!isHidden}
+                      className={`inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold transition-opacity ${isHidden ? "opacity-40" : "opacity-100"}`}
+                      style={{ color: "#d3deeb" }}
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <Chart options={revenueTargetOptions} series={revenueTargetSeries} type="line" height={270} width="100%" />
+            </>
           ) : (
             <div className="flex min-h-[260px] items-center justify-center text-[11px] text-slate-500">Tidak ada data</div>
           )}
@@ -1453,9 +1481,33 @@ const CostDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="min-w-0 px-2 py-3 sm:px-4">
+          <div className="relative min-w-0 px-0 py-1.5">
             {monthlyData.length ? (
-              <ReactECharts option={revenueCostOption} style={{ width: "100%", height: 270 }} notMerge lazyUpdate />
+              <>
+                <div className="pointer-events-auto absolute right-3 top-2 z-10 flex flex-nowrap items-center justify-end gap-4 whitespace-nowrap">
+                  {[
+                    { name: "Cost Payroll", color: "#FF7058" },
+                    { name: "Revenue Payroll BAPP", color: "#00D3A7" },
+                    { name: "GPM", color: "#A78BFA" },
+                  ].map((item) => {
+                    const isHidden = hiddenRevenueCostSeries.includes(item.name);
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => toggleChartSeries(REVENUE_COST_CHART_ID, item.name, setHiddenRevenueCostSeries)}
+                        aria-pressed={!isHidden}
+                        className={`inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold transition-opacity ${isHidden ? "opacity-40" : "opacity-100"}`}
+                        style={{ color: "#d3deeb" }}
+                      >
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                        {item.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <Chart options={revenueCostOptions} series={revenueCostSeries} type="line" height={270} width="100%" />
+              </>
             ) : (
               <div className="flex min-h-[260px] items-center justify-center text-[11px] text-slate-500">Tidak ada data</div>
             )}
@@ -1568,9 +1620,11 @@ const CostDashboard: React.FC = () => {
           </div>
 
           {/* CHART */}
-          <div className="flex min-w-0 flex-1 items-center px-2 py-1 sm:px-3">
+          <div className="block w-full min-w-0 flex-1 px-1 py-1">
             {costSummary.components.length > 0 ? (
-              <ReactECharts option={costByCategoryOption} style={{ width: "100%", height: 200 }} notMerge lazyUpdate />
+              <div className="w-full min-w-0">
+                <Chart options={costCategoryOptions} series={costCategorySeries} type="bar" height={200} width="100%" />
+              </div>
             ) : (
               <div className="flex min-h-[220px] flex-1 items-center justify-center text-center text-[11px] text-slate-500">Tidak ada data untuk filter yang dipilih.</div>
             )}
