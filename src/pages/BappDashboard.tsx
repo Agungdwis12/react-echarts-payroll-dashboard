@@ -821,7 +821,7 @@ const BappDashboard: React.FC = () => {
         foreColor: "#aebed0",
         animations: { enabled: true, easing: "easeinout", speed: 650 },
       },
-      colors: ["#4d8fe8"],
+      colors: ["#22b8cf"],
       plotOptions: {
         bar: {
           horizontal: false,
@@ -1323,7 +1323,13 @@ const BappDashboard: React.FC = () => {
                       {row.keterangan || "-"}
                     </td>
 
-                    <td className="whitespace-nowrap border-b border-slate-300/[0.05] px-3 py-2.5 text-right font-semibold tabular-nums text-blue-300">{formatRupiah(parseNumber(row.revenue))}</td>
+                    <td
+                      className={`whitespace-nowrap border-b border-slate-300/[0.05] px-3 py-2.5 text-right font-semibold tabular-nums ${
+                        isNoProcess(row.status) ? "text-rose-300" : isOnProcess(row.status) ? "text-amber-300" : isDone(row.status) ? "text-emerald-300" : "text-slate-300"
+                      }`}
+                    >
+                      {formatRupiah(parseNumber(row.revenue))}
+                    </td>
                   </tr>
                 ))
               ) : (
