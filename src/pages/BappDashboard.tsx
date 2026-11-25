@@ -529,11 +529,11 @@ const BappDashboard: React.FC = () => {
         },
       },
       dataLabels: { enabled: false },
-      // Garis tepi tipis memberi pemisah visual antarbar yang warnanya sama.
+      // Border batang disamakan dengan warna background chart.
       stroke: {
-        show: nominalStatusChartData.isYearComparison,
-        width: nominalStatusChartData.isYearComparison ? 1.2 : 0,
-        colors: nominalStatusChartData.isYearComparison ? nominalStatusChartData.series.map((_, index) => (Math.floor(index / 3) % 2 === 0 ? "#172638" : "#31445b")) : ["transparent"],
+        show: true,
+        width: 1.2,
+        colors: ["#1b2839"],
       },
       grid: {
         borderColor: "rgba(126, 150, 178, 0.12)",
@@ -580,11 +580,31 @@ const BappDashboard: React.FC = () => {
         theme: "dark",
         shared: true,
         intersect: false,
-        ...(nominalStatusChartData.isYearComparison
+        ...(nominalStatusChartData.isYearComparison || selectedYears.length === 1
           ? {
-              // Tooltip ringkas: judul hanya nama bulan, lalu nominal per status
-              // untuk masing-masing tahun. Tidak menampilkan total/jumlah.
+              // Tooltip dibuat lebih ringkas saat hanya satu tahun dipilih.
               custom: ({ series, dataPointIndex, w }: any) => {
+                const month = String(w.globals.labels[dataPointIndex] ?? "");
+                if (!nominalStatusChartData.isYearComparison) {
+                  const statusLabels = ["Done", "On Proses", "No Proses"];
+                  const statusColors = ["#238b57", "#d89420", "#d94b59"];
+                  const rows = statusLabels.map((label, index) => `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px solid rgba(148,163,184,.10)">
+                      <span style="display:flex;align-items:center;gap:6px;color:#cbd5e1;font-size:10px">
+                        <span style="width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:${statusColors[index]};display:inline-block"></span>
+                        ${label}
+                      </span>
+                      <strong style="color:#e8eef6;font-size:10px;white-space:nowrap">${formatCompactRupiah(Number(series[index]?.[dataPointIndex] ?? 0))}</strong>
+                    </div>
+                  `).join("");
+                  return `
+                    <div style="width:174px;max-width:calc(100vw - 28px);padding:6px 8px;background:#101b2a;border:1px solid rgba(148,163,184,.16);border-radius:8px;box-shadow:0 5px 14px rgba(0,0,0,.22)">
+                      <div style="font-size:11px;font-weight:700;color:#f8fafc;margin-bottom:4px">${month}</div>
+                      ${rows}
+                    </div>
+                  `;
+                }
+
                 const yearGroups: Array<{ year: string; values: number[] }> = [];
                 for (let index = 0; index < w.globals.seriesNames.length; index += 3) {
                   const firstName = String(w.globals.seriesNames[index] ?? "");
@@ -595,7 +615,6 @@ const BappDashboard: React.FC = () => {
 
                 const statusLabels = ["Done", "On Proses", "No Proses"];
                 const statusColors = ["#238b57", "#d89420", "#d94b59"];
-                const month = String(w.globals.labels[dataPointIndex] ?? "");
 
                 const yearCards = yearGroups
                   .map(({ year, values }) => {

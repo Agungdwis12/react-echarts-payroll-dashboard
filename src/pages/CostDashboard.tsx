@@ -234,7 +234,6 @@ const getPeriodKey = (value: string | Date | null | undefined, slashDateOrder: S
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
 
-
 const getYear = (value: string | Date, slashDateOrder: SlashDateOrder = "DMY"): number | null => {
   const key = getPeriodKey(value, slashDateOrder);
   return key ? Number(key.split("-")[0]) : null;
@@ -932,7 +931,7 @@ const CostDashboard: React.FC = () => {
         animations: { enabled: true, speed: 700 },
       },
       theme: { mode: "dark" },
-      colors: ["#00D3A7", "#FF7058", "#A78BFA"],
+      colors: ["#22C55E", "#EF4444", "#A78BFA"],
       stroke: {
         width: [0, 0, 3.5],
         curve: "smooth",
@@ -1261,13 +1260,13 @@ const CostDashboard: React.FC = () => {
           color: #f1f5f9 !important;
           border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
           margin: 0 !important;
-          padding: 4px 8px !important;
-          font-size: 11px !important;
+          padding: 3px 7px !important;
+          font-size: 9px !important;
           font-weight: 700 !important;
           line-height: 1.1 !important;
         }
         .cost-dashboard-compact-tooltip .apexcharts-tooltip-series-group {
-          padding: 4px 8px !important;
+          padding: 3px 7px !important;
           margin: 0 !important;
           min-height: 0 !important;
           line-height: 1.1 !important;
@@ -1286,13 +1285,15 @@ const CostDashboard: React.FC = () => {
         .cost-dashboard-compact-tooltip .apexcharts-tooltip-y-group {
           color: #e2e8f0 !important;
           font-size: 11px !important;
-          line-height: 1.1 !important;
+          font-size: 9px !important;
+          line-height: 1.15 !important;
           padding-top: 0 !important;
           padding-bottom: 0 !important;
           margin: 0 !important;
         }
         .cost-dashboard-compact-tooltip .apexcharts-tooltip-text-y-value {
           color: #f8fafc !important;
+          font-size: 9px !important;
           font-weight: 700 !important;
         }
       `}</style>

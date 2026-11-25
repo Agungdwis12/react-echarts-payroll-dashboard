@@ -304,6 +304,21 @@ const formatNominalTooltip = (value: number): string => {
   return formatRupiah(value);
 };
 
+const createCompactTooltipHtml = (title: string, rows: Array<{ label: string; value: string; color: string; kind?: "bar" | "line" }>): string => `
+  <div style="box-sizing:border-box;min-width:174px;max-width:240px;padding:9px 10px;background:#0b1220;color:#e2e8f0;border:1px solid rgba(148,163,184,.22);border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.32);font-family:inherit;">
+    <div style="padding-bottom:7px;margin-bottom:5px;border-bottom:1px solid rgba(148,163,184,.14);font-size:10px;font-weight:800;line-height:1.25;color:#f8fafc;">${title}</div>
+    ${rows
+      .map(
+        (row) => `
+      <div style="display:flex;align-items:center;gap:7px;padding:4px 0;min-width:0;">
+        <span style="display:inline-block;flex:0 0 ${row.kind === "line" ? "12px" : "8px"};width:${row.kind === "line" ? "12px" : "8px"};height:${row.kind === "line" ? "3px" : "8px"};border-radius:${row.kind === "line" ? "3px" : "50%"};background:${row.color};"></span>
+        ${row.label ? `<span style="flex:1;min-width:0;font-size:9px;line-height:1.3;color:#cbd5e1;">${row.label}</span>` : '<span style="flex:1;"></span>'}
+        <strong style="flex:0 0 auto;font-size:9px;line-height:1.3;font-weight:750;color:#f8fafc;font-variant-numeric:tabular-nums;white-space:nowrap;">${row.value}</strong>
+      </div>`,
+      )
+      .join("")}
+  </div>`;
+
 const normalizeSLA = (value: unknown): number => {
   if (value === null || value === undefined || value === "") return 0;
 
@@ -416,36 +431,9 @@ const uniqueSorted = (values: Array<string | null | undefined>): string[] => {
   return [...uniqueMap.values()].sort((a, b) => a.localeCompare(b, "id"));
 };
 
-const getComparisonColors = (years: string[], comparisonData: ComparisonMonthlyPoint[], metric: "transaksi" | "sdm" | "nominal" | "sla", latestColor: string, olderColors: string[]): string[] => {
-  const yearsWithData = years.filter((year) => comparisonData.some((point) => point.values[year]?.[metric] != null));
-  const latestYear = [...yearsWithData].sort((a, b) => Number(b) - Number(a))[0] ?? "";
-  const olderYears = years.filter((year) => year !== latestYear);
-
-  return years.map((year) => {
-    if (year === latestYear) return latestColor;
-    const olderIndex = olderYears.indexOf(year);
-    return olderColors[Math.min(Math.max(olderIndex, 0), olderColors.length - 1)] ?? latestColor;
-  });
-};
-
-const getComboComparisonColors = (years: string[], comparisonData: ComparisonMonthlyPoint[]): string[] => {
-  const yearsWithData = years.filter((year) =>
-    comparisonData.some((point) => {
-      const value = point.values[year];
-      return value != null && (value.sdm != null || value.nominal != null);
-    }),
-  );
-  const latestYear = [...yearsWithData].sort((a, b) => Number(b) - Number(a))[0] ?? "";
-  const olderYears = years.filter((year) => year !== latestYear);
-  const sdmOlder = ["#CFFAFE", "#A5F3FC", "#67E8F9", "#22D3EE"];
-  // Semua garis nominal memakai satu warna hijau yang konsisten untuk setiap tahun.
-  const nominalColor = "#22C55E";
-
-  return years.flatMap((year) => {
-    if (year === latestYear) return ["#0891B2", nominalColor];
-    const index = Math.min(Math.max(olderYears.indexOf(year), 0), sdmOlder.length - 1);
-    return [sdmOlder[index], nominalColor];
-  });
+const getComparisonColors = (years: string[], _comparisonData: ComparisonMonthlyPoint[], _metric: "transaksi" | "sdm" | "nominal" | "sla", color: string, _olderColors: string[]): string[] => {
+  // Semua tahun memakai warna metrik yang sama agar perbandingan fokus pada tinggi batang.
+  return years.map(() => color);
 };
 
 const CHART_AXIS_COLOR = "#b8c6d6";
@@ -561,12 +549,12 @@ const chartBaseOptions = (categories: string[], comparison = false, percent = fa
   tooltip: {
     theme: "dark",
     style: {
-      fontSize: "11px",
+      fontSize: "8px",
       fontFamily: "inherit",
     },
     shared: true,
     intersect: false,
-    followCursor: true,
+    followCursor: false,
     x: { show: true },
     y: {
       formatter: (value: number) => formatNumber(Number(value)),
@@ -594,6 +582,20 @@ const createBarChart = (monthlyData: MonthlyPoint[], name: string, values: numbe
       colors: [color],
       tooltip: {
         ...options.tooltip,
+        shared: false,
+        intersect: true,
+        custom: ({ seriesIndex, dataPointIndex, w }: any) => {
+          const value = Number(w?.globals?.series?.[seriesIndex]?.[dataPointIndex] ?? 0);
+          const month = String(w?.globals?.labels?.[dataPointIndex] ?? "");
+          return createCompactTooltipHtml(month, [
+            {
+              label: name,
+              value: formatter ? formatter(value) : formatNumber(value),
+              color,
+              kind: "bar",
+            },
+          ]);
+        },
         y: {
           formatter: (value: number) => (formatter ? formatter(Number(value)) : formatNumber(Number(value))),
         },
@@ -601,6 +603,35 @@ const createBarChart = (monthlyData: MonthlyPoint[], name: string, values: numbe
     },
     series: [{ name, data: values }],
   };
+};
+
+const createYearTooltipHtml = (years: string[], rowsByYear: Array<Array<{ label: string; value: string; color: string; kind: "bar" | "line" }>>, title: string): string => {
+  const cards = years
+    .map((year, index) => {
+      const rows = rowsByYear[index] ?? [];
+      return `
+      <div style="min-width:0;flex:1;border:1px solid rgba(148,163,184,.18);border-radius:8px;padding:7px 8px;background:rgba(15,23,42,.58);">
+        <div style="font-size:9px;font-weight:800;letter-spacing:.2px;color:#f1f5f9;padding-bottom:6px;margin-bottom:5px;border-bottom:1px solid rgba(148,163,184,.14);">${year}</div>
+        ${rows
+          .map(
+            (row) => `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:8px;color:#cbd5e1;">
+            <span style="display:inline-block;width:${row.kind === "line" ? "11px" : "8px"};height:${row.kind === "line" ? "3px" : "8px"};flex:0 0 ${row.kind === "line" ? "11px" : "8px"};border-radius:${row.kind === "line" ? "3px" : "50%"};background:${row.color};"></span>
+            <span style="flex:1;"></span>
+            <strong style="font-size:8px;font-weight:700;color:#f1f5f9;white-space:nowrap;font-variant-numeric:tabular-nums;">${row.value}</strong>
+          </div>`,
+          )
+          .join("")}
+      </div>`;
+    })
+    .join("");
+
+  return `<div style="box-sizing:border-box;width:100%;min-width:220px;max-width:286px;background:#0b1220;color:#e2e8f0;border:1px solid rgba(148,163,184,.2);border-radius:11px;padding:8px 9px;box-shadow:0 8px 24px rgba(0,0,0,.28);font-family:inherit;">
+    <div style="display:flex;align-items:center;justify-content:flex-start;margin-bottom:7px;">
+      <span style="font-size:9px;font-weight:800;color:#f8fafc;">${title}</span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:stretch;">${cards}</div>
+  </div>`;
 };
 
 const createComparisonBarChart = (
@@ -615,57 +646,96 @@ const createComparisonBarChart = (
 ): { options: ApexOptions; series: ApexAxisChartSeries } => {
   const options = chartBaseOptions(labels, true);
   const seriesColors = getComparisonColors(years, comparisonData, metric, latestColor, olderColors);
+  const series = years.map((year) => ({
+    name: `${name} ${year}`,
+    group: year,
+    data: comparisonData.map((item) => item.values[year]?.[metric] ?? 0),
+  }));
+
   return {
     options: {
       ...options,
+      chart: { ...options.chart, stacked: true, stackType: "normal" },
       colors: seriesColors,
       plotOptions: {
         ...options.plotOptions,
         bar: {
           ...options.plotOptions?.bar,
-          columnWidth: years.length <= 2 ? "58%" : years.length <= 4 ? "48%" : "38%",
+          columnWidth: "68%",
           borderRadius: 4,
+          borderRadiusApplication: "end",
         },
       },
+      stroke: { show: true, width: 1.2, colors: years.map(() => "#1b2839") },
       tooltip: {
         ...options.tooltip,
-        y: {
-          formatter: (value: number) => (value == null ? "Tidak ada data" : formatter ? formatter(Number(value)) : formatNumber(Number(value))),
+        shared: true,
+        intersect: false,
+        custom: ({ series: tooltipSeries, dataPointIndex, w }: any) => {
+          const month = String(w.globals.labels[dataPointIndex] ?? "");
+          const rows = years.map((year, index) => {
+            const seriesIndex = w.globals.seriesNames.findIndex((seriesName: string) => String(seriesName).endsWith(` ${year}`));
+            const value = seriesIndex >= 0 ? Number(tooltipSeries[seriesIndex]?.[dataPointIndex] ?? 0) : 0;
+            return {
+              label: `${name} ${year}`,
+              value: formatter ? formatter(value) : formatNumber(value),
+              color: seriesColors[index] ?? latestColor,
+              kind: "bar" as const,
+            };
+          });
+          return createCompactTooltipHtml(month, rows);
         },
+        y: { formatter: (value: number) => (formatter ? formatter(Number(value)) : formatNumber(Number(value))) },
       },
     },
-    series: years.map((year) => ({
-      name: `${name} ${year}`,
-      data: comparisonData.map((item) => item.values[year]?.[metric] ?? null),
-    })),
+    series,
   };
 };
 
 const createComparisonSlaChart = (labels: string[], years: string[], comparisonData: ComparisonMonthlyPoint[]): { options: ApexOptions; series: ApexAxisChartSeries } => {
   const options = chartBaseOptions(labels, true, true);
   const seriesColors = getComparisonColors(years, comparisonData, "sla", "#F59E0B", ["#FDE68A", "#FCD34D", "#FBBF24", "#FCD34D"]);
+  const series = years.map((year) => ({
+    name: `SLA ${year}`,
+    group: year,
+    data: comparisonData.map((item) => {
+      const value = item.values[year]?.sla;
+      return value == null ? 0 : Number(value.toFixed(2));
+    }),
+  }));
+
   return {
     options: {
       ...options,
+      chart: { ...options.chart, stacked: true, stackType: "normal" },
       colors: seriesColors,
       plotOptions: {
         ...options.plotOptions,
-        bar: { ...options.plotOptions?.bar, columnWidth: years.length <= 2 ? "58%" : years.length <= 4 ? "48%" : "38%", borderRadius: 4 },
+        bar: { ...options.plotOptions?.bar, columnWidth: "68%", borderRadius: 4, borderRadiusApplication: "end" },
       },
+      stroke: { show: true, width: 1.2, colors: years.map(() => "#1b2839") },
       tooltip: {
         ...options.tooltip,
-        y: {
-          formatter: (value: number) => (value == null ? "Tidak ada data" : `${Math.round(Number(value))}%`),
+        shared: true,
+        intersect: false,
+        custom: ({ series: tooltipSeries, dataPointIndex, w }: any) => {
+          const month = String(w.globals.labels[dataPointIndex] ?? "");
+          const rows = years.map((year, index) => {
+            const seriesIndex = w.globals.seriesNames.findIndex((seriesName: string) => String(seriesName).endsWith(` ${year}`));
+            const value = seriesIndex >= 0 ? Number(tooltipSeries[seriesIndex]?.[dataPointIndex] ?? 0) : 0;
+            return {
+              label: `SLA ${year}`,
+              value: `${value.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`,
+              color: seriesColors[index] ?? "#F59E0B",
+              kind: "bar" as const,
+            };
+          });
+          return createCompactTooltipHtml(month, rows);
         },
+        y: { formatter: (value: number) => `${Math.round(Number(value))}%` },
       },
     },
-    series: years.map((year) => ({
-      name: `SLA ${year}`,
-      data: comparisonData.map((item) => {
-        const value = item.values[year]?.sla;
-        return value == null ? null : Number(value.toFixed(2));
-      }),
-    })),
+    series,
   };
 };
 
@@ -682,20 +752,29 @@ const createSdmNominalComboChart = (
   const sdmSeriesNames = years.map((year) => (year ? `SDM ${year}` : "SDM Diproses"));
   const nominalSeriesNames = years.map((year) => (year ? `Nominal ${year}` : "Total Nominal"));
 
-  const series = years.flatMap((year) => {
-    const sdmValues = isYearComparison ? comparisonData.map((item) => item.values[year]?.sdm ?? null) : displayedData.map((item) => item.sdm);
-    const nominalValues = isYearComparison ? comparisonData.map((item) => item.values[year]?.nominal ?? null) : displayedData.map((item) => item.nominal);
+  // Kelompokkan seluruh seri batang SDM secara berurutan agar ApexCharts
+  // menempatkan 2025 dan 2026 berdampingan dalam satu kategori bulan.
+  // Tidak perlu seri spacer: spacer justru membuat jarak ant batang terlalu lebar.
+  const sdmColumnSeries = years.map((year) => ({
+    name: year ? `SDM ${year}` : "SDM Diproses",
+    type: "column" as const,
+    data: isYearComparison ? comparisonData.map((item) => item.values[year]?.sdm ?? null) : displayedData.map((item) => item.sdm),
+  }));
 
-    return [
-      { name: year ? `SDM ${year}` : "SDM Diproses", type: "column", data: sdmValues },
-      { name: year ? `Nominal ${year}` : "Total Nominal", type: "line", data: nominalValues },
-    ];
-  }) as ApexAxisChartSeries;
+  const sdmSlotCount = years.length;
+
+  const nominalLineSeries = years.map((year) => ({
+    name: year ? `Nominal ${year}` : "Nominal",
+    type: "line" as const,
+    data: isYearComparison ? comparisonData.map((item) => item.values[year]?.nominal ?? null) : displayedData.map((item) => item.nominal),
+  }));
+
+  const series = [...sdmColumnSeries, ...nominalLineSeries] as ApexAxisChartSeries;
 
   const baseOptions = chartBaseOptions(categories, isYearComparison);
   // Tahun terbaru yang benar-benar memiliki data memakai warna solid.
   // Tahun sebelumnya memakai variasi warna lebih lembut, konsisten untuk SDM dan nominal.
-  const seriesColors = isYearComparison ? getComboComparisonColors(years, comparisonData) : ["#0891B2", "#22C55E"];
+  const seriesColors = isYearComparison ? years.map(() => "#0891B2").concat(years.map(() => "#22C55E")) : ["#0891B2", "#22C55E"];
 
   return {
     options: {
@@ -703,6 +782,7 @@ const createSdmNominalComboChart = (
       chart: {
         ...baseOptions.chart,
         type: "line",
+        ...(isYearComparison ? { stacked: false } : {}),
         width: "100%",
         redrawOnParentResize: true,
         redrawOnWindowResize: true,
@@ -724,9 +804,8 @@ const createSdmNominalComboChart = (
         bar: {
           ...baseOptions.plotOptions?.bar,
           horizontal: false,
-          // Perlebar batang per kategori agar seri yang memiliki data tidak tampak terlalu renggang.
-          // Lebar bertambah bertahap mengikuti jumlah tahun yang dibandingkan.
-          columnWidth: !isYearComparison ? "52%" : years.length <= 2 ? "58%" : years.length <= 4 ? "68%" : "76%",
+          // Lebar 68% memberi jarak yang lebih nyaman antarbatang tanpa membuatnya terlalu kurus.
+          columnWidth: !isYearComparison ? "52%" : "68%",
           borderRadius: 4,
           borderRadiusApplication: "end",
           hideZeroBarsWhenGrouped: true,
@@ -734,19 +813,22 @@ const createSdmNominalComboChart = (
       },
       stroke: {
         curve: "straight",
-        width: years.flatMap(() => [0, 3]),
-        dashArray: years.flatMap(() => [0, 0]),
+        // Garis tepi berwarna background memisahkan SDM 2025 dan 2026
+        // tanpa mengurangi lebar batang. Garis nominal tetap hijau.
+        width: isYearComparison ? [...years.map(() => 2), ...years.map(() => 3)] : [0, 3],
+        colors: isYearComparison ? [...years.map(() => "#1b2839"), ...years.map(() => "#22C55E")] : ["#0891B2", "#22C55E"],
+        dashArray: years.map(() => 0).concat(years.map(() => 0)),
         lineCap: "round",
       },
       markers: {
-        size: years.flatMap(() => [0, 5]),
+        size: isYearComparison ? [...years.map(() => 0), ...years.map(() => 5)] : [0, 5],
         strokeWidth: 2,
         strokeColors: "#192638",
         hover: { size: 7 },
       },
       fill: {
         type: "solid",
-        opacity: years.flatMap(() => [1, 1]),
+        opacity: isYearComparison ? [...years.map(() => 1), ...years.map(() => 1)] : [1, 1],
       },
       yaxis: [
         {
@@ -781,6 +863,25 @@ const createSdmNominalComboChart = (
         ...baseOptions.tooltip,
         shared: true,
         intersect: false,
+        custom: ({ series: tooltipSeries, dataPointIndex }: any) => {
+          if (!isYearComparison) {
+            const sdmValue = tooltipSeries?.[0]?.[dataPointIndex];
+            const nominalValue = tooltipSeries?.[1]?.[dataPointIndex];
+            return createCompactTooltipHtml(categories[dataPointIndex] ?? "", [
+              { label: "", value: sdmValue == null ? "-" : formatNumber(Number(sdmValue)), color: "#0891B2", kind: "bar" },
+              { label: "", value: nominalValue == null ? "-" : formatNominalTooltip(Number(nominalValue)), color: "#22C55E", kind: "line" },
+            ]);
+          }
+          const rows = years.map((_, yearIndex) => {
+            const sdmValue = tooltipSeries?.[yearIndex]?.[dataPointIndex];
+            const nominalValue = tooltipSeries?.[sdmSlotCount + yearIndex]?.[dataPointIndex];
+            return [
+              { label: "", value: sdmValue == null ? "-" : formatNumber(Number(sdmValue)), color: "#0891B2", kind: "bar" as const },
+              { label: "", value: nominalValue == null ? "-" : formatNominalTooltip(Number(nominalValue)), color: "#22C55E", kind: "line" as const },
+            ];
+          });
+          return createYearTooltipHtml(years, rows, categories[dataPointIndex] ?? "");
+        },
         y: {
           formatter: (value, opts) => {
             const seriesIndex = opts?.seriesIndex ?? -1;
@@ -1245,20 +1346,19 @@ const KinerjaLayananDivisi: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const toggleChartSeries = (chartId: string, seriesName: string) => {
+  const toggleChartSeries = (chartId: string, seriesNames: string[]) => {
     const hidden = hiddenChartSeries[chartId] ?? [];
-    const isCurrentlyHidden = hidden.includes(seriesName);
+    const isGroupHidden = seriesNames.every((name) => hidden.includes(name));
+    const action = isGroupHidden ? "showSeries" : "hideSeries";
 
-    // Gunakan aksi eksplisit agar status legenda dan visibilitas seri selalu sinkron.
-    ApexCharts.exec(chartId, isCurrentlyHidden ? "showSeries" : "hideSeries", seriesName);
+    // Satu legenda mewakili satu metrik; saat ditekan, seluruh seri tahun metrik itu ikut berubah.
+    seriesNames.forEach((name) => ApexCharts.exec(chartId, action, name));
 
     setHiddenChartSeries((current) => {
       const currentHidden = current[chartId] ?? [];
+      const nextHidden = isGroupHidden ? currentHidden.filter((name) => !seriesNames.includes(name)) : [...new Set([...currentHidden, ...seriesNames])];
 
-      return {
-        ...current,
-        [chartId]: isCurrentlyHidden ? currentHidden.filter((name) => name !== seriesName) : [...currentHidden, seriesName],
-      };
+      return { ...current, [chartId]: nextHidden };
     });
   };
 
@@ -1309,61 +1409,63 @@ const KinerjaLayananDivisi: React.FC = () => {
   return (
     <div className="kinerja-compact-tooltip w-full min-w-0 space-y-3 font-sans text-slate-100">
       <style>{`
+  /* Tooltip ApexCharts: konsisten, ringkas, dan mudah dibaca di semua chart. */
   .kinerja-compact-tooltip .apexcharts-tooltip {
-    background: #000000 !important;
+    background: #0b1220 !important;
     color: #e2e8f0 !important;
     border: 1px solid rgba(148, 163, 184, 0.22) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32) !important;
     padding: 0 !important;
-    min-width: 0 !important;
-    max-width: 280px !important;
+    min-width: 174px !important;
+    max-width: 240px !important;
     overflow: hidden !important;
     font-family: inherit !important;
   }
-
   .kinerja-compact-tooltip .apexcharts-tooltip-title {
-    background: #000000 !important;
-    color: #f1f5f9 !important;
+    background: rgba(30, 41, 59, 0.72) !important;
+    color: #f8fafc !important;
     border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
     margin: 0 !important;
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    line-height: 1.1 !important;
+    padding: 7px 10px !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    line-height: 1.3 !important;
   }
-
   .kinerja-compact-tooltip .apexcharts-tooltip-series-group {
-    padding: 4px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 5px 10px !important;
     margin: 0 !important;
     min-height: 0 !important;
-    line-height: 1.1 !important;
-    align-items: center !important;
-    gap: 5px !important;
+    line-height: 1.3 !important;
   }
-
   .kinerja-compact-tooltip .apexcharts-tooltip-marker {
     width: 8px !important;
     height: 8px !important;
-    margin-right: 5px !important;
+    margin-right: 1px !important;
     flex: 0 0 8px !important;
+    border-radius: 50% !important;
   }
-
   .kinerja-compact-tooltip .apexcharts-tooltip-text,
   .kinerja-compact-tooltip .apexcharts-tooltip-text-y-label,
   .kinerja-compact-tooltip .apexcharts-tooltip-text-y-value,
   .kinerja-compact-tooltip .apexcharts-tooltip-y-group {
-    color: #e2e8f0 !important;
-    font-size: 11px !important;
-    line-height: 1.1 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    color: #cbd5e1 !important;
+    font-size: 9px !important;
+    line-height: 1.3 !important;
+    padding: 0 !important;
     margin: 0 !important;
   }
-
   .kinerja-compact-tooltip .apexcharts-tooltip-text-y-value {
     color: #f8fafc !important;
-    font-weight: 700 !important;
+    font-weight: 750 !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+  .kinerja-compact-tooltip .apexcharts-tooltip-text-y-label {
+    color: #cbd5e1 !important;
+    font-weight: 500 !important;
   }
 `}</style>
       <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -1515,30 +1617,44 @@ const KinerjaLayananDivisi: React.FC = () => {
               <div className="relative min-h-0 flex-1 p-1">
                 {monthlyData.length > 0 ? (
                   <>
-                    <div className="pointer-events-auto absolute right-3 top-2 z-10 flex max-w-[75%] flex-wrap items-center justify-end gap-x-4 gap-y-2">
-                      {chart.series.map((series, seriesIndex) => {
-                        const seriesName = String(series.name ?? `Series ${seriesIndex + 1}`);
-                        const isHidden = hiddenSeries.includes(seriesName);
+                    <div className="pointer-events-auto absolute right-3 top-2 z-10 flex max-w-[85%] flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                      {(() => {
+                        // Gabungkan seri 2025/2026 menjadi satu legenda per metrik.
+                        const legendGroups = new Map<string, { names: string[]; color: string }>();
 
-                        return (
-                          <button
-                            key={seriesName}
-                            type="button"
-                            onClick={() => toggleChartSeries(chartId, seriesName)}
-                            aria-pressed={!isHidden}
-                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${isHidden ? "opacity-40 line-through" : "opacity-100"}`}
-                            style={{ color: "#d3deeb" }}
-                          >
-                            <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-full"
-                              style={{
-                                backgroundColor: seriesColors[seriesIndex] ?? "#b8c6d6",
-                              }}
-                            />
-                            {seriesName}
-                          </button>
-                        );
-                      })}
+                        chart.series.forEach((series, seriesIndex) => {
+                          const fullName = String(series.name ?? `Series ${seriesIndex + 1}`);
+                          const metricName = fullName.replace(/\s+\d{4}$/, "");
+                          const group = legendGroups.get(metricName) ?? {
+                            names: [],
+                            color: seriesColors[seriesIndex] ?? "#b8c6d6",
+                          };
+                          group.names.push(fullName);
+                          legendGroups.set(metricName, group);
+                        });
+
+                        return Array.from(legendGroups.entries()).map(([metricName, group]) => {
+                          const isHidden = group.names.every((name) => hiddenSeries.includes(name));
+
+                          return (
+                            <button
+                              key={metricName}
+                              type="button"
+                              onClick={() => toggleChartSeries(chartId, group.names)}
+                              aria-pressed={!isHidden}
+                              className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] font-semibold transition-all duration-200 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 ${isHidden ? "opacity-40 line-through" : "opacity-100"}`}
+                              style={{ color: "#d3deeb" }}
+                            >
+                              {chart.chartType === "line" && metricName.toLowerCase().includes("nominal") ? (
+                                <span className="h-[3px] w-3.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
+                              ) : (
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
+                              )}
+                              {metricName}
+                            </button>
+                          );
+                        });
+                      })()}
                     </div>
 
                     <ResponsiveApexChart options={chartOptions} series={chart.series} type={chart.chartType ?? "bar"} />
