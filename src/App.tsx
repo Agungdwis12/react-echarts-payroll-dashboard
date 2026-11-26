@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 
+import Home from "./pages/Home";
 import KinerjaLayananDashboard from "./pages/KinerjaLayananDivisi";
 import BappDashboard from "./pages/BappDashboard";
 import CostDashboard from "./pages/CostDashboard";
@@ -15,12 +16,15 @@ import ImportData from "./pages/DMS/ImportData";
 import DataManagement from "./pages/DMS/DataManagement";
 import HistoryPage from "./pages/DMS/HistoryPage";
 
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<DashboardLayout />}>
+          {/* Home */}
+          <Route path="/home" element={<Home />} />
+
+          {/* Dashboard */}
           <Route path="/dashboard/kinerja-layanan" element={<KinerjaLayananDashboard />} />
 
           <Route path="/dashboard/bapp" element={<BappDashboard />} />
@@ -34,16 +38,16 @@ function App() {
             <Route index element={<Navigate to="/dashboard/dms/import" replace />} />
 
             <Route path="import" element={<ImportData />} />
-
             <Route path="management" element={<DataManagement />} />
-
             <Route path="history" element={<HistoryPage />} />
           </Route>
         </Route>
 
-        <Route path="/" element={<Navigate to="/dashboard/kinerja-layanan" replace />} />
+        {/* Default route */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
 
-        <Route path="*" element={<Navigate to="/dashboard/kinerja-layanan" replace />} />
+        {/* Unknown route */}
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );

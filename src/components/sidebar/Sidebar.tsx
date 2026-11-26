@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, FileBarChart, Wallet, ChartNoAxesCombined, Database } from "lucide-react";
+import { LayoutDashboard, FileBarChart, Wallet, ChartNoAxesCombined, Database,Home } from "lucide-react";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -10,6 +10,12 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
 const menus = [
+  {
+    to: "/home",
+    label: "Home",
+    title: "home",
+    Icon: Home,
+  },
   {
     to: "/dashboard/kinerja-layanan",
     label: "Kinerja Layanan Divisi",
