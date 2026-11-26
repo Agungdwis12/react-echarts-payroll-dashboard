@@ -1,0 +1,46 @@
+{
+  "name": "react-echarts-dashboard-template",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "check": "npm run lint && npm run build",
+    "server": "node server/index.js"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "apexcharts": "^8.9.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "3.0.6",
+    "express": "^5.2.1",
+    "lucide-react": "^1.52.0",
+    "pg": "^8.23.1",
+    "react": "^19.2.7",
+    "react-apexcharts": "^2.2.1",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.4",
+    "tailwindcss": "^4.3.3",
+    "tslib": "^2.8.1",
+    "xlsx-js-style": "^1.2.0"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.29.9",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "oxlint": "^1.71.0",
+    "tailwind-scrollbar": "^4.0.2",
+    "typescript": "~6.0.2",
+    "vite": "^7.2.2"
+  }
+}
